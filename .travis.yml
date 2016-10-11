@@ -1,0 +1,29 @@
+os:
+  - osx
+  - linux
+
+language: go
+go: 
+  - 1.7.1
+
+env:
+  global:
+    - CODE_VERSION=1.6.0
+    - TRAVIS_NODE_VERSION=6
+
+before_install:
+  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
+  - if [ $TRAVIS_OS_NAME == "linux" ]; then
+      export CXX="g++-4.9" CC="gcc-4.9" DISPLAY=:99.0;
+      sh -e /etc/init.d/xvfb start;
+      sleep 3;
+    fi
+
+install:
+  - go get -d -t ./...
+  - cd vscode && npm install && npm run compile && npm run postinstall
+
+script:
+  - cd $TRAVIS_BUILD_DIR
+  - go test -race -v ./...
+  - cd vscode && npm test --silent

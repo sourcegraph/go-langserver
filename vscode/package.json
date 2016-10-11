@@ -1,0 +1,68 @@
+{
+  "name": "Go",
+  "description": "Go language support for Visual Studio Code (based on LSP)",
+  "author": "Sourcegraph",
+  "license": "MIT",
+  "version": "0.0.1",
+  "publisher": "sourcegraph",
+  "engines": {
+    "vscode": "^1.6.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:go"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "go",
+        "extensions": [
+          ".go"
+        ],
+        "aliases": [
+          "Go"
+        ]
+      }
+    ]
+  },
+  "configuration": {
+    "type": "object",
+    "title": "Go configuration",
+    "properties": {
+      "go.gopath": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": null,
+        "description": "Specifies the GOPATH to use when no environment variable is set."
+      },
+      "go.goroot": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": null,
+        "description": "Specifies the GOROOT to use when no environment variable is set."
+      }
+    }
+  },
+  "main": "./out/src/extension",
+  "scripts": {
+    "compile": "go install ../langserver/cmd/langserver-go && tsc",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test": "node ./node_modules/vscode/bin/test",
+    "isolated-vscode": "npm run compile && VSCODE=$(which code-insiders || which code || echo echo ERROR: neither the code nor code-insiders vscode executable is installed); USER=dummy-dont-share-vscode-instance $VSCODE --user-data-dir=$PWD/.vscode-dev/user-data --extensionHomePath=$PWD/.vscode-dev/extensions --extensionDevelopmentPath=$PWD $*"
+  },
+  "devDependencies": {
+    "@types/mocha": "^2.2.32",
+    "@types/node": "^6.0.45",
+    "typescript": "^2.0.3",
+    "vscode": "^1.0.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^2.5.0"
+  }
+}
