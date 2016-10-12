@@ -189,7 +189,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
 		}
-		return h.handleReferences(ctx, conn, req, params)
+		return h.handleTextDocumentReferences(ctx, conn, req, params)
 
 	case "workspace/symbol":
 		var params lsp.WorkspaceSymbolParams
