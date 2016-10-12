@@ -20,7 +20,7 @@ After updating the binary for a language server (during development or after an 
 
 ## Hacking on this extension
 
-1. Run `npm install` in this directory (`vscode-client`).
+1. Run `npm install` in this directory.
 1. Open this directory by itself in Visual Studio Code.
 1. Hit F5 to open a new VSCode instance in a debugger running this extension. (This is equivalent to going to the Debug pane on the left and running the "Launch Extension" task.)
 
