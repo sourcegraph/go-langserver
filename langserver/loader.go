@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -59,9 +60,11 @@ func (h *LangHandler) typecheck(ctx context.Context, conn JSONRPC2Conn, fileURI 
 	}
 
 	if len(diags) > 0 {
-		if err := h.publishDiagnostics(ctx, conn, diags); err != nil {
-			return nil, nil, nil, fmt.Errorf("sending diagnostics: %s", err)
-		}
+		go func() {
+			if err := h.publishDiagnostics(ctx, conn, diags); err != nil {
+				log.Printf("warning: failed to send diagnostics: %s.", err)
+			}
+		}()
 	}
 
 	start := posForFileOffset(fset, filename, offset)
