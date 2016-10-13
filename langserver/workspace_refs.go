@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 
+	"github.com/neelance/parallel"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -33,19 +34,19 @@ func (h *LangHandler) handleWorkspaceReference(ctx context.Context, conn JSONRPC
 	}
 
 	results := refResultSorter{results: make([]lspext.ReferenceInformation, 0)}
-	var wg sync.WaitGroup
+	par := parallel.NewRun(8)
 	pkgs := buildutil.ExpandPatterns(bctx, []string{pkgPat})
 	for pkg := range pkgs {
-		wg.Add(1)
+		par.Acquire()
 		go func(pkg string) {
-			defer wg.Done()
+			defer par.Release()
 			err := h.externalRefsFromPkg(ctx, bctx, conn, pkg, rootPath, &results)
 			if err != nil {
 				log.Printf("externalRefsFromPkg: %v: %v\n", pkg, err)
 			}
 		}(pkg)
 	}
-	wg.Wait()
+	_ = par.Wait()
 
 	sort.Sort(&results) // sort to provide consistent results
 
