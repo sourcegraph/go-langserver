@@ -15,6 +15,7 @@ import (
 
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/sourcegraph/sourcegraph-go/pkg/lsp"
+	"github.com/sourcegraph/sourcegraph-go/pkg/lspext"
 )
 
 // NewHandler creates a Go language server handler.
@@ -197,6 +198,13 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 		return h.handleSymbol(ctx, conn, req, params)
+
+	case "workspace/reference":
+		var params lspext.WorkspaceReferenceParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleWorkspaceReference(ctx, conn, req, params)
 
 	default:
 		if IsFileSystemRequest(req.Method) {
