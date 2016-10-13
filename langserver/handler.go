@@ -172,6 +172,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		return nil, nil
 
 	case "textDocument/hover":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
 		var params lsp.TextDocumentPositionParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
@@ -179,6 +182,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		return h.handleHover(ctx, conn, req, params)
 
 	case "textDocument/definition":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
 		var params lsp.TextDocumentPositionParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
@@ -186,6 +192,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		return h.handleDefinition(ctx, conn, req, params)
 
 	case "textDocument/references":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
 		var params lsp.ReferenceParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
@@ -193,6 +202,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		return h.handleTextDocumentReferences(ctx, conn, req, params)
 
 	case "workspace/symbol":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
 		var params lsp.WorkspaceSymbolParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
@@ -200,6 +212,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		return h.handleSymbol(ctx, conn, req, params)
 
 	case "workspace/reference":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
 		var params lspext.WorkspaceReferenceParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
