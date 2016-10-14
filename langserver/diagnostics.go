@@ -21,6 +21,7 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn JSONRPC2Conn,
 		}
 		for i, d := range diags {
 			params.Diagnostics[i] = *d
+			params.Diagnostics[i].Severity = lsp.Warning
 		}
 		if err := conn.Notify(ctx, "textDocument/publishDiagnostics", params); err != nil {
 			return err
@@ -57,7 +58,7 @@ func parseLoaderError(errStr string) (filename string, diag *lsp.Diagnostic, err
 			// LSP is 0-indexed, so subtract one from the numbers Go
 			// reports.
 			Start: lsp.Position{Line: line - 1, Character: col - 1},
-			End:   lsp.Position{Line: line - 1, Character: col - 1},
+			End:   lsp.Position{Line: line - 1, Character: col},
 		},
 		Severity: lsp.Error,
 		Source:   "go",

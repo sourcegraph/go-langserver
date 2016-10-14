@@ -158,6 +158,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 				HoverProvider:           true,
 				ReferencesProvider:      true,
 				WorkspaceSymbolProvider: true,
+				CodeActionProvider:      true,
 			},
 		}, nil
 
@@ -200,6 +201,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 		return h.handleTextDocumentReferences(ctx, conn, req, params)
+
+	case "textDocument/codeAction":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.CodeActionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleCodeAction(ctx, conn, req, params)
 
 	case "workspace/symbol":
 		if req.Params == nil {

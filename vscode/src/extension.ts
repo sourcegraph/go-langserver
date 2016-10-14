@@ -7,6 +7,7 @@
 import * as net from 'net';
 
 import { Disposable, ExtensionContext, Uri, workspace } from 'vscode';
+import * as vscode from 'vscode';
 import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, ErrorAction, ErrorHandler, CloseAction, TransportKind } from 'vscode-languageclient';
 
 export function activate(context: ExtensionContext) {
@@ -20,7 +21,7 @@ export function activate(context: ExtensionContext) {
 				// Uncomment for verbose logging to the vscode
 				// "Output" pane and to a temporary file:
 				//
-				// '-trace', '-logfile=/tmp/langserver-go.log',
+				'-trace', '-logfile=/tmp/langserver-go.log',
 			],
 		},
 		{
@@ -37,6 +38,13 @@ export function activate(context: ExtensionContext) {
 	// Update GOPATH, GOROOT, etc., when config changes.
 	updateEnvFromConfig();
 	context.subscriptions.push(workspace.onDidChangeConfiguration(updateEnvFromConfig));
+
+	context.subscriptions.push(vscode.languages.registerCodeActionsProvider("go", {
+		provideCodeActions: (document: vscode.TextDocument, range: vscode.Range, context: vscode.CodeActionContext, token: vscode.CancellationToken): Promise<vscode.Command[]> => {
+			console.log("AAAAAAA");
+			return Promise.resolve([]);
+		},
+	}));
 }
 
 function updateEnvFromConfig() {
