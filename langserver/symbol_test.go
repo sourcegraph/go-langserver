@@ -21,6 +21,10 @@ func Test_resultSorter(t *testing.T) {
 			Location: lsp.Location{URI: "file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
+			ContainerName: "foo", Name: "Bar",
+			Location: lsp.Location{URI: "file.go"},
+			Kind:     lsp.SKFunction,
+		}, {
 			ContainerName: "asdf", Name: "foo",
 			Location: lsp.Location{URI: "file.go"},
 			Kind:     lsp.SKFunction,
@@ -34,6 +38,10 @@ func Test_resultSorter(t *testing.T) {
 			Kind:     lsp.SKFunction,
 		}},
 		expResults: []lsp.SymbolInformation{{
+			ContainerName: "foo", Name: "Bar",
+			Location: lsp.Location{URI: "file.go"},
+			Kind:     lsp.SKFunction,
+		}, {
 			ContainerName: "foo", Name: "bar",
 			Location: lsp.Location{URI: "file.go"},
 			Kind:     lsp.SKFunction,
