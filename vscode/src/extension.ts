@@ -28,7 +28,7 @@ export function activate(context: ExtensionContext) {
 			documentSelector: ['go'],
 			uriConverters: {
 				// Apply file:/// scheme to all file paths.
-				code2Protocol: (uri: Uri): string => (uri.scheme ? uri : uri.with({scheme: 'file'})).toString(),
+				code2Protocol: (uri: Uri): string => (uri.scheme ? uri : uri.with({ scheme: 'file' })).toString(),
 				protocol2Code: (uri: string) => Uri.parse(uri),
 			},
 		}
@@ -38,13 +38,6 @@ export function activate(context: ExtensionContext) {
 	// Update GOPATH, GOROOT, etc., when config changes.
 	updateEnvFromConfig();
 	context.subscriptions.push(workspace.onDidChangeConfiguration(updateEnvFromConfig));
-
-	context.subscriptions.push(vscode.languages.registerCodeActionsProvider("go", {
-		provideCodeActions: (document: vscode.TextDocument, range: vscode.Range, context: vscode.CodeActionContext, token: vscode.CancellationToken): Promise<vscode.Command[]> => {
-			console.log("AAAAAAA");
-			return Promise.resolve([]);
-		},
-	}));
 }
 
 function updateEnvFromConfig() {
