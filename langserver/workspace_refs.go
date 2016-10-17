@@ -152,7 +152,7 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 		// the data, remember this is just external refs for one single
 		// package).
 		ext.Error.Set(span, true)
-		err := fmt.Errorf("externalRefsFromPkg: external refs failed: %v: %v", pkg, err)
+		err := fmt.Errorf("externalRefsFromPkg: external refs failed: %v: %v", pkg, refsErr)
 		log.Println(err)
 		span.SetTag("err", err.Error())
 	}
