@@ -41,6 +41,7 @@ export function activate(context: ExtensionContext) {
 			},
 		}
 	);
+	langServer = c;
 	const registeredCommand = vscode.commands.registerCommand("sourcegraph.findExternalRefs", openExternalReferences, this);
 	context.subscriptions.push(c.start(), registeredCommand);
 
