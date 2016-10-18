@@ -25,7 +25,21 @@
           "Go"
         ]
       }
-    ]
+    ],
+    "commands": [
+      {
+        "title": "Find external references",
+        "command": "sourcegraph.findExternalRefs"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorLangId == go",
+          "command": "sourcegraph.findExternalRefs"
+        }
+      ]
+    }
   },
   "configuration": {
     "type": "object",
@@ -63,6 +77,8 @@
     "vscode": "^1.0.0"
   },
   "dependencies": {
+    "invariant": "^2.2.1",
+    "node-fetch": "^1.6.3",
     "vscode-languageclient": "^2.5.0"
   }
 }
