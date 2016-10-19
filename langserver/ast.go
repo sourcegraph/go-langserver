@@ -49,13 +49,16 @@ type fakeNode struct{ p, e token.Pos }
 func (n fakeNode) Pos() token.Pos { return n.p }
 func (n fakeNode) End() token.Pos { return n.e }
 
-func goRangesToLSPLocations(fset *token.FileSet, nodes []*ast.Ident) []lsp.Location {
-	locs := make([]lsp.Location, len(nodes))
+func goRangesToLSPLocations(fset *token.FileSet, nodes []*ast.Ident) []lsp.EnhancedLocation {
+	locs := make([]lsp.EnhancedLocation, len(nodes))
 	for i, node := range nodes {
 		p := fset.Position(node.Pos())
-		locs[i] = lsp.Location{
-			URI:   "file://" + p.Filename,
-			Range: rangeForNode(fset, node),
+		locs[i] = lsp.EnhancedLocation{
+			Location: lsp.Location{
+				URI:   "file://" + p.Filename,
+				Range: rangeForNode(fset, node),
+			},
+			Name: node.Name,
 		}
 	}
 	return locs
