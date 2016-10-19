@@ -5,41 +5,37 @@
 'use strict';
 
 import * as net from 'net';
-import { Disposable, ExtensionContext, Uri, workspace } from 'vscode';
+import {ExtensionContext, Uri, workspace} from "vscode";
 import * as vscode from 'vscode';
-import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, ErrorAction, ErrorHandler, CloseAction, TransportKind } from 'vscode-languageclient';
+import { LanguageClient} from "vscode-languageclient";
 import * as GitUtils from "./git-utils";
-import * as SourcegraphUrls from "./sourcegraph-urls";
-import { Range, SymbolInformation, Location, TextEdit, WorkspaceChange, TextEditChange, TextDocumentIdentifier } from 'vscode-languageserver-types';
+import {Location, SymbolInformation} from 'vscode-languageserver-types';
 
-const child_process = require('child_process');
-const path = require('path');
-const fetch = require('node-fetch');
-const node_url = require('url');
-const fs = require('fs');
-const deep_equal = require('deep-equal');
+const childProcess = require("child_process");
+const path = require("path");
+const deepEqual = require("deep-equal");
 
 let langServer: LanguageClient = null;
 
-export function activate(context: ExtensionContext) {
+export function activate(context: ExtensionContext): void {
 	const c = new LanguageClient(
-		'langserver-go',
+		"langserver-go",
 		{
-			command: 'langserver-go',
+			command: "langserver-go",
 			args: [
-				'-mode=stdio',
+				"-mode=stdio",
 
 				// Uncomment for verbose logging to the vscode
 				// "Output" pane and to a temporary file:
 				//
-				'-trace', '-logfile=/tmp/langserver-go.log',
+				"-trace", "-logfile=/tmp/langserver-go.log",
 			],
 		},
 		{
-			documentSelector: ['go'],
+			documentSelector: ["go"],
 			uriConverters: {
 				// Apply file:/// scheme to all file paths.
-				code2Protocol: (uri: Uri): string => (uri.scheme ? uri : uri.with({ scheme: 'file' })).toString(),
+				code2Protocol: (uri: Uri): string => (uri.scheme ? uri : uri.with({ scheme: "file" })).toString(),
 				protocol2Code: (uri: string) => Uri.parse(uri),
 			},
 		}
@@ -54,16 +50,12 @@ export function activate(context: ExtensionContext) {
 }
 
 function findSymbol(symbols: [SymbolInformation], location: EnhancedLocation): SymbolInformation|null {
-	for (let i = 0; i < symbols.length; i++) {
-		console.log(symbols[i].location.uri);
-	}
 	for (let i = 0; i < symbols.length; i++) { 
 		const symbolInformation = symbols[i];
 		if (symbolInformation.location.uri !== location.uri) {
 			continue;
 		}
-		console.log("Found uri");
-		if (!deep_equal(symbolInformation.location.range.start, location.range.start)) {
+		if (!deepEqual(symbolInformation.location.range.start, location.range.start)) {
 			continue;
 		}
 		return symbolInformation;
@@ -103,13 +95,13 @@ function openExternalReferences(args: any): void {
 			const url = createExternalRefsUrl(foundSymbol);
 			if (url) {
 				console.log(`Def landing URL: ${url}`);
-				child_process.exec(`open ${url}`);
+				childProcess.exec(`open ${url}`);
 			}
 		});
 	});
 }
 
-function getGitUriFromFileUri(uri: string) {
+function getGitUriFromFileUri(uri: string): string {
 	if (uri.indexOf("/vendor/") >= 0) {
 		const gitUriAndPath = uri.split("/vendor/")[1];
 		if (gitUriAndPath.startsWith("github.com/")) {
@@ -121,7 +113,7 @@ function getGitUriFromFileUri(uri: string) {
 	return GitUtils.cleanGitUrl(GitUtils.getGitUrl(directory));
 }
 
-function getPathFromFileUri(uri: string, gitUri: string) {
+function getPathFromFileUri(uri: string, gitUri: string): string {
 	if (uri.indexOf("/vendor/") >= 0) {
 		const gitUriAndPath = uri.split("/vendor/")[1];
 		if (gitUriAndPath.startsWith("github.com/")) {
@@ -153,16 +145,16 @@ function createExternalRefsUrl(symbolInformation: SymbolInformation): string {
 	return url;
 }
 
-function constructUrl(repoUrl: string, repoPkg: string, containerSymbol: string) {
+function constructUrl(repoUrl: string, repoPkg: string, containerSymbol: string): string {
 	return `https://sourcegraph.com/${repoUrl}/-/info/GoPackage/${repoPkg}/-/${containerSymbol}`;
 }
 
-function updateEnvFromConfig() {
-	const conf = workspace.getConfiguration('go');
-	if (conf['goroot']) {
-		process.env.GOROOT = conf['goroot'];
+function updateEnvFromConfig(): void {
+	const conf = workspace.getConfiguration("go");
+	if (conf["goroot"]) {
+		process.env.GOROOT = conf["goroot"];
 	}
-	if (conf['gopath']) {
-		process.env.GOPATH = conf['gopath'];
+	if (conf["gopath"]) {
+		process.env.GOPATH = conf["gopath"];
 	}
 }
