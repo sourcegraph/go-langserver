@@ -96,6 +96,7 @@ function getGitStatus(data) {
 
 }
 
-export function getContentsOfFile(path: string) :string|null{
-	return runCommand(`cat ${path}`).stdout;
+export function getGitRepoNameFromUrl(gitUrl: string): string{
+    const repo_parts = gitUrl.split(path.sep);
+    return repo_parts[repo_parts.length-1];
 }

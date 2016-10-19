@@ -29,6 +29,11 @@ type Location struct {
 	Range Range  `json:"range"`
 }
 
+type EnhancedLocation struct {
+	Location
+	Name string `json:"name"`
+}
+
 type Diagnostic struct {
 	/**
 	 * The range at which the message applies.

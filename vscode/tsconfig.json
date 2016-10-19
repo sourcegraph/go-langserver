@@ -4,7 +4,8 @@
 		"module": "commonjs",
 		"moduleResolution": "node",
 		"outDir": "out",
-		"sourceMap": true
+		"sourceMap": true,
+		"baseUrl": "."
 	},
 	"exclude": [
 		"node_modules",

@@ -73,10 +73,12 @@
   "devDependencies": {
     "@types/mocha": "^2.2.32",
     "@types/node": "^6.0.45",
+    "tslint": "^3.15.1",
     "typescript": "^2.0.3",
     "vscode": "^1.0.0"
   },
   "dependencies": {
+    "deep-equal": "^1.0.1",
     "invariant": "^2.2.1",
     "node-fetch": "^1.6.3",
     "vscode-languageclient": "^2.5.0"

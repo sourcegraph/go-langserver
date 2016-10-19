@@ -1,4 +1,4 @@
-import * as PatternUtils from "./pattern-utils";
+import * as PatternUtils from "src/pattern-utils";
 
 // urlToDefInfo returns a URL to the given def's info at the given revision.
 export function urlToDefInfo(def: any, rev?: string | null): string {
@@ -72,7 +72,7 @@ export function getRel() {
 	};
 }
 
-export function getAbs(){
+export function getAbs() {
 	const rel = getRel();
 	return {
 	about: rel.about,
