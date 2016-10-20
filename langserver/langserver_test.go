@@ -85,6 +85,7 @@ func TestServer(t *testing.T) {
 			wantHover: map[string]string{
 				// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
 				"a.go:1:28": "struct field F string",
+				"a.go:1:17": "type T struct",
 			},
 			wantSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
