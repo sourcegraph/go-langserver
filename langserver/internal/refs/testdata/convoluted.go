@@ -1,9 +1,9 @@
 package main
 
-import "net/http" // "net/http"
+import myhttp "net/http" // "net/http"
 
 type unexpA struct {
-	*http.Client // net/http Client"
+	*myhttp.Client // net/http Client"
 }
 
 type unexpB struct {

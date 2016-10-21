@@ -83,7 +83,9 @@ func TestServer(t *testing.T) {
 				"a.go": "package p; type T struct { F string }",
 			},
 			wantHover: map[string]string{
-			// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
+				// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
+				"a.go:1:28": "struct field F string",
+				"a.go:1:17": "type T struct",
 			},
 			wantSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
@@ -110,9 +112,9 @@ func TestServer(t *testing.T) {
 				"a_test.go": `package p_test; import "test/pkg"; var X = p.A`,
 			},
 			wantHover: map[string]string{
-				"a.go:1:16":      "A int",
-				"a_test.go:1:40": "X int",
-				"a_test.go:1:46": "A int",
+				"a.go:1:16":      "var A int",
+				"a_test.go:1:40": "var X int",
+				"a_test.go:1:46": "var A int",
 			},
 			wantWorkspaceReferences: []string{},
 		},
@@ -201,8 +203,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /goroot/src/fmt <none>",
-				"/src/test/pkg/a.go:1:37 -> /goroot/src/fmt Println",
+				"/src/test/pkg/a.go:1:18 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/a.go:1:37 -> /goroot/src/fmt fmt/Println",
 			},
 		},
 		"gopath": {
@@ -314,9 +316,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep <none>",
-				"/src/test/pkg/a.go:1:50 -> /src/github.com/d/dep D",
-				"/src/test/pkg/a.go:1:65 -> /src/github.com/d/dep D",
+				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep dep/<none>",
+				"/src/test/pkg/a.go:1:50 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:65 -> /src/github.com/d/dep dep/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -333,9 +335,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep <none>",
+				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep dep/<none>",
 				"/src/test/pkg/a.go:1:54 -> /src/github.com/d/dep/vendor/vendp F/V",
-				"/src/test/pkg/a.go:1:50 -> /src/github.com/d/dep D",
+				"/src/test/pkg/a.go:1:50 -> /src/github.com/d/dep dep/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": map[string]string{
@@ -356,8 +358,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep/subp <none>",
-				"/src/test/pkg/a.go:1:56 -> /src/github.com/d/dep/subp D",
+				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep/subp subp/<none>",
+				"/src/test/pkg/a.go:1:56 -> /src/github.com/d/dep/subp subp/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -372,16 +374,16 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantHover: map[string]string{
 				"a.go:1:53": "func D1() D2",
-				"a.go:1:59": "D2 int",
+				"a.go:1:59": "struct field D2 int",
 			},
 			wantDefinition: map[string]string{
 				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48", // func D1
 				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32", // field D2
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep1 <none>",
+				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep1 dep1/<none>",
 				"/src/test/pkg/a.go:1:57 -> /src/github.com/d/dep2 D2/D2",
-				"/src/test/pkg/a.go:1:52 -> /src/github.com/d/dep1 D1",
+				"/src/test/pkg/a.go:1:52 -> /src/github.com/d/dep1 dep1/D1",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep1": {
@@ -554,14 +556,7 @@ func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath str
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.HasSuffix(want, "...") {
-		// Allow specifying expected hover strings with "..." at the
-		// end for ease of test creation.
-		if len(hover) >= len(want)+3 {
-			hover = hover[:len(want)-3] + "..."
-		}
-	}
-	if !strings.Contains(hover, want) {
+	if hover != want {
 		t.Fatalf("got %q, want %q", hover, want)
 	}
 }
@@ -749,15 +744,13 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn) ([]string, e
 	refs := make([]string, len(references))
 	for i, r := range references {
 		start := r.Location.Range.Start
-		var path string
-		switch {
-		case r.Name != "" && r.ContainerName != "":
-			path = r.ContainerName + "/" + r.Name
-		case r.Name != "":
-			path = r.Name
-		default:
-			path = "<none>"
+		if r.ContainerName == "" {
+			r.ContainerName = "<none>"
 		}
+		if r.Name == "" {
+			r.Name = "<none>"
+		}
+		path := strings.Join([]string{r.ContainerName, r.Name}, "/")
 		locationURI := strings.TrimPrefix(r.Location.URI, "file://")
 		uri := strings.TrimPrefix(r.URI, "file://")
 		refs[i] = fmt.Sprintf("%s:%d:%d -> %s %s", locationURI, start.Line+1, start.Character+1, uri, path)

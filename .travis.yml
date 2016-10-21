@@ -17,6 +17,7 @@ before_install:
 
 install:
   - go get -d -t ./...
+  - go test -i ./...
   - cd vscode && npm install && npm run compile && npm run postinstall
 
 script:
