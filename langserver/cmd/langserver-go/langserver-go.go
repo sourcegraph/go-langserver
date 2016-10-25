@@ -9,8 +9,8 @@ import (
 	"net"
 	"os"
 
+	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
-	"github.com/sourcegraph/sourcegraph-go/langserver"
 )
 
 var (

@@ -16,9 +16,9 @@ import (
 	"testing"
 
 	"github.com/sourcegraph/ctxvfs"
+	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	"github.com/sourcegraph/sourcegraph-go/pkg/lsp"
-	"github.com/sourcegraph/sourcegraph-go/pkg/lspext"
 )
 
 func TestServer(t *testing.T) {
