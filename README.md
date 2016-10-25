@@ -1,9 +1,9 @@
-# (PRE-RELEASE) Go tools for [Sourcegraph](https://sourcegraph.com) [![Build Status](https://travis-ci.org/sourcegraph/sourcegraph-go.svg)](https://travis-ci.org/sourcegraph/sourcegraph-go)
+# Go language server (based on the Language Server Protocol) [![Build Status](https://travis-ci.org/sourcegraph/sourcegraph-go.svg)](https://travis-ci.org/sourcegraph/sourcegraph-go)
 
-**Status: pre-release.** We're open-sourcing this to make development easier, but nothing in here is ready for release yet. Post a GitHub issue or submit a PR if you want to contribute.
+langserver-go is a [Go](https://golang.org) language server that speaks [Language Server Protocol](https://github.com/Microsoft/language-server-protocol). It supports editor features such as go-to-definition, hover, and find-references for Go projects.
 
-This repository holds various tools for using [Sourcegraph](https://sourcegraph.com) to enhance the [Go](https://golang.org) development experience.
+The `./vscode` directory contains a [Visual Studio Code](https://code.visualstudio.com) extension that provides Go language support using this language server.
 
-More information coming soon. [Sign up at sourcegraph.com/beta](https://sourcegraph.com/beta) to get early access to these enhancements.
+**Status: experimental**
 
-[**Open in Sourcegraph**](https://sourcegraph.com/github.com/sourcegraph/sourcegraph-go)
+[**Open in Sourcegraph**](https://sourcegraph.com/github.com/sourcegraph/sourcegraph-go/-/tree/langserver)
