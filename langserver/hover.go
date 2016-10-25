@@ -9,6 +9,7 @@ import (
 	"go/types"
 	"strings"
 
+	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
