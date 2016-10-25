@@ -394,7 +394,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 		},
-
 		"go symbols": {
 			rootPath: "file:///src/test/pkg",
 			fs: map[string]string{
@@ -424,6 +423,67 @@ func yza() {}
 				"is:exported": []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/abc.go:class:pkg.XYZ:3:6", "/src/test/pkg/bcd.go:class:pkg.YZA:3:6"},
 			},
 			wantWorkspaceReferences: []string{},
+		},
+		"go hover docs": {
+			rootPath: "file:///src/test/pkg",
+			fs: map[string]string{
+				"a.go": `// Copyright 2015 someone.
+// Copyrights often span multiple lines.
+
+// Some additional non-package docs.
+
+// Package p is a package with lots of great things.
+package p
+
+import "github.com/a/pkg2"
+
+// logit is pkg2.X
+var logit = pkg2.X
+
+// T is a struct.
+type T struct {
+	// F is a string field.
+	F string
+
+	// H is a header.
+	H pkg2.Header
+}
+
+// Foo is the best string.
+var Foo string
+`,
+				"vendor/github.com/a/pkg2/x.go": `// Package pkg2 shows dependencies.
+//
+// How to
+//
+// 	Example Code!
+//
+package pkg2
+
+// X does the unknown.
+func X() {
+	panic("zomg")
+}
+
+// Header is like an HTTP header, only better.
+type Header struct {
+	// F is a string, too.
+	F string
+}
+`,
+			},
+			wantHover: map[string]string{
+				"a.go:7:9": "package p; Package p is a package with lots of great things. \n\n",
+				//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
+				"a.go:12:5":  "var logit func(); logit is pkg2.X \n\n",
+				"a.go:12:13": "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
+				"a.go:12:18": "func X(); X does the unknown. \n\n",
+				"a.go:15:6":  "type T struct; T is a struct. \n\n",
+				"a.go:17:2":  "struct field F string; F is a string field. \n\n",
+				"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
+				"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
+				"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
+			},
 		},
 	}
 	for label, test := range tests {
@@ -653,7 +713,7 @@ func callHover(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int
 	var str string
 	for i, ms := range res.Contents {
 		if i != 0 {
-			str += " "
+			str += "; "
 		}
 		str += ms.Value
 	}
