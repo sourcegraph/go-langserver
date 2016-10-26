@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -31,27 +30,32 @@ type query struct {
 }
 
 // parseQuery parses a user's raw query string and returns a
-// structured representation of the query.
-func parseQuery(q string) query {
-	var qu query
-	toks := tokenizer.Split(strings.ToLower(q), -1)
-	index := 0
-	for _, tok := range toks {
-		if tok == "" {
+// structured representation of the query. Possible queries are:
+func parseQuery(q string) (qu query) {
+	// All queries are case insensitive.
+	q = strings.ToLower(q)
+
+	// Split the query into space-delimited fields.
+	for _, field := range strings.Fields(q) {
+		// Check if the field is a filter like `is:exported`.
+		if field == "is:exported" {
+			qu.filter = filterExported
 			continue
 		}
-		index++
-		if kind, isKeyword := keywords[tok]; isKeyword {
-			qu.kind = kind
-			continue
+
+		// Each field is split into tokens, delimited by periods or slashes.
+		tokens := strings.FieldsFunc(field, func(c rune) bool {
+			return c == '.' || c == '/'
+		})
+		for _, tok := range tokens {
+			if kind, isKeyword := keywords[tok]; isKeyword {
+				qu.kind = kind
+				continue
+			}
+			qu.tokens = append(qu.tokens, tok)
 		}
-		if filter, isFilter := parseFilter(tok); isFilter {
-			qu.filter = filter
-			continue
-		}
-		qu.tokens = append(qu.tokens, tok)
 	}
-	return qu
+	return
 }
 
 type filterType string
@@ -59,21 +63,6 @@ type filterType string
 const (
 	filterExported filterType = "exported"
 )
-
-var filters = map[string]filterType{
-	string(filterExported): filterExported,
-}
-
-// parseFilter parses a search query filter token, e.g. "is:exported".
-// Only "is:<filter>" tokens are currently supported.
-func parseFilter(s string) (filterType, bool) {
-	if !strings.HasPrefix(s, "is:") {
-		return "", false
-	}
-	s = strings.TrimPrefix(s, "is:")
-	filter, ok := filters[s]
-	return filter, ok
-}
 
 // keywords are keyword tokens that will be interpreted as symbol kind
 // filters in the search query.
@@ -86,9 +75,6 @@ var keywords = map[string]lsp.SymbolKind{
 	"var":     lsp.SKVariable,
 	"const":   lsp.SKConstant,
 }
-
-// tokenizer is a regexp for tokenizing a raw user query string.
-var tokenizer = regexp.MustCompile(`[\.\s\/]+`)
 
 // resultSorter is a utility struct for collecting, filtering, and
 // sorting symbol results.
