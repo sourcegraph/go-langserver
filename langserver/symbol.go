@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -26,11 +27,12 @@ import (
 type query struct {
 	kind   lsp.SymbolKind
 	filter filterType
+	file   string
 	tokens []string
 }
 
 // parseQuery parses a user's raw query string and returns a
-// structured representation of the query. Possible queries are:
+// structured representation of the query.
 func parseQuery(q string) (qu query) {
 	// All queries are case insensitive.
 	q = strings.ToLower(q)
@@ -55,7 +57,7 @@ func parseQuery(q string) (qu query) {
 			qu.tokens = append(qu.tokens, tok)
 		}
 	}
-	return
+	return qu
 }
 
 type filterType string
@@ -148,6 +150,10 @@ func score(q query, s lsp.SymbolInformation) (scor int) {
 		// is:exported excludes vendor symbols always.
 		return 0
 	}
+	if q.file != "" && filename != q.file {
+		// We're restricing results to a single file, and this isn't it.
+		return 0
+	}
 	if len(q.tokens) == 0 { // early return if empty query
 		if isVendor {
 			return 1 // lower score for vendor symbols
@@ -206,10 +212,21 @@ func toSym(name, container string, kind lsp.SymbolKind, fs *token.FileSet, pos t
 	}
 }
 
+// handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
+// the Go language server.
+func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
+	f := strings.TrimPrefix(params.TextDocument.URI, "file://")
+	return h.handleSymbol(ctx, conn, req, query{file: f}, 0)
+}
+
 // handleSymbol handles `workspace/symbol` requests for the Go
 // language server.
-func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
-	results := resultSorter{query: parseQuery(params.Query), results: make([]scoredSymbol, 0)}
+func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
+	return h.handleSymbol(ctx, conn, req, parseQuery(params.Query), params.Limit)
+}
+
+func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, query query, limit int) ([]lsp.SymbolInformation, error) {
+	results := resultSorter{query: query, results: make([]scoredSymbol, 0)}
 	{
 		fs := token.NewFileSet()
 		rootPath := h.FilePath(h.init.RootPath)
@@ -236,8 +253,8 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 		_ = par.Wait()
 	}
 	sort.Sort(&results)
-	if len(results.results) > params.Limit && params.Limit > 0 {
-		results.results = results.results[:params.Limit]
+	if len(results.results) > limit && limit > 0 {
+		results.results = results.results[:limit]
 	}
 
 	return results.Results(), nil
@@ -272,6 +289,12 @@ func (h *LangHandler) collectFromPkg(bctx *build.Context, fs *token.FileSet, pkg
 			if !(strings.Contains(err.Error(), "no buildable Go source files") || strings.Contains(err.Error(), "found packages") || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
 				log.Printf("skipping possible package %s: %s", pkg, err)
 			}
+			return
+		}
+
+		// If we're restricting results to a single file, ensure the package dir
+		// matches the file dir to avoid doing unnecessary work.
+		if results.query.file != "" && !strings.HasPrefix(buildPkg.Dir, path.Dir(results.query.file)) {
 			return
 		}
 
