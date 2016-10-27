@@ -29,6 +29,7 @@ func TestServer(t *testing.T) {
 		wantDefinition          map[string]string
 		wantReferences          map[string][]string
 		wantSymbols             map[string][]string
+		wantWorkspaceSymbols    map[string][]string
 		wantWorkspaceReferences []string
 		mountFS                 map[string]map[string]string // mount dir -> map VFS
 	}{
@@ -70,6 +71,10 @@ func TestServer(t *testing.T) {
 				},
 			},
 			wantSymbols: map[string][]string{
+				"a.go": []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
+				"b.go": []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
 				"A":           []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
 				"B":           []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
@@ -88,6 +93,9 @@ func TestServer(t *testing.T) {
 				"a.go:1:17": "type T struct",
 			},
 			wantSymbols: map[string][]string{
+				"a.go": []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
 				"T":           []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
 				"F":           []string{}, // we don't return fields for now
@@ -101,6 +109,9 @@ func TestServer(t *testing.T) {
 				"a.go": "package p; type t struct { F string }",
 			},
 			wantSymbols: map[string][]string{
+				"a.go": []string{"/src/test/pkg/a.go:class:pkg.t:1:17"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{},
@@ -139,6 +150,10 @@ func TestServer(t *testing.T) {
 				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39",
 			},
 			wantSymbols: map[string][]string{
+				"a.go":    []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
+				"d2/b.go": []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/d/a.go:function:d.A:1:17", "/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
 				"is:exported": []string{"/src/test/pkg/d/a.go:function:d.A:1:17", "/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
 			},
@@ -171,6 +186,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "main.go:3:52": "/src/test/pkg/main.go:3:39", // B() -> func B()
 			},
 			wantSymbols: map[string][]string{
+				"a.go": []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
 				"is:exported": []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
 			},
@@ -196,6 +214,13 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantSymbols: map[string][]string{
+				"a.go": []string{
+					"/src/test/pkg/a.go:variable:pkg._:1:26",
+					"/src/test/pkg/a.go:variable:pkg.x:1:47",
+				},
+				"": []string{},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"": []string{
 					"/src/test/pkg/a.go:variable:pkg._:1:26",
 					"/src/test/pkg/a.go:variable:pkg.x:1:47",
@@ -234,6 +259,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantSymbols: map[string][]string{
+				"a/a.go": []string{"/src/test/pkg/a/a.go:function:a.A:1:17"},
+				"b/b.go": []string{"/src/test/pkg/b/b.go:variable:b._:1:33"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/a/a.go:function:a.A:1:17", "/src/test/pkg/b/b.go:variable:b._:1:33"},
 				"is:exported": []string{"/src/test/pkg/a/a.go:function:a.A:1:17"},
 			},
@@ -258,6 +287,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantSymbols: map[string][]string{
+				"a.go": []string{"/src/test/pkg/a.go:variable:pkg._:1:44"},
+				"vendor/github.com/v/vendored/v.go": []string{"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:vendored.V:1:24"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/a.go:variable:pkg._:1:44", "/src/test/pkg/vendor/github.com/v/vendored/v.go:function:vendored.V:1:24"},
 				"is:exported": []string{},
 			},
@@ -271,6 +304,11 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"vendor/github.com/x/pkg3/x.go": `package pkg3; func x() bool { return true }`,
 			},
 			wantSymbols: map[string][]string{
+				"z.go": []string{"/src/test/pkg/z.go:function:pkg.x:1:19"},
+				"vendor/github.com/a/pkg2/x.go": []string{"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:pkg2.x:1:20"},
+				"vendor/github.com/x/pkg3/x.go": []string{"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:pkg3.x:1:20"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"": []string{
 					"/src/test/pkg/z.go:function:pkg.x:1:19",
 					"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:pkg2.x:1:20",
@@ -415,6 +453,11 @@ func yza() {}
 `,
 			},
 			wantSymbols: map[string][]string{
+				"abc.go": []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:class:pkg.XYZ:3:6"},
+				"bcd.go": []string{"/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/bcd.go:class:pkg.YZA:3:6"},
+				"xyz.go": []string{"/src/test/pkg/xyz.go:function:pkg.yza:3:6"},
+			},
+			wantWorkspaceSymbols: map[string][]string{
 				"":            []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/abc.go:class:pkg.XYZ:3:6", "/src/test/pkg/bcd.go:class:pkg.YZA:3:6", "/src/test/pkg/xyz.go:function:pkg.yza:3:6"},
 				"xyz":         []string{"/src/test/pkg/abc.go:class:pkg.XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/xyz.go:function:pkg.yza:3:6"},
 				"yza":         []string{"/src/test/pkg/bcd.go:class:pkg.YZA:3:6", "/src/test/pkg/xyz.go:function:pkg.yza:3:6", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
@@ -523,7 +566,7 @@ type Header struct {
 				h.FS.Bind(mountDir, mapFS(fs), "/", ctxvfs.BindAfter)
 			}
 
-			lspTests(t, ctx, conn, rootFSPath, test.wantHover, test.wantDefinition, test.wantReferences, test.wantSymbols, test.wantWorkspaceReferences)
+			lspTests(t, ctx, conn, rootFSPath, test.wantHover, test.wantDefinition, test.wantReferences, test.wantSymbols, test.wantWorkspaceSymbols, test.wantWorkspaceReferences)
 		})
 	}
 }
@@ -563,7 +606,7 @@ func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
 }
 
 // lspTests runs all test suites for LSP functionality.
-func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, wantHover, wantDefinition map[string]string, wantReferences, wantSymbols map[string][]string, wantWorkspaceReferences []string) {
+func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, wantHover, wantDefinition map[string]string, wantReferences, wantSymbols, wantWorkspaceSymbols map[string][]string, wantWorkspaceReferences []string) {
 	for pos, want := range wantHover {
 		tbRun(t, fmt.Sprintf("hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 			hoverTest(t, ctx, c, rootPath, pos, want)
@@ -582,9 +625,15 @@ func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath stri
 		})
 	}
 
-	for query, want := range wantSymbols {
-		tbRun(t, fmt.Sprintf("symbols(q=%q)", query), func(t testing.TB) {
-			symbolsTest(t, ctx, c, rootPath, query, want)
+	for file, want := range wantSymbols {
+		tbRun(t, fmt.Sprintf("symbols-%s", file), func(t testing.TB) {
+			symbolsTest(t, ctx, c, rootPath, file, want)
+		})
+	}
+
+	for query, want := range wantWorkspaceSymbols {
+		tbRun(t, fmt.Sprintf("workspaceSymbols(q=%q)", query), func(t testing.TB) {
+			workspaceSymbolsTest(t, ctx, c, rootPath, query, want)
 		})
 	}
 
@@ -655,8 +704,21 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	}
 }
 
-func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, query string, want []string) {
-	symbols, err := callSymbols(ctx, c, query)
+func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want []string) {
+	symbols, err := callSymbols(ctx, c, "file://"+path.Join(rootPath, file))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range symbols {
+		symbols[i] = strings.TrimPrefix(symbols[i], "file://")
+	}
+	if !reflect.DeepEqual(symbols, want) {
+		t.Errorf("got %q, want %q", symbols, want)
+	}
+}
+
+func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, query string, want []string) {
+	symbols, err := callWorkspaceSymbols(ctx, c, query)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -782,7 +844,22 @@ var symbolKindName = map[lsp.SymbolKind]string{
 	lsp.SKArray:       "array",
 }
 
-func callSymbols(ctx context.Context, c *jsonrpc2.Conn, query string) ([]string, error) {
+func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri string) ([]string, error) {
+	var symbols []lsp.SymbolInformation
+	err := c.Call(ctx, "textDocument/documentSymbol", lsp.DocumentSymbolParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+	}, &symbols)
+	if err != nil {
+		return nil, err
+	}
+	syms := make([]string, len(symbols))
+	for i, s := range symbols {
+		syms[i] = fmt.Sprintf("%s:%s:%s.%s:%d:%d", s.Location.URI, symbolKindName[s.Kind], s.ContainerName, s.Name, s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
+	}
+	return syms, nil
+}
+
+func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, query string) ([]string, error) {
 	var symbols []lsp.SymbolInformation
 	err := c.Call(ctx, "workspace/symbol", lsp.WorkspaceSymbolParams{Query: query}, &symbols)
 	if err != nil {
