@@ -7,15 +7,17 @@ import (
 	"io"
 	"log"
 	"net"
+    "net/http"
 	"os"
+    "golang.org/x/net/websocket"
 
 	"github.com/sourcegraph/jsonrpc2"
-	"github.com/sourcegraph/sourcegraph-go/langserver"
+	"github.com/sourcegraph/go-langserver/langserver"
 )
 
 var (
-	mode    = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr    = flag.String("addr", ":4389", "server listen address (tcp)")
+	mode    = flag.String("mode", "ws", "communication mode (stdio|tcp|ws)")
+	addr    = flag.String("addr", ":4389", "server listen address (tcp|ws)")
 	trace   = flag.Bool("trace", false, "print all requests and responses")
 	logfile = flag.String("logfile", "", "also log to this file (in addition to stderr)")
 )
@@ -65,6 +67,24 @@ func run() error {
 			}
 			jsonrpc2.NewConn(context.Background(), conn, langserver.NewHandler(), connOpt...)
 		}
+
+	case "ws":
+        var sockets = make(map[string]*websocket.Conn)
+
+		log.Println("langserver-go: ws - started")
+        handler := websocket.Handler(func (ws *websocket.Conn) {
+
+            id := ws.RemoteAddr().String() + "-" + ws.Request().RemoteAddr + "-" + ws.Request().UserAgent()
+            sockets[id] = ws
+            log.Println(id, "is waiting")
+            <-jsonrpc2.NewConn(context.Background(), ws, langserver.NewHandler(), connOpt...).DisconnectNotify()
+
+            log.Println(id, "is finished")
+        })
+        http.Handle("/echo", handler)
+        err := http.ListenAndServe(*addr, nil)
+	    log.Println("langserver-go: ws - ended")        
+        return err
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
