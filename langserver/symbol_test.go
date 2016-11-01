@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/sourcegraph/sourcegraph-go/pkg/lsp"
+	"github.com/sourcegraph/go-langserver/pkg/lsp"
 )
 
 func Test_resultSorter(t *testing.T) {
@@ -18,6 +18,10 @@ func Test_resultSorter(t *testing.T) {
 		rawQuery: "foo.bar",
 		allSymbols: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
+			Location: lsp.Location{URI: "file.go"},
+			Kind:     lsp.SKFunction,
+		}, {
+			ContainerName: "foo", Name: "Bar",
 			Location: lsp.Location{URI: "file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
@@ -34,6 +38,10 @@ func Test_resultSorter(t *testing.T) {
 			Kind:     lsp.SKFunction,
 		}},
 		expResults: []lsp.SymbolInformation{{
+			ContainerName: "foo", Name: "Bar",
+			Location: lsp.Location{URI: "file.go"},
+			Kind:     lsp.SKFunction,
+		}, {
 			ContainerName: "foo", Name: "bar",
 			Location: lsp.Location{URI: "file.go"},
 			Kind:     lsp.SKFunction,

@@ -10,7 +10,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 suite('Go extension tests', () => {
-	const gopath = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-sourcegraph-go-'));
+	const gopath = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-go-langserver-'));
 	process.env['GOPATH'] = gopath; // TODO(sqs): set using config, not env vars directly
 	const pkgDir = path.join(gopath, 'src', 'test', 'p');
 	const filePath = path.join(pkgDir, 'a.go');
