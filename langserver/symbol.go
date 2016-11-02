@@ -151,7 +151,7 @@ func score(q query, s lsp.SymbolInformation) (scor int) {
 		return 0
 	}
 	if q.file != "" && filename != q.file {
-		// We're restricing results to a single file, and this isn't it.
+		// We're restricting results to a single file, and this isn't it.
 		return 0
 	}
 	if len(q.tokens) == 0 { // early return if empty query
@@ -244,6 +244,23 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 		par := parallel.NewRun(8)
 		pkgs := buildutil.ExpandPatterns(bctx, []string{pkgPat})
 		for pkg := range pkgs {
+			// If we're restricting results to a single file or dir, ensure the
+			// package dir matches to avoid doing unnecessary work.
+			if results.query.file != "" {
+				// Convert the query filepath into a package path relative to
+				// `$GOROOT/src` or `$GOPATH/src`.
+				filePkgPath := path.Dir(results.query.file)
+				if PathHasPrefix(filePkgPath, h.init.BuildContext.GOROOT) {
+					filePkgPath = PathTrimPrefix(filePkgPath, h.init.BuildContext.GOROOT)
+				} else {
+					filePkgPath = PathTrimPrefix(filePkgPath, h.init.BuildContext.GOPATH)
+				}
+				filePkgPath = PathTrimPrefix(filePkgPath, "src")
+				if !PathEqual(pkg, filePkgPath) {
+					continue
+				}
+			}
+
 			par.Acquire()
 			go func(pkg string) {
 				defer par.Release()
@@ -289,12 +306,6 @@ func (h *LangHandler) collectFromPkg(bctx *build.Context, fs *token.FileSet, pkg
 			if !(strings.Contains(err.Error(), "no buildable Go source files") || strings.Contains(err.Error(), "found packages") || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
 				log.Printf("skipping possible package %s: %s", pkg, err)
 			}
-			return
-		}
-
-		// If we're restricting results to a single file, ensure the package dir
-		// matches the file dir to avoid doing unnecessary work.
-		if results.query.file != "" && !strings.HasPrefix(buildPkg.Dir, path.Dir(results.query.file)) {
 			return
 		}
 
