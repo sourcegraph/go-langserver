@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -28,10 +29,11 @@ import (
 // Query is a structured representation that is parsed from the user's
 // raw query string.
 type Query struct {
-	Kind      lsp.SymbolKind
-	Filter    FilterType
-	File, Dir string
-	Tokens    []string
+	Kind          lsp.SymbolKind
+	Filter        FilterType
+	File, Dir     string
+	Tokens        []string
+	CaseSensitive bool
 
 	Symbol lspext.SymbolDescriptor
 }
@@ -41,6 +43,9 @@ type Query struct {
 // structure back into a query string.
 func (q Query) String() string {
 	s := ""
+	if q.CaseSensitive {
+		s = queryJoin(s, fmt.Sprintf("casesensitive:%v", q.CaseSensitive))
+	}
 	switch q.Filter {
 	case FilterExported:
 		s = queryJoin(s, "is:exported")
@@ -71,11 +76,27 @@ func queryJoin(s, e string) string {
 // ParseQuery parses a user's raw query string and returns a
 // structured representation of the query.
 func ParseQuery(q string) (qu Query) {
-	// All queries are case insensitive.
-	q = strings.ToLower(q)
+	qu = doParseQuery(q)
+	if !qu.CaseSensitive {
+		q = strings.ToLower(qu.String())
+		qu = doParseQuery(q)
+	}
+	return qu
+}
 
+func doParseQuery(q string) (qu Query) {
 	// Split the query into space-delimited fields.
 	for _, field := range strings.Fields(q) {
+		// Check if the field is like `casesensitive:true`.
+		if strings.HasPrefix(field, "casesensitive:") {
+			if caseSensitive, err := strconv.ParseBool(strings.TrimPrefix(field, "casesensitive:")); err != nil {
+				log.Printf("ParseQuery:casesensitive - parse error: %v", err)
+			} else {
+				qu.CaseSensitive = caseSensitive
+			}
+			continue
+		}
+
 		// Check if the field is a filter like `is:exported`.
 		if strings.HasPrefix(field, "dir:") {
 			qu.Filter = FilterDir
@@ -99,6 +120,7 @@ func ParseQuery(q string) (qu Query) {
 			qu.Tokens = append(qu.Tokens, tok)
 		}
 	}
+
 	return qu
 }
 
@@ -286,7 +308,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
 	f := strings.TrimPrefix(params.TextDocument.URI, "file://")
-	return h.handleSymbol(ctx, conn, req, Query{File: f}, 0)
+	return h.handleSymbol(ctx, conn, req, Query{File: f, CaseSensitive: true}, 0)
 }
 
 // handleSymbol handles `workspace/symbol` requests for the Go
