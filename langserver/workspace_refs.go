@@ -6,7 +6,6 @@ import (
 	"go/build"
 	"go/token"
 	"log"
-	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -37,10 +36,9 @@ func (h *LangHandler) handleWorkspaceReference(ctx context.Context, conn JSONRPC
 	}
 
 	var parallelism int
-	e := os.Getenv("WORKSPACE_REFERENCE_PARALLELISM")
-	if e != "" {
+	if envWorkspaceReferenceParallelism != "" {
 		var err error
-		parallelism, err = strconv.Atoi(e)
+		parallelism, err = strconv.Atoi(envWorkspaceReferenceParallelism)
 		if err != nil {
 			return nil, err
 		}
