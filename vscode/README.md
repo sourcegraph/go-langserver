@@ -1,10 +1,10 @@
-# Visual Studio Code extension using the Go language server [![Build Status](https://travis-ci.org/sourcegraph/sourcegraph-go.svg)](https://travis-ci.org/sourcegraph/sourcegraph-go)
+# Visual Studio Code extension using the Go language server [![Build Status](https://travis-ci.org/sourcegraph/go-langserver.svg)](https://travis-ci.org/sourcegraph/go-langserver)
 
 This extension uses the Go language server in this repository to provide Go language support to Visual Studio Code.
 
 **Status: experimental.** You should still use [Microsoft/vscode-go](https://github.com/Microsoft/vscode-go) for everyday editing.
 
-[**Open in Sourcegraph**](https://sourcegraph.com/github.com/sourcegraph/sourcegraph-go/-/tree/vscode)
+[**Open in Sourcegraph**](https://sourcegraph.com/github.com/sourcegraph/go-langserver/-/tree/vscode)
 
 ## Using this extension
 
