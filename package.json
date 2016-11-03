@@ -1,0 +1,25 @@
+{
+  "name": "go-langserver",
+  "version": "1.0.0",
+  "description": "langserver-go is a [Go](https://golang.org) language server that speaks [Language Server Protocol](https://github.com/Microsoft/language-server-protocol). It supports editor features such as go-to-definition, hover, and find-references for Go projects.",
+  "main": "index.js",
+  "dependencies": {
+    "ws": "^1.1.1"
+  },
+  "devDependencies": {
+    "ws": "^1.1.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sourcegraph/go-langserver.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sourcegraph/go-langserver/issues"
+  },
+  "homepage": "https://github.com/sourcegraph/go-langserver#readme"
+}
