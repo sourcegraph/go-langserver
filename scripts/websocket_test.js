@@ -1,7 +1,10 @@
 let WebSocket = require('ws');
 
+let PORT_WEBSOCKET = process.env.PORT_WEBSOCKET;
+console.log('PORT_WEBSOCKET:', PORT_WEBSOCKET);
+
 let makeUrl = function () {
-	let port = '9999';
+	let port = PORT_WEBSOCKET || '9999';
 	return 'ws://localhost:' + port + '/ws';
 }
 
