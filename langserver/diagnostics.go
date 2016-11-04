@@ -8,6 +8,8 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/go/loader"
+
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 )
 
@@ -31,16 +33,21 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn JSONRPC2Conn,
 	return nil
 }
 
-func errsToDiagnostics(typeErrs []error) (diagnostics, error) {
+func errsToDiagnostics(typeErrs []error, prog *loader.Program) (diagnostics, error) {
 	var diags diagnostics
 	for _, typeErr := range typeErrs {
 		var (
-			p   token.Position
-			msg string
+			p    token.Position
+			pEnd token.Position
+			msg  string
 		)
 		switch e := typeErr.(type) {
 		case types.Error:
 			p = e.Fset.Position(e.Pos)
+			_, path, _ := prog.PathEnclosingInterval(e.Pos, e.Pos)
+			if len(path) > 0 {
+				pEnd = e.Fset.Position(path[0].End())
+			}
 			msg = e.Msg
 		case scanner.Error:
 			p = e.Pos
@@ -57,19 +64,23 @@ func errsToDiagnostics(typeErrs []error) (diagnostics, error) {
 		default:
 			return nil, fmt.Errorf("unexpected type error: %#+v", typeErr)
 		}
-		if diags == nil {
-			diags = diagnostics{}
+		// LSP is 0-indexed, so subtract one from the numbers Go reports.
+		start := lsp.Position{Line: p.Line - 1, Character: p.Column - 1}
+		end := lsp.Position{Line: pEnd.Line - 1, Character: pEnd.Column - 1}
+		if !pEnd.IsValid() {
+			end = start
 		}
 		diag := &lsp.Diagnostic{
 			Range: lsp.Range{
-				// LSP is 0-indexed, so subtract one from the numbers Go
-				// reports.
-				Start: lsp.Position{Line: p.Line - 1, Character: p.Column - 1},
-				End:   lsp.Position{Line: p.Line - 1, Character: p.Column - 1},
+				Start: start,
+				End:   end,
 			},
 			Severity: lsp.Error,
 			Source:   "go",
 			Message:  strings.TrimSpace(msg),
+		}
+		if diags == nil {
+			diags = diagnostics{}
 		}
 		diags[p.Filename] = append(diags[p.Filename], diag)
 	}

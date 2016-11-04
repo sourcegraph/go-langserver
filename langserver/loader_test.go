@@ -99,7 +99,7 @@ func TestLoaderDiagnostics(t *testing.T) {
 		{
 			Name: "undeclared",
 			FS:   map[string]string{"/src/p/f.go": `package p; var _ = http.Get`},
-			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":19},"end":{"line":0,"character":19}},"severity":1,"source":"go","message":"undeclared name: http"}]}`),
+			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":19},"end":{"line":0,"character":23}},"severity":1,"source":"go","message":"undeclared name: http"}]}`),
 		},
 	}
 	for _, tc := range cases {

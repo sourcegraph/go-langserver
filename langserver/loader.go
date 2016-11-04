@@ -286,11 +286,11 @@ func typecheck(fset *token.FileSet, bctx *build.Context, bpkg *build.Package) (*
 	if err != nil && prog == nil {
 		return nil, nil, err
 	}
-	diag, err := errsToDiagnostics(typeErrs)
+	diags, err := errsToDiagnostics(typeErrs, prog)
 	if err != nil {
 		return nil, nil, err
 	}
-	return prog, diag, nil
+	return prog, diags, nil
 }
 
 func clearInfoFields(info *loader.PackageInfo) {
