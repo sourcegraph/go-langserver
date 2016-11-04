@@ -151,7 +151,7 @@ func (h *LangHandler) externalRefsTypecheck(ctx context.Context, bctx *build.Con
 	}
 
 	// Publish typechecking error diagnostics.
-	diags, err := typecheckErrorDiagnostics(typeErrs)
+	diags, err := errsToDiagnostics(typeErrs)
 	if err != nil {
 		return nil, err
 	}
