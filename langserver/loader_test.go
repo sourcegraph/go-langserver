@@ -1,6 +1,7 @@
 package langserver
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/build"
 	"go/token"
@@ -67,6 +68,51 @@ func BenchmarkLoader(b *testing.B) {
 				if _, _, err := typecheck(fset, bctx, bpkg); err != nil {
 					b.Error(err)
 				}
+			}
+		})
+	}
+}
+
+func TestLoaderDiagnostics(t *testing.T) {
+	m := func(s string) diagnostics {
+		var d diagnostics
+		err := json.Unmarshal([]byte(s), &d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	cases := []struct {
+		Name string
+		FS   map[string]string
+		Want diagnostics
+	}{
+		{
+			Name: "none",
+			FS:   map[string]string{"/src/p/f.go": `package p; func F() {}`},
+		},
+		{
+			Name: "malformed",
+			FS:   map[string]string{"/src/p/f.go": `234ljsdfjb2@#%$`},
+			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"severity":1,"source":"go","message":"expected 'package', found 'INT' 234 (and 4 more errors)"}]}`),
+		},
+		{
+			Name: "undeclared",
+			FS:   map[string]string{"/src/p/f.go": `package p; var _ = http.Get`},
+			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":19},"end":{"line":0,"character":19}},"severity":1,"source":"go","message":"undeclared name: http"}]}`),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			fset, bctx, bpkg := setUpLoaderTest(tc.FS)
+			_, diag, err := typecheck(fset, bctx, bpkg)
+			if err != nil {
+				t.Error(err)
+			}
+			if !reflect.DeepEqual(diag, tc.Want) {
+				got, _ := json.Marshal(diag)
+				want, _ := json.Marshal(tc.Want)
+				t.Errorf("got %s\nwant %s", string(got), string(want))
 			}
 		})
 	}
