@@ -6,7 +6,9 @@ import (
 	"go/build"
 	"go/token"
 	"log"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -33,8 +35,22 @@ func (h *LangHandler) handleWorkspaceReference(ctx context.Context, conn JSONRPC
 		pkgPat = h.init.RootImportPath + "/..."
 	}
 
+	var parallelism int
+	if envWorkspaceReferenceParallelism != "" {
+		var err error
+		parallelism, err = strconv.Atoi(envWorkspaceReferenceParallelism)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		parallelism = runtime.NumCPU() / 4 // 1/4 CPU
+	}
+	if parallelism < 1 {
+		parallelism = 1
+	}
+
 	results := refResultSorter{results: make([]lspext.ReferenceInformation, 0)}
-	par := parallel.NewRun(8)
+	par := parallel.NewRun(parallelism)
 	pkgs := buildutil.ExpandPatterns(bctx, []string{pkgPat})
 	for pkg := range pkgs {
 		par.Acquire()
