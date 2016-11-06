@@ -13,7 +13,7 @@
   },
   "scripts": {
     "compile": "./node_modules/.bin/tsc -p ./tests/js",
-    "test": "node ./tests/js/out/main"
+    "test": "./tests/websocket_test.sh"
   },
   "repository": {
     "type": "git",

@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"os"
 
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
@@ -70,12 +70,15 @@ func run() error {
 		}
 
 	case "ws":
-		handler := websocket.Handler(func(ws *websocket.Conn) {
-			<-jsonrpc2.NewConn(context.Background(), ws, langserver.NewHandler(), connOpt...).DisconnectNotify()
-		})
-		log.Println("langserver-go: websocket listening on", *addr)
-		http.Handle("/ws", handler)
-		err := http.ListenAndServe(*addr, nil)
+        http.HandleFunc("/", wsEcho)
+        err := http.ListenAndServe(*addr, nil)
+
+		// handler := websocket.Handler(func(ws *websocket.Conn) {
+		// 	<-jsonrpc2.NewConn(context.Background(), ws, langserver.NewHandler(), connOpt...).DisconnectNotify()
+		// })
+		// log.Println("langserver-go: websocket listening on", *addr)
+		// http.Handle("/ws", handler)
+		// err := http.ListenAndServe(*addr, nil)
 		return err
 
 	case "stdio":
@@ -86,6 +89,30 @@ func run() error {
 
 	default:
 		return fmt.Errorf("invalid mode %q", *mode)
+	}
+}
+
+var upgrader = websocket.Upgrader{} // use default options
+
+func wsEcho(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+	defer c.Close()
+	for {
+		mt, message, err := c.ReadMessage()
+		if err != nil {
+			log.Println("read:", err)
+			break
+		}
+		log.Printf("recv: %s", message)
+		err = c.WriteMessage(mt, message)
+		if err != nil {
+			log.Println("write:", err)
+			break
+		}
 	}
 }
 
