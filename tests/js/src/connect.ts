@@ -1,16 +1,20 @@
 import * as WebSocket from 'ws';
 import * as Types from './types';
 
-let PORT_WEBSOCKET = process.env.PORT_WEBSOCKET;
-console.info('PORT_WEBSOCKET', PORT_WEBSOCKET);
+const PORT_WEBSOCKET = process.env.PORT_WEBSOCKET || '4389';
+console.info('---PORT_WEBSOCKET', PORT_WEBSOCKET);
 
-let makeUrl = () => {
-    let port = PORT_WEBSOCKET || '9999';
-    return 'ws://localhost:' + port + '/';
+const MESSAGE_NAME: string = 'some_rpc_message';
+const MESSAGE_COUNT: number = 3;
+
+const FAILURE_DELAY = 10 * 1000;
+
+const makeUrl = () => {
+    return 'ws://localhost:' + PORT_WEBSOCKET + '/';
 };
-let URL = makeUrl();
+const URL = makeUrl();
 
-let run: Types.TestRun = () => {
+const run: Types.TestRun = () => {
     return new Promise((resolve, reject) => {
         let errorHandler = (...result: any[]) => {
             let ERROR: Types.ResultType = {
@@ -30,33 +34,39 @@ let run: Types.TestRun = () => {
             resolve(SUCCESS);
         };
 
-        let langserver = new WebSocket(URL);
+        let ws = new WebSocket(URL);
 
-        langserver.on('open', () => {
-            let messages_test = [
-                '1some_rpc_message',
-                '2some_rpc_message',
-                '3some_rpc_message'
-            ];
-            messages_test.map((message_test) => {
-                console.log('sending message: %O', message_test);
-                langserver.send(message_test);
-            });
-        });
-        langserver.on('message', (data, flags) => {
-            succesHandler(data, flags);
-
+        let messageCount: number = 0;
+        ws.on('message', (data: any, flags: { binary: boolean }) => {
             // flags.binary will be set if a binary data is received.
             // flags.masked will be set if the data was masked.
+
+            // console.log('message:', data, flags);
+            messageCount++;
+            if (messageCount === MESSAGE_COUNT) {
+                succesHandler();
+            }
+
+            console.log('--message:', data, flags, messageCount);
         });
 
-        langserver.on('error', errorHandler);
-        langserver.on('close', errorHandler);
+        ws.on('open', () => {
+            Array.from(Array(MESSAGE_COUNT).keys()).map((messageIndex) => {
+                let messageName = `MESSAGE_NAME-${messageIndex}`;
+                console.log('---sending message:', messageIndex, messageName);
+                ws.send(messageName);
+            });
+        });
 
-        // fail in 5 seconds
+        ws.on('error', errorHandler);
+        ws.on('close', errorHandler);
+
+        // fail otherwise
         setTimeout(() => {
+            console.log('---Test timeout in ' + FAILURE_DELAY / 1000 + 's');
+
             errorHandler();
-        }, 5000);
+        }, FAILURE_DELAY);
     });
 };
 

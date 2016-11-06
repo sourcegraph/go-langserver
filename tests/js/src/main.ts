@@ -10,10 +10,13 @@ let testResults = ([
 
 // wait for all promises to complete or an error occurs
 Promise.all(testResults).then((results: Types.ResultType[]) => {
-    return results.map((result: Types.ResultType) => {
+    results.map((result: Types.ResultType) => {
         console.log('Test - result: ', result);
     });
-}).catch(excep => {
-    let err = JSON.stringify(excep);
-    console.error('Some error: ', excep, err);
+
+    process.exit();
+}).catch((errorTest: Types.ResultType) => {
+    console.error('Some error: ', errorTest);
+
+    process.exit(1);
 });

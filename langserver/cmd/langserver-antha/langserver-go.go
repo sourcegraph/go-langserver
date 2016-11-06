@@ -103,11 +103,11 @@ func print_binary(s []byte) {
     f := bufio.NewWriter(os.Stdout)
     defer f.Flush()
 
-    fmt.Fprintf(f, "Received b:");
+    fmt.Fprintf(f, "Received binary:");
     for n := 0;n < len(s);n++ {
         fmt.Fprintf(f, "%d,",s[n]);
     }
-    fmt.Fprintf(f, "\n");
+    fmt.Fprintf(f, "- message: %s\n", s);
 }
  
 func echoHandler(w http.ResponseWriter, r *http.Request) {
