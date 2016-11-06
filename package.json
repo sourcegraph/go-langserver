@@ -7,10 +7,13 @@
     "ws": "^1.1.1"
   },
   "devDependencies": {
+    "@types/ws": "0.0.35",
+    "typescript": "2.0.6",
     "ws": "^1.1.1"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "./node_modules/.bin/tsc -p ./tests/js",
+    "test": "node ./tests/js/out/main"
   },
   "repository": {
     "type": "git",
