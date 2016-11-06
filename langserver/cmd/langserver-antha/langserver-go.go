@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+    "bufio"
 
 	"github.com/gorilla/websocket"
 
@@ -70,7 +71,8 @@ func run() error {
 		}
 
 	case "ws":
-        http.HandleFunc("/", wsEcho)
+        log.Println("langserver-go: websocket listening on", *addr)
+        http.HandleFunc("/", echoHandler)
         err := http.ListenAndServe(*addr, nil)
 
 		// handler := websocket.Handler(func(ws *websocket.Conn) {
@@ -92,28 +94,43 @@ func run() error {
 	}
 }
 
-var upgrader = websocket.Upgrader{} // use default options
+var upgrader = websocket.Upgrader{
+    ReadBufferSize:  1024,
+    WriteBufferSize: 1024,
+}
+ 
+func print_binary(s []byte) {
+    f := bufio.NewWriter(os.Stdout)
+    defer f.Flush()
 
-func wsEcho(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
-	}
-	defer c.Close()
-	for {
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-	}
+    fmt.Fprintf(f, "Received b:");
+    for n := 0;n < len(s);n++ {
+        fmt.Fprintf(f, "%d,",s[n]);
+    }
+    fmt.Fprintf(f, "\n");
+}
+ 
+func echoHandler(w http.ResponseWriter, r *http.Request) {
+    conn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        //log.Println(err)
+        return
+    }
+ 
+    for {
+        messageType, p, err := conn.ReadMessage()
+        // fmt.Printf("messageType: %d", messageType);
+        if err != nil {
+            return
+        }
+ 
+        print_binary(p)
+ 
+        err = conn.WriteMessage(messageType, p);
+        if err != nil {
+            return
+        }
+    }
 }
 
 type stdrwc struct{}
