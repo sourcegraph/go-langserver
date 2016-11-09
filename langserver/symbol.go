@@ -2,6 +2,7 @@ package langserver
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/build"
 	"go/doc"
@@ -30,6 +31,38 @@ type Query struct {
 	Filter    FilterType
 	File, Dir string
 	Tokens    []string
+}
+
+// String converts the query back into a logically equivalent, but not strictly
+// byte-wise equal, query string. It is useful for converting a modified query
+// structure back into a query string.
+func (q Query) String() string {
+	s := ""
+	switch q.Filter {
+	case FilterExported:
+		s = queryJoin(s, "is:exported")
+	case FilterDir:
+		s = queryJoin(s, fmt.Sprintf("%s:%s", q.Filter, q.Dir))
+	default:
+		// no filter.
+	}
+	if q.Kind != 0 {
+		for kwd, kind := range keywords {
+			if kind == q.Kind {
+				s = queryJoin(s, kwd)
+			}
+		}
+	}
+	for _, token := range q.Tokens {
+		s = queryJoin(s, token)
+	}
+	return s
+}
+
+// queryJoin joins the strings into "<s><space><e>" ensuring there is no
+// trailing or leading whitespace at the end of the string.
+func queryJoin(s, e string) string {
+	return strings.TrimSpace(s + " " + e)
 }
 
 // ParseQuery parses a user's raw query string and returns a

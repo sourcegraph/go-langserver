@@ -125,3 +125,33 @@ func Test_resultSorter(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryString(t *testing.T) {
+	tests := []struct {
+		input, expect string
+	}{
+		// Basic queries.
+		{input: "foo bar", expect: "foo bar"},
+		{input: "func bar", expect: "func bar"},
+		{input: "is:exported", expect: "is:exported"},
+		{input: "dir:foo", expect: "dir:foo"},
+		{input: "is:exported bar", expect: "is:exported bar"},
+		{input: "dir:foo bar", expect: "dir:foo bar"},
+		{input: "is:exported bar baz", expect: "is:exported bar baz"},
+		{input: "dir:foo bar baz", expect: "dir:foo bar baz"},
+
+		// Test guarantee of byte-wise ordering (hint: we only guarantee logical
+		// equivalence, not byte-wise equality).
+		{input: "bar baz is:exported", expect: "is:exported bar baz"},
+		{input: "bar baz dir:foo", expect: "dir:foo bar baz"},
+		{input: "func baz dir:foo", expect: "dir:foo func baz"},
+	}
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			got := ParseQuery(test.input).String()
+			if got != test.expect {
+				t.Errorf("got %q, expect %q", got, test.expect)
+			}
+		})
+	}
+}
