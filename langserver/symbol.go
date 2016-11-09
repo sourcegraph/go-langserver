@@ -231,7 +231,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC
 func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
 	q := parseQuery(params.Query)
 	if q.filter == filterDir {
-		q.dir = path.Join(h.init.RootImportPath, q.dir)
+		q.dir = path.Join(strings.TrimPrefix(h.init.RootPath, "file://"), q.dir)
 	}
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
@@ -269,8 +269,15 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 					continue
 				}
 			}
-			if results.query.filter == filterDir && !pathEqual(pkg, results.query.dir) {
-				continue
+			if results.query.filter == filterDir {
+				buildPkg, err := bctx.Import(pkg, rootPath, build.FindOnly)
+				if err != nil {
+					maybeLogImportError(pkg, err)
+					continue
+				}
+				if !pathEqual(buildPkg.Dir, results.query.dir) {
+					continue
+				}
 			}
 
 			par.Acquire()
@@ -328,9 +335,7 @@ func (h *LangHandler) collectFromPkg(bctx *build.Context, fs *token.FileSet, pkg
 	if pkgSyms == nil {
 		buildPkg, err := bctx.Import(pkg, rootPath, 0)
 		if err != nil {
-			if !(strings.Contains(err.Error(), "no buildable Go source files") || strings.Contains(err.Error(), "found packages") || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
-				log.Printf("skipping possible package %s: %s", pkg, err)
-			}
+			maybeLogImportError(pkg, err)
 			return
 		}
 
@@ -431,4 +436,11 @@ func parseDir(fset *token.FileSet, bctx *build.Context, path string, filter func
 	}
 
 	return
+}
+
+func maybeLogImportError(pkg string, err error) {
+	_, isNoGoError := err.(*build.NoGoError)
+	if !(isNoGoError || !isMultiplePackageError(err) || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
+		log.Printf("skipping possible package %s: %s", pkg, err)
+	}
 }
