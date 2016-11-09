@@ -328,9 +328,7 @@ func (h *LangHandler) collectFromPkg(bctx *build.Context, fs *token.FileSet, pkg
 	if pkgSyms == nil {
 		buildPkg, err := bctx.Import(pkg, rootPath, 0)
 		if err != nil {
-			if !(strings.Contains(err.Error(), "no buildable Go source files") || strings.Contains(err.Error(), "found packages") || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
-				log.Printf("skipping possible package %s: %s", pkg, err)
-			}
+			maybeLogImportError(pkg, err)
 			return
 		}
 
@@ -431,4 +429,11 @@ func parseDir(fset *token.FileSet, bctx *build.Context, path string, filter func
 	}
 
 	return
+}
+
+func maybeLogImportError(pkg string, err error) {
+	_, isNoGoError := err.(*build.NoGoError)
+	if !(isNoGoError || !isMultiplePackageError(err) || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
+		log.Printf("skipping possible package %s: %s", pkg, err)
+	}
 }
