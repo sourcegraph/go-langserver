@@ -31,7 +31,11 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	}
 
 	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
-	_, rev, _ := importgraph.Build(bctx)
+	h.importGraphOnce.Do(func() {
+		// We ignore the errors since we are doing a best-effort analysis
+		_, rev, _ := importgraph.Build(bctx)
+		h.importGraph = rev
+	})
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru
 	// referrers.go.
@@ -64,13 +68,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	// type-checking.
 	var users map[string]bool
 	if pkgLevel {
-		users = rev[defpkg]
+		users = h.importGraph[defpkg]
 		if users == nil {
 			users = map[string]bool{}
 		}
 		users[defpkg] = true
 	} else {
-		users = rev.Search(defpkg)
+		users = h.importGraph.Search(defpkg)
 	}
 	lconf := loader.Config{
 		Fset:  fset,
