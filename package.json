@@ -12,6 +12,7 @@
     "ws": "^1.1.1"
   },
   "scripts": {
+    "build": "npm install && npm run compile && npm run test",
     "compile": "./node_modules/.bin/tsc -p ./tests/js",
     "test": "./tests/websocket_test.sh"
   },

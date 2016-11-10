@@ -74,13 +74,6 @@ func run() error {
         log.Println("langserver-go: websocket listening on", *addr)
         http.HandleFunc("/", echoHandler)
         err := http.ListenAndServe(*addr, nil)
-
-		// handler := websocket.Handler(func(ws *websocket.Conn) {
-		// 	<-jsonrpc2.NewConn(context.Background(), ws, langserver.NewHandler(), connOpt...).DisconnectNotify()
-		// })
-		// log.Println("langserver-go: websocket listening on", *addr)
-		// http.Handle("/ws", handler)
-		// err := http.ListenAndServe(*addr, nil)
 		return err
 
 	case "stdio":
@@ -99,35 +92,48 @@ var upgrader = websocket.Upgrader{
     WriteBufferSize: 1024,
 }
  
-func print_binary(s []byte) {
-    f := bufio.NewWriter(os.Stdout)
-    defer f.Flush()
-
-    fmt.Fprintf(f, "Received binary:");
-    for n := 0;n < len(s);n++ {
-        fmt.Fprintf(f, "%d,",s[n]);
-    }
-    fmt.Fprintf(f, "- message: %s\n", s);
-}
- 
 func echoHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("langserver-go: conn upgrading - w: %p, r: %p", &w, r)
+
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
-        //log.Println(err)
+		log.Printf("langserver-go: conn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
         return
     }
  
+ 	log.Printf("langserver-go: conn: %p - upgraded - w: %p, r: %p", conn, &w, r)
+
+	// serve the client now
     for {
+		// messageType is TextMessage or BinaryMessage
         messageType, p, err := conn.ReadMessage()
-        // fmt.Printf("messageType: %d", messageType);
+		log.Printf("langserver-go: conn: %p - ReadMessage - messageType: %d", conn, messageType)
         if err != nil {
+			log.Printf("langserver-go: conn: %p - ReadMessage error - err: %v", conn, err)
             return
         }
- 
-        print_binary(p)
- 
+
+		switch messageType {
+		case websocket.BinaryMessage:
+			f := bufio.NewWriter(os.Stdout)
+			defer f.Flush()
+			
+			fmt.Fprintf(f, "langserver-go: conn: %p - recv BinaryMessage - ", conn);
+			for n := 0;n < len(p);n++ {
+				fmt.Fprintf(f, "%d,",p[n]);
+			}
+			fmt.Fprintf(f, "\n");
+		case websocket.TextMessage:
+			f := bufio.NewWriter(os.Stdout)
+			defer f.Flush()
+
+			fmt.Fprintf(f, "langserver-go: conn: %p - recv TextMessage - %s\n", conn, p);
+		}
+
         err = conn.WriteMessage(messageType, p);
+		log.Printf("langserver-go: conn: %p - WriteMessage - messageType: %d", conn, messageType)
         if err != nil {
+			log.Printf("langserver-go: conn: %p - WriteMessage error - err: %v", conn, err)
             return
         }
     }
