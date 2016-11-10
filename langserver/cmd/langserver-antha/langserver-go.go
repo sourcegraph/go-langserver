@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-    "bufio"
 
 	"github.com/gorilla/websocket"
 
@@ -100,42 +99,34 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("langserver-go: conn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
         return
     }
- 
  	log.Printf("langserver-go: conn: %p - upgraded - w: %p, r: %p", conn, &w, r)
 
 	// serve the client now
     for {
-		// messageType is TextMessage or BinaryMessage
-        messageType, p, err := conn.ReadMessage()
+    	messageType, reader, err := conn.NextReader()
 		log.Printf("langserver-go: conn: %p - ReadMessage - messageType: %d", conn, messageType)
         if err != nil {
 			log.Printf("langserver-go: conn: %p - ReadMessage error - err: %v", conn, err)
             return
         }
 
-		switch messageType {
-		case websocket.BinaryMessage:
-			f := bufio.NewWriter(os.Stdout)
-			defer f.Flush()
-			
-			fmt.Fprintf(f, "langserver-go: conn: %p - recv BinaryMessage - ", conn);
-			for n := 0;n < len(p);n++ {
-				fmt.Fprintf(f, "%d,",p[n]);
-			}
-			fmt.Fprintf(f, "\n");
-		case websocket.TextMessage:
-			f := bufio.NewWriter(os.Stdout)
-			defer f.Flush()
-
-			fmt.Fprintf(f, "langserver-go: conn: %p - recv TextMessage - %s\n", conn, p);
+		writer, err := conn.NextWriter(messageType)
+		if err != nil {
+			log.Printf("langserver-go: conn: %p - NextWriter error - err: %v", conn, err)
+			return
 		}
 
-        err = conn.WriteMessage(messageType, p);
-		log.Printf("langserver-go: conn: %p - WriteMessage - messageType: %d", conn, messageType)
-        if err != nil {
-			log.Printf("langserver-go: conn: %p - WriteMessage error - err: %v", conn, err)
-            return
-        }
+		written, err := io.Copy(writer, reader);
+		if err != nil {
+			log.Printf("langserver-go: conn: %p - io.Copy() error - err: %v", conn, err)
+			return
+		}
+		log.Printf("langserver-go: conn: %p - io.Copy() - written: %v", conn, written)
+
+		if err := writer.Close(); err != nil {
+			log.Printf("langserver-go: conn: %p - writer.Close() error - err: %v", conn, err)
+			return
+		}
     }
 }
 
