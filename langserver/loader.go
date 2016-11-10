@@ -59,13 +59,13 @@ func (h *LangHandler) typecheck(ctx context.Context, conn JSONRPC2Conn, fileURI 
 		return nil, nil, nil, nil, err
 	}
 
-	if len(diags) > 0 {
-		go func() {
-			if err := h.publishDiagnostics(ctx, conn, diags); err != nil {
-				log.Printf("warning: failed to send diagnostics: %s.", err)
-			}
-		}()
-	}
+	// We always publish diagnostics, so that when a user fixes an error
+	// we stop highlighting it.
+	go func() {
+		if err := h.publishDiagnostics(ctx, conn, diags); err != nil {
+			log.Printf("warning: failed to send diagnostics: %s.", err)
+		}
+	}()
 
 	start := posForFileOffset(fset, filename, offset)
 	if start == token.NoPos {
