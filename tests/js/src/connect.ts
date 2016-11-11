@@ -51,10 +51,40 @@ const run: Types.TestRun = () => {
         });
 
         ws.on('open', () => {
+            let messageInit = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "processId": '',
+                    "rootPath": '',
+                    "capabilities": {
+
+                    }
+                }
+            };
+            console.log('---sending message: ', JSON.stringify(messageInit));
+            ws.send(JSON.stringify(messageInit));
+
             Array.from(Array(MESSAGE_COUNT).keys()).map((messageIndex) => {
                 let messageName = `MESSAGE_NAME-${messageIndex}`;
-                console.log('---sending message:', messageIndex, messageName);
-                ws.send(messageName);
+
+                let URI = `URI-${messageName}`;
+                let Text = `Text-${messageName}`;
+                let jsonRpcMessage = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "textDocument/didOpen",
+                    "params": {
+                        "TextDocument": {
+                            "URI": URI,
+                            "Text": Text,
+                        }
+                    }
+                };
+
+                console.log('---sending message: ', JSON.stringify(jsonRpcMessage));
+                ws.send(JSON.stringify(jsonRpcMessage));
             });
         });
 
