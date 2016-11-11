@@ -91,6 +91,11 @@ func run() error {
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// disable security for now
+	// "If CheckOrigin returns false, you will get the error you described. By default, it returns false if the request is cross-origin."
+	CheckOrigin: func(r *http.Request) bool {
+			return true
+	},
 }
 
 func echoHandler(w http.ResponseWriter, r *http.Request, connOpt []jsonrpc2.ConnOpt) {
@@ -119,7 +124,8 @@ func echoHandler(w http.ResponseWriter, r *http.Request, connOpt []jsonrpc2.Conn
 		}
 
 		conn := &wsrwc{reader: reader, writer: writer, closer: writer}
-		jsonrpc2.NewConn(context.Background(), conn, langserver.NewHandler(), connOpt...)
+		<-jsonrpc2.NewConn(context.Background(), conn, langserver.NewHandler(), connOpt...).DisconnectNotify()
+		log.Printf("langserver-go: wsConn: %p, conn: %p - closed", wsConn, &conn)
 	}
 }
 
