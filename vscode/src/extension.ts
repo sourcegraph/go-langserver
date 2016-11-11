@@ -11,16 +11,15 @@ import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, E
 
 export function activate(context: ExtensionContext) {
 	const c = new LanguageClient(
-		'langserver-go',
+		'langserver-antha',
 		{
-			command: 'langserver-go',
+			command: 'langserver-antha',
 			args: [
-				'-mode=stdio',
-
+				'-mode=ws',
 				// Uncomment for verbose logging to the vscode
 				// "Output" pane and to a temporary file:
 				//
-				// '-trace', '-logfile=/tmp/langserver-go.log',
+				'-trace', '-logfile=/tmp/langserver-go.log',
 			],
 		},
 		{

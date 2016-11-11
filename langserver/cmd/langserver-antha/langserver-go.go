@@ -70,9 +70,11 @@ func run() error {
 		}
 
 	case "ws":
-        log.Println("langserver-go: websocket listening on", *addr)
-        http.HandleFunc("/", echoHandler)
-        err := http.ListenAndServe(*addr, nil)
+		log.Println("langserver-go: websocket listening on", *addr)
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			echoHandler(w, r, connOpt)
+		})
+		err := http.ListenAndServe(*addr, nil)
 		return err
 
 	case "stdio":
@@ -87,47 +89,56 @@ func run() error {
 }
 
 var upgrader = websocket.Upgrader{
-    ReadBufferSize:  1024,
-    WriteBufferSize: 1024,
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 }
- 
-func echoHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("langserver-go: conn upgrading - w: %p, r: %p", &w, r)
 
-    conn, err := upgrader.Upgrade(w, r, nil)
-    if err != nil {
-		log.Printf("langserver-go: conn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
-        return
-    }
- 	log.Printf("langserver-go: conn: %p - upgraded - w: %p, r: %p", conn, &w, r)
+func echoHandler(w http.ResponseWriter, r *http.Request, connOpt []jsonrpc2.ConnOpt) {
+	log.Printf("langserver-go: wsConn upgrading - w: %p, r: %p", &w, r)
+
+	wsConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("langserver-go: wsConn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
+		return
+	}
+	log.Printf("langserver-go: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
 
 	// serve the client now
-    for {
-    	messageType, reader, err := conn.NextReader()
-		log.Printf("langserver-go: conn: %p - ReadMessage - messageType: %d", conn, messageType)
-        if err != nil {
-			log.Printf("langserver-go: conn: %p - ReadMessage error - err: %v", conn, err)
-            return
-        }
-
-		writer, err := conn.NextWriter(messageType)
+	for {
+		messageType, reader, err := wsConn.NextReader()
+		log.Printf("langserver-go: wsConn: %p - ReadMessage - messageType: %d", wsConn, messageType)
 		if err != nil {
-			log.Printf("langserver-go: conn: %p - NextWriter error - err: %v", conn, err)
+			log.Printf("langserver-go: wsConn: %p - ReadMessage error - err: %v", wsConn, err)
 			return
 		}
 
-		written, err := io.Copy(writer, reader);
+		writer, err := wsConn.NextWriter(messageType)
 		if err != nil {
-			log.Printf("langserver-go: conn: %p - io.Copy() error - err: %v", conn, err)
+			log.Printf("langserver-go: wsConn: %p - NextWriter error - err: %v", wsConn, err)
 			return
 		}
-		log.Printf("langserver-go: conn: %p - io.Copy() - written: %v", conn, written)
 
-		if err := writer.Close(); err != nil {
-			log.Printf("langserver-go: conn: %p - writer.Close() error - err: %v", conn, err)
-			return
-		}
-    }
+		conn := &wsrwc{reader: reader, writer: writer, closer: writer}
+		jsonrpc2.NewConn(context.Background(), conn, langserver.NewHandler(), connOpt...)
+	}
+}
+
+type wsrwc struct {
+	reader io.Reader
+	writer io.Writer
+	closer io.Closer
+}
+
+func (ws *wsrwc) Read(p []byte) (int, error) {
+	return ws.reader.Read(p)
+}
+
+func (ws *wsrwc) Write(p []byte) (int, error) {
+	return ws.writer.Write(p)
+}
+
+func (ws *wsrwc) Close() error {
+	return ws.closer.Close()
 }
 
 type stdrwc struct{}
