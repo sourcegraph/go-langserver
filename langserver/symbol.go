@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/buildutil"
 
 	"github.com/neelance/parallel"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -339,8 +340,14 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 // exist. Otherwise, it returns nil.
 func (h *LangHandler) getPkgSyms(pkg string) []lsp.SymbolInformation {
 	h.pkgSymCacheMu.Lock()
-	defer h.pkgSymCacheMu.Unlock()
-	return h.pkgSymCache[pkg]
+	l, ok := h.pkgSymCache[pkg]
+	h.pkgSymCacheMu.Unlock()
+	if ok {
+		symbolCacheTotal.WithLabelValues("hit").Inc()
+	} else {
+		symbolCacheTotal.WithLabelValues("miss").Inc()
+	}
+	return l
 }
 
 // setPkgSyms updates the cached symbols for package pkg.
@@ -469,4 +476,15 @@ func maybeLogImportError(pkg string, err error) {
 	if !(isNoGoError || !isMultiplePackageError(err) || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
 		log.Printf("skipping possible package %s: %s", pkg, err)
 	}
+}
+
+var symbolCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Namespace: "golangserver",
+	Subsystem: "symbol",
+	Name:      "cache_request_total",
+	Help:      "Count of requests to cache.",
+}, []string{"type"})
+
+func init() {
+	prometheus.MustRegister(symbolCacheTotal)
 }
