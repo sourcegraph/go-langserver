@@ -14,6 +14,15 @@ const makeUrl = () => {
 };
 const URL = makeUrl();
 
+const makeRpcMsg = (msgJson: Object) => {
+    let MSG_STR = JSON.stringify(msgJson);
+    let MSG_LEN = MSG_STR.length;
+    let CONTENT_LENGTH = `Content-Length: ${MSG_LEN}`;
+
+    let rpcMsg = `${CONTENT_LENGTH}\r\n\r\n${MSG_STR}`;
+    return rpcMsg;
+};
+
 const run: Types.TestRun = () => {
     return new Promise((resolve, reject) => {
         let errorHandler = (...result: any[]) => {
@@ -51,8 +60,8 @@ const run: Types.TestRun = () => {
         });
 
         ws.on('open', () => {
-            let messageInit = {
-                "jsonrpc": "2.0",
+            let msgJsonInit = {
+                "initMessage": "2.0",
                 "id": 1,
                 "method": "initialize",
                 "params": {
@@ -63,15 +72,16 @@ const run: Types.TestRun = () => {
                     }
                 }
             };
-            console.log('---sending message: ', JSON.stringify(messageInit));
-            ws.send(JSON.stringify(messageInit));
+            let rpcMessageInit = makeRpcMsg(msgJsonInit);
+            console.log('---sending message: ', rpcMessageInit);
+            ws.send(rpcMessageInit);
 
             Array.from(Array(MESSAGE_COUNT).keys()).map((messageIndex) => {
                 let messageName = `MESSAGE_NAME-${messageIndex}`;
 
                 let URI = `URI-${messageName}`;
                 let Text = `Text-${messageName}`;
-                let jsonRpcMessage = {
+                let msgJsonTextOpen = {
                     "jsonrpc": "2.0",
                     "id": 1,
                     "method": "textDocument/didOpen",
@@ -83,8 +93,9 @@ const run: Types.TestRun = () => {
                     }
                 };
 
-                console.log('---sending message: ', JSON.stringify(jsonRpcMessage));
-                ws.send(JSON.stringify(jsonRpcMessage));
+                let rpcMessageTextOpen = makeRpcMsg(msgJsonTextOpen);
+                console.log('---sending message: ', rpcMessageTextOpen);
+                ws.send(rpcMessageTextOpen);
             });
         });
 
