@@ -72,6 +72,8 @@ func (h *LangHandler) resetCaches(lock bool) {
 	}
 	h.cacheMus = map[typecheckKey]*sync.Mutex{}
 	h.cache = map[typecheckKey]typecheckResult{}
+	h.importGraphOnce = sync.Once{}
+	h.importGraph = nil
 	if lock {
 		h.mu.Unlock()
 	}
