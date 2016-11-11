@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/refactor/importgraph"
+
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
@@ -39,6 +41,10 @@ type LangHandler struct {
 	// cached typechecking results
 	cacheMus map[typecheckKey]*sync.Mutex
 	cache    map[typecheckKey]typecheckResult
+
+	// cache the reverse import graph
+	importGraphOnce sync.Once
+	importGraph     importgraph.Graph
 }
 
 // reset clears all internal state in h.
