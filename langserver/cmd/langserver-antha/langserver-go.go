@@ -82,7 +82,7 @@ func run() error {
 			}
 
 			log.Printf("langserver-go: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
-			go wsHandler(w, r, wsConn, connOpt)
+			wsHandler(w, r, wsConn, connOpt)
 		})
 		err := http.ListenAndServe(*addr, nil)
 		return err
@@ -109,7 +109,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
-	defer wsConn.Close()
+	// defer wsConn.Close()
 
 	handler := langserver.NewHandler()
 	for {
@@ -128,7 +128,16 @@ func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, c
 		log.Printf("langserver-go: wsConn: %p - NextWriter - writer: %p", wsConn, &writer)
 
 		rwc := wsrwc{reader: reader, writer: writer, closer: writer}
-		jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
+		conn := jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
+		<-conn.DisconnectNotify()
+		// defer conn.Close()
+		// conn.ReadMessagesStart(ctx, rwc)
+
+	// 	err = conn.Close()
+	// 	if err != nil {
+	// 		log.Printf("langserver-go: wsConn: %p - conn.Close() error - conn: %p, err: %v", wsConn, conn, err)
+	// 		return
+	// 	}
 	}
 }
 
