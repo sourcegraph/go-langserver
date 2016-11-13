@@ -1,27 +1,22 @@
 import * as WebSocket from 'ws';
+import { Logger } from './logger';
 import * as Types from './types';
+import * as Messages from './messages';
+
+let filename: string = __filename.slice(__dirname.length + 1);
+const LOGGER = new Logger(filename);
 
 const PORT_WEBSOCKET = process.env.PORT_WEBSOCKET || '4389';
-console.info('---PORT_WEBSOCKET', PORT_WEBSOCKET);
-
 const MESSAGE_NAME: string = 'some_rpc_message';
-const MESSAGE_COUNT: number = 1;
-
+const MESSAGE_COUNT: number = 2; // include the init message
 const FAILURE_DELAY = 10 * 1000;
+
+LOGGER.log('PORT_WEBSOCKET', PORT_WEBSOCKET);
 
 const makeUrl = () => {
     return 'ws://localhost:' + PORT_WEBSOCKET + '/';
 };
-const URL = makeUrl();
-
-const makeRpcMsg = (msgJson: Object) => {
-    let MSG_STR = JSON.stringify(msgJson);
-    let MSG_LEN = MSG_STR.length;
-    let CONTENT_LENGTH = `Content-Length: ${MSG_LEN}`;
-
-    let rpcMsg = `${CONTENT_LENGTH}\r\n\r\n${MSG_STR}`;
-    return rpcMsg;
-};
+const WS_URL = makeUrl();
 
 const run: Types.TestRun = () => {
     return new Promise((resolve, reject) => {
@@ -43,20 +38,19 @@ const run: Types.TestRun = () => {
             resolve(SUCCESS);
         };
 
-        let ws = new WebSocket(URL);
+        let ws = new WebSocket(WS_URL);
 
         let messageCount: number = 0;
         ws.on('message', (data: any, flags: { binary: boolean }) => {
             // flags.binary will be set if a binary data is received.
             // flags.masked will be set if the data was masked.
 
-            // console.log('message:', data, flags);
             messageCount++;
             if (messageCount === MESSAGE_COUNT) {
                 succesHandler();
             }
 
-            console.log('<--recv message - data: %j, flags: %j, messageCount: %d', data, flags, messageCount);
+            LOGGER.log('<--recv message - data: %j, flags: %j, messageCount: %d', data, flags, messageCount);
         });
 
         ws.on('open', () => {
@@ -65,15 +59,25 @@ const run: Types.TestRun = () => {
                 "id": 1,
                 "method": "initialize",
                 "params": {
-                    "processId": '',
-                    "rootPath": '',
-                    "capabilities": {
-
+                    "rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver',
+                    "InitializeParams": {
+                        "rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
                     }
+                },
+                "Params": {
+                    "rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
+                },
+                "initializeParams": {
+                    "rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
+                },
+                "InitializeParams": {
+                    "rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
                 }
             };
-            let rpcMessageInit = makeRpcMsg(msgJsonInit);
-            console.log(`-->sending message: '${rpcMessageInit}'`);
+
+            let rpcMessageInit = Messages.toRequest(msgJsonInit);
+            LOGGER.log('-->sending message: ', rpcMessageInit);
+
             ws.send(rpcMessageInit);
 
             Array.from(Array(MESSAGE_COUNT).keys()).map((messageIndex) => {
@@ -93,8 +97,9 @@ const run: Types.TestRun = () => {
                     }
                 };
 
-                let rpcMessageTextOpen = makeRpcMsg(msgJsonTextOpen);
-                console.log(`-->sending message: '${rpcMessageTextOpen}'`);
+                let rpcMessageTextOpen = Messages.toRequest(msgJsonTextOpen);
+                LOGGER.log('-->sending message: ', rpcMessageTextOpen);
+
                 ws.send(rpcMessageTextOpen);
             });
         });
@@ -104,7 +109,8 @@ const run: Types.TestRun = () => {
 
         // fail otherwise
         setTimeout(() => {
-            console.log('---Test timeout in ' + FAILURE_DELAY / 1000 + 's');
+            let TIMEOUT_SECS = FAILURE_DELAY / 1000 + 's';
+            LOGGER.log('Test timeout in: %d', TIMEOUT_SECS);
 
             errorHandler();
         }, FAILURE_DELAY);
