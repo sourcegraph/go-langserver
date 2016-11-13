@@ -80,6 +80,8 @@ func run() error {
 				log.Printf("langserver-go: wsConn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
 				return
 			}
+
+			log.Printf("langserver-go: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
 			go wsHandler(w, r, wsConn, connOpt)
 		})
 		err := http.ListenAndServe(*addr, nil)
@@ -109,8 +111,6 @@ var upgrader = websocket.Upgrader{
 func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
 	defer wsConn.Close()
 
-	log.Printf("langserver-go: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
-
 	handler := langserver.NewHandler()
 	for {
 		messageType, reader, err := wsConn.NextReader()
@@ -127,23 +127,8 @@ func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, c
 		}
 		log.Printf("langserver-go: wsConn: %p - NextWriter - writer: %p", wsConn, &writer)
 
-		//// debug
-		// readBuff := bytes.NewBuffer(nil)
-		// if _, err := io.Copy(readBuff, reader); err != nil {
-		// 	log.Printf("langserver-go: wsConn: %p - io.Copy error - messageType: %d, error: %v", wsConn, messageType, err)
-		// 	return
-		// }
-		// message := string(readBuff.Bytes())
-		// log.Printf("langserver-go: wsConn: %p - ReadMessage - messageType: %d, message: '%v'", wsConn, messageType, message)
-
 		rwc := wsrwc{reader: reader, writer: writer, closer: writer}
-		// <-jsonrpc2.NewConn(ctx, rwc, handler, connOpt...).DisconnectNotify()
 		jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
-		// defer conn.Close()
-		// select {
-		// case <-conn.DisconnectNotify():
-		// 	log.Printf("langserver-go: wsConn: %p - DisconnectNotify - conn: %p, reader: %p, writer: %p", wsConn, conn, &reader, &writer)
-		// }
 	}
 }
 
