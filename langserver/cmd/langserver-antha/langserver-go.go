@@ -21,6 +21,7 @@ var (
 	addr    = flag.String("addr", ":4389", "server listen address (tcp|ws)")
 	trace   = flag.Bool("trace", false, "print all requests and responses")
 	logfile = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	ctx     = context.Background()
 )
 
 func main() {
@@ -72,7 +73,14 @@ func run() error {
 	case "ws":
 		log.Println("langserver-go: websocket listening on", *addr)
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			echoHandler(w, r, connOpt)
+			log.Printf("langserver-go: wsConn upgrading - w: %p, r: %p", &w, r)
+
+			wsConn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				log.Printf("langserver-go: wsConn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
+				return
+			}
+			go wsHandler(w, r, wsConn, connOpt)
 		})
 		err := http.ListenAndServe(*addr, nil)
 		return err
@@ -94,38 +102,48 @@ var upgrader = websocket.Upgrader{
 	// disable security for now
 	// "If CheckOrigin returns false, you will get the error you described. By default, it returns false if the request is cross-origin."
 	CheckOrigin: func(r *http.Request) bool {
-			return true
+		return true
 	},
 }
 
-func echoHandler(w http.ResponseWriter, r *http.Request, connOpt []jsonrpc2.ConnOpt) {
-	log.Printf("langserver-go: wsConn upgrading - w: %p, r: %p", &w, r)
+func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
+	defer wsConn.Close()
 
-	wsConn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("langserver-go: wsConn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
-		return
-	}
 	log.Printf("langserver-go: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
 
-	// serve the client now
+	handler := langserver.NewHandler()
 	for {
 		messageType, reader, err := wsConn.NextReader()
-		log.Printf("langserver-go: wsConn: %p - ReadMessage - messageType: %d", wsConn, messageType)
 		if err != nil {
-			log.Printf("langserver-go: wsConn: %p - ReadMessage error - err: %v", wsConn, err)
+			log.Printf("langserver-go: wsConn: %p - NextReader error - err: %v", wsConn, err)
 			return
 		}
+		log.Printf("langserver-go: wsConn: %p - NextReader - reader: %p, messageType: %d", wsConn, &reader, messageType)
 
 		writer, err := wsConn.NextWriter(messageType)
 		if err != nil {
 			log.Printf("langserver-go: wsConn: %p - NextWriter error - err: %v", wsConn, err)
 			return
 		}
+		log.Printf("langserver-go: wsConn: %p - NextWriter - writer: %p", wsConn, &writer)
 
-		conn := &wsrwc{reader: reader, writer: writer, closer: writer}
-		<-jsonrpc2.NewConn(context.Background(), conn, langserver.NewHandler(), connOpt...).DisconnectNotify()
-		log.Printf("langserver-go: wsConn: %p, conn: %p - closed", wsConn, &conn)
+		//// debug
+		// readBuff := bytes.NewBuffer(nil)
+		// if _, err := io.Copy(readBuff, reader); err != nil {
+		// 	log.Printf("langserver-go: wsConn: %p - io.Copy error - messageType: %d, error: %v", wsConn, messageType, err)
+		// 	return
+		// }
+		// message := string(readBuff.Bytes())
+		// log.Printf("langserver-go: wsConn: %p - ReadMessage - messageType: %d, message: '%v'", wsConn, messageType, message)
+
+		rwc := wsrwc{reader: reader, writer: writer, closer: writer}
+		// <-jsonrpc2.NewConn(ctx, rwc, handler, connOpt...).DisconnectNotify()
+		jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
+		// defer conn.Close()
+		// select {
+		// case <-conn.DisconnectNotify():
+		// 	log.Printf("langserver-go: wsConn: %p - DisconnectNotify - conn: %p, reader: %p, writer: %p", wsConn, conn, &reader, &writer)
+		// }
 	}
 }
 
@@ -135,15 +153,15 @@ type wsrwc struct {
 	closer io.Closer
 }
 
-func (ws *wsrwc) Read(p []byte) (int, error) {
+func (ws wsrwc) Read(p []byte) (int, error) {
 	return ws.reader.Read(p)
 }
 
-func (ws *wsrwc) Write(p []byte) (int, error) {
+func (ws wsrwc) Write(p []byte) (int, error) {
 	return ws.writer.Write(p)
 }
 
-func (ws *wsrwc) Close() error {
+func (ws wsrwc) Close() error {
 	return ws.closer.Close()
 }
 

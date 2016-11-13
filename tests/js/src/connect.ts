@@ -5,7 +5,7 @@ const PORT_WEBSOCKET = process.env.PORT_WEBSOCKET || '4389';
 console.info('---PORT_WEBSOCKET', PORT_WEBSOCKET);
 
 const MESSAGE_NAME: string = 'some_rpc_message';
-const MESSAGE_COUNT: number = 3;
+const MESSAGE_COUNT: number = 1;
 
 const FAILURE_DELAY = 10 * 1000;
 
@@ -56,7 +56,7 @@ const run: Types.TestRun = () => {
                 succesHandler();
             }
 
-            console.log('--message:', data, flags, messageCount);
+            console.log('<--recv message - data: %j, flags: %j, messageCount: %d', data, flags, messageCount);
         });
 
         ws.on('open', () => {
@@ -73,7 +73,7 @@ const run: Types.TestRun = () => {
                 }
             };
             let rpcMessageInit = makeRpcMsg(msgJsonInit);
-            console.log('---sending message: ', rpcMessageInit);
+            console.log(`-->sending message: '${rpcMessageInit}'`);
             ws.send(rpcMessageInit);
 
             Array.from(Array(MESSAGE_COUNT).keys()).map((messageIndex) => {
@@ -94,7 +94,7 @@ const run: Types.TestRun = () => {
                 };
 
                 let rpcMessageTextOpen = makeRpcMsg(msgJsonTextOpen);
-                console.log('---sending message: ', rpcMessageTextOpen);
+                console.log(`-->sending message: '${rpcMessageTextOpen}'`);
                 ws.send(rpcMessageTextOpen);
             });
         });

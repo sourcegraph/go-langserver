@@ -89,9 +89,12 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 // exactly.
 func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
+	log.Printf("langserver-go: Handle - ctx: %p conn: %p, req: %p", &ctx, &conn, req)
+
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("unexpected panic: %v", r)
+			log.Printf("langserver-go: Handle err - ctx: %p conn: %p, req: %p, err: %v", &ctx, &conn, req, err)
 
 			// Same as net/http
 			const size = 64 << 10
@@ -151,6 +154,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
+
+		log.Printf("langserver-go: Handle initialize - ctx: %p conn: %p, req: %p, params: %v", &ctx, &conn, req, params)
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync:        lsp.TDSKFull,
