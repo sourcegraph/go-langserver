@@ -25,8 +25,10 @@ var (
 	}
 )
 
+// WebSocket listener on addr with connOpts.
 func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) error {
 	log.Printf("langserver: websocket listening on: %s", addr)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("langserver-go: wsConn upgrading - w: %p, r: %p", &w, r)
 
@@ -37,14 +39,14 @@ func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) error {
 		}
 
 		log.Printf("langserver: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
-		wsHandler(w, r, wsConn, connOpt)
+		webSocketHandler(w, r, wsConn, connOpt)
 	})
-	
+
 	err := http.ListenAndServe(addr, nil)
 	return err
 }
 
-func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
+func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
 	// defer wsConn.Close()
 
 	handler := langserver.NewHandler()
@@ -63,7 +65,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, c
 		}
 		log.Printf("langserver: wsConn: %p - NextWriter - writer: %p", wsConn, &writer)
 
-		rwc := wsrwc{reader: reader, writer: writer, closer: writer}
+		rwc := webSocketReadWriteCloser{reader: reader, writer: writer, closer: writer}
 		conn := jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
 		<-conn.DisconnectNotify()
 		// defer conn.Close()
@@ -77,20 +79,20 @@ func wsHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, c
 	}
 }
 
-type wsrwc struct {
+type webSocketReadWriteCloser struct {
 	reader io.Reader
 	writer io.Writer
 	closer io.Closer
 }
 
-func (ws wsrwc) Read(p []byte) (int, error) {
+func (ws webSocketReadWriteCloser) Read(p []byte) (int, error) {
 	return ws.reader.Read(p)
 }
 
-func (ws wsrwc) Write(p []byte) (int, error) {
+func (ws webSocketReadWriteCloser) Write(p []byte) (int, error) {
 	return ws.writer.Write(p)
 }
 
-func (ws wsrwc) Close() error {
+func (ws webSocketReadWriteCloser) Close() error {
 	return ws.closer.Close()
 }
