@@ -7,26 +7,41 @@
 import * as net from 'net';
 
 import { Disposable, ExtensionContext, Uri, workspace } from 'vscode';
-import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, ErrorAction, ErrorHandler, CloseAction, TransportKind } from 'vscode-languageclient';
+import {
+	LanguageClient, LanguageClientOptions,
+	SettingMonitor,
+	ServerOptions, TransportKind, ExecutableOptions,
+	ErrorAction, ErrorHandler,
+	CloseAction,
+} from 'vscode-languageclient';
 
 export function activate(context: ExtensionContext) {
+	let options: ExecutableOptions = {
+		env: {
+			[TransportKind.toString()]: TransportKind.ipc
+			// [TransportKind.toString()]: TransportKind.websocket
+		}
+	};
+
+	let serverOptions: ServerOptions = {
+		command: 'langserver-antha',
+		args: [
+			'-mode=ws',
+			// Uncomment for verbose logging to the vscode
+			// "Output" pane and to a temporary file:
+			'-trace', '-logfile=/tmp/langserver-go.log',
+		],
+		options
+	};
+
 	const c = new LanguageClient(
 		'langserver-antha',
-		{
-			command: 'langserver-antha',
-			args: [
-				'-mode=ws',
-				// Uncomment for verbose logging to the vscode
-				// "Output" pane and to a temporary file:
-				//
-				'-trace', '-logfile=/tmp/langserver-go.log',
-			],
-		},
+		serverOptions,
 		{
 			documentSelector: ['go'],
 			uriConverters: {
 				// Apply file:/// scheme to all file paths.
-				code2Protocol: (uri: Uri): string => (uri.scheme ? uri : uri.with({scheme: 'file'})).toString(),
+				code2Protocol: (uri: Uri): string => (uri.scheme ? uri : uri.with({ scheme: 'file' })).toString(),
 				protocol2Code: (uri: string) => Uri.parse(uri),
 			},
 		}

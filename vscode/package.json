@@ -51,7 +51,7 @@
   },
   "main": "./out/src/extension",
   "scripts": {
-    "compile": "go install ../langserver/cmd/langserver-go && tsc",
+    "compile": "go install ../langserver/cmd/langserver-go &&  ./node_modules/.bin/tsc",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test": "node ./node_modules/vscode/bin/test",
     "isolated-vscode": "npm run compile && VSCODE=$(which code-insiders || which code || echo echo ERROR: neither the code nor code-insiders vscode executable is installed); USER=dummy-dont-share-vscode-instance $VSCODE --user-data-dir=$PWD/.vscode-dev/user-data --extensionHomePath=$PWD/.vscode-dev/extensions --extensionDevelopmentPath=$PWD $*"
