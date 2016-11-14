@@ -7,12 +7,10 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/sourcegraph/go-langserver/langserver"
+	"github.com/sourcegraph/go-langserver/langserver/modes"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -70,13 +68,7 @@ func run() error {
 		}
 
 	case "ws":
-		handler := websocket.Handler(func(ws *websocket.Conn) {
-			<-jsonrpc2.NewConn(context.Background(), ws, langserver.NewHandler(), connOpt...).DisconnectNotify()
-		})
-		log.Println("langserver-go: websocket listening on", *addr)
-		http.Handle("/ws", handler)
-		err := http.ListenAndServe(*addr, nil)
-		return err
+		return modes.WebSocket(*addr, connOpt)
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
