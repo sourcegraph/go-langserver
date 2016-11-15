@@ -38,9 +38,12 @@ export class GoLanguageClient {
         const TRANSPORT_KEY = 'TransportKind';
 
         let options: ExecutableOptions = {
+            // cwd: '',
+            // stdio: '', // ['', ...]
             env: {
                 [TRANSPORT_KEY]: TransportKind.websocket
-            }
+            },
+            detached: false
         };
         return {
             command: 'langserver-antha',

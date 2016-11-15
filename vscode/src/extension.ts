@@ -6,15 +6,15 @@
 
 import * as net from 'net';
 import { Disposable, ExtensionContext, Uri, workspace } from 'vscode';
-import { GoLanguageClient } from './go-language-client'; 
+import { GoLanguageClient } from './go-language-client';
 
 export function activate(context: ExtensionContext) {
-	let languageClient = new GoLanguageClient();
-	context.subscriptions.push(languageClient.start());
-
 	// Update GOPATH, GOROOT, etc., when config changes.
 	updateEnvFromConfig();
-	context.subscriptions.push(workspace.onDidChangeConfiguration(updateEnvFromConfig));
+	context.subscriptions.push(workspace.onDidChangeConfiguration(() => {
+		updateEnvFromConfig();
+	}));
+	context.subscriptions.push(new GoLanguageClient().start());
 }
 
 function updateEnvFromConfig() {
