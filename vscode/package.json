@@ -63,6 +63,7 @@
     "vscode": "^1.0.0"
   },
   "dependencies": {
-    "vscode-languageclient": "^3.0.0-alpha.2"
+    "vscode-languageclient": "^3.0.0-alpha.2",
+    "vscode-uri": "^1.0.0"
   }
 }

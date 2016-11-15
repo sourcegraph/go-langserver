@@ -1,13 +1,27 @@
 {
 	"compilerOptions": {
 		"target": "es6",
+		"lib": [ "es6" ],
+
 		"module": "commonjs",
 		"moduleResolution": "node",
+
 		"outDir": "out",
-		"sourceMap": true
+
+		"sourceMap": false,
+		"inlineSources": true,
+		"inlineSourceMap": true,
+		"declaration": true,
+		"stripInternal": false,
+		"preserveConstEnums": true,
+		"noEmitOnError": true,
+		"pretty": true,
+		"removeComments": false,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true
 	},
-	"exclude": [
-		"node_modules",
-		"server"
+	"include": [
+		"src/**/*",
+		"test/**/*"
 	]
 }
