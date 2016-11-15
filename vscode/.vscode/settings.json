@@ -4,5 +4,7 @@
 	},
 	"search.exclude": {
 		"out": true
-	}
+	},
+
+    "debug.allowBreakpointsEverywhere": true
 }
