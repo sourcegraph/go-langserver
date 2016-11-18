@@ -8,12 +8,12 @@
   },
   "devDependencies": {
     "@types/ws": "0.0.35",
-    "typescript": "2.0.6",
+    "typescript": "^2.1.0",
     "ws": "^1.1.1"
   },
   "scripts": {
     "build": "npm install && npm run compile && npm run test",
-    "compile": "./node_modules/.bin/tsc -p ./tests/js",
+    "compile": "./node_modules/.bin/tsc -p ./tests/",
     "test": "./tests/websocket_test.sh"
   },
   "repository": {

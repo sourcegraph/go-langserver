@@ -12,4 +12,9 @@ export class Logger {
     public log(msg: string, ...items: any[]) {
         console.info(this.getMsgPrefix(msg), ...items, '\n');
     }
+
+    public static create(file: string, dir: string) {
+        let filename: string = file.slice(dir.length + 1);
+        return new Logger(filename);
+    }
 }

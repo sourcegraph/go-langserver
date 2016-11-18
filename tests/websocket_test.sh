@@ -12,5 +12,5 @@ trap "kill -9 $SERVER_JOB" EXIT
 
 # sleep a bit then start client tests
 sleep 2s
-PORT_WEBSOCKET=$PORT_WEBSOCKET node ./tests/js/out/main
+PORT_WEBSOCKET=$PORT_WEBSOCKET node ./tests/out/main
 

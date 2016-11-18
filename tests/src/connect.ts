@@ -2,19 +2,12 @@ import * as WebSocket from 'ws';
 import { Logger } from './logger';
 import * as Types from './types';
 import * as Messages from './messages';
+import * as Utils from './utils';
 
-let filename: string = __filename.slice(__dirname.length + 1);
-const LOGGER = new Logger(filename);
-
+const LOGGER = Logger.create(__filename, __dirname);
 const PORT_WEBSOCKET = process.env.PORT_WEBSOCKET || '4389';
-const FAILURE_DELAY = 10 * 1000;
 
 LOGGER.log('PORT_WEBSOCKET', PORT_WEBSOCKET);
-
-const makeUrl = () => {
-    return 'ws://localhost:' + PORT_WEBSOCKET + '/';
-};
-const WS_URL = makeUrl();
 
 const run: Types.TestRun = () => {
     return new Promise((resolve, reject) => {
@@ -36,16 +29,17 @@ const run: Types.TestRun = () => {
             resolve(SUCCESS);
         };
 
-        let ws = new WebSocket(WS_URL);
+        // let uri = `ws://localhost:${PORT_WEBSOCKET}/`;
+        let uri = `ws://echo.websocket.org/`;
+        LOGGER.log('uri: %s', uri);
 
-        let receivedMsgCount: number = 0;
+        let ws = new WebSocket(uri);
+
+        let recvCount: number = 0;
         ws.on('message', (data: any, flags: { binary: boolean }) => {
-            // flags.binary will be set if a binary data is received.
-            // flags.masked will be set if the data was masked.
-
-            receivedMsgCount++;
-            LOGGER.log('<--recv message - data: %j, flags: %j, receivedMsgCount: %d', data, flags, receivedMsgCount);
-            if (receivedMsgCount === Messages.Test.COUNT) {
+            recvCount++;
+            LOGGER.log('<--recv message - data: %j, flags: %j, receivedMsgCount: %d', data, flags, recvCount);
+            if (recvCount === Messages.Test.COUNT) {
                 succesHandler();
             }
         });
@@ -56,6 +50,7 @@ const run: Types.TestRun = () => {
             msgs.map(msg => {
                 let asRequest = msg.toRequest();
                 LOGGER.log('-->sending message: ', asRequest);
+
                 ws.send(asRequest);
             });
         });
@@ -63,13 +58,7 @@ const run: Types.TestRun = () => {
         ws.on('error', errorHandler);
         ws.on('close', errorHandler);
 
-        // fail otherwise
-        setTimeout(() => {
-            let TIMEOUT_SECS = FAILURE_DELAY / 1000 + 's';
-            LOGGER.log('Test timeout in: %d', TIMEOUT_SECS);
-
-            errorHandler();
-        }, FAILURE_DELAY);
+        Utils.Timeouts.Fail(errorHandler);
     });
 };
 

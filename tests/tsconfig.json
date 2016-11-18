@@ -1,11 +1,14 @@
 {
     "compilerOptions": {
-        "target": "ES5",
+        "target": "es6",
         "lib": [
-            "es2015", "es2015.promise"
+            "es6"
         ],
-        "module": "umd",
+        "outDir": "./out",
+
+        "module": "commonjs",
         "moduleResolution": "node",
+
         "inlineSources": true,
         "inlineSourceMap": true,
         "experimentalDecorators": true,
@@ -13,7 +16,9 @@
         "stripInternal": true,
         "noImplicitAny": true,
         "removeComments": false,
-        "preserveConstEnums": true,
-        "outDir": "./out"
-    }
+        "preserveConstEnums": true
+    },
+    "include": [
+        "src/**/*"
+    ]
 }

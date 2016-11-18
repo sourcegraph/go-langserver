@@ -1,3 +1,4 @@
 node_modules
 npm-debug.log
-tests/js/out
+tests/out
+.dev-tmp/**

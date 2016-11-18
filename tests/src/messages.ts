@@ -24,19 +24,6 @@ const INIT = new JsonRpcMessage({
 	"id": 1,
 	"method": "initialize",
 	"params": {
-		"rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver',
-		"InitializeParams": {
-			"rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
-		}
-	},
-	"Params": {
-		"rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
-	},
-	"initializeParams": {
-		"rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
-	},
-	"InitializeParams": {
-		"rootPath": '/Users/mbana/go/src/github.com/sourcegraph/go-langserver'
 	}
 });
 
