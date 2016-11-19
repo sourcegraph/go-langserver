@@ -39,7 +39,7 @@ func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) error {
 		}
 
 		log.Printf("langserver: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
-		webSocketHandler(w, r, wsConn, connOpt)
+		go webSocketHandler(w, r, wsConn, connOpt)
 	})
 
 	err := http.ListenAndServe(addr, nil)
@@ -47,7 +47,7 @@ func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) error {
 }
 
 func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
-	// defer wsConn.Close()
+	defer wsConn.Close()
 
 	handler := langserver.NewHandler()
 	for {
@@ -66,16 +66,14 @@ func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.
 		log.Printf("langserver: wsConn: %p - NextWriter - writer: %p", wsConn, &writer)
 
 		rwc := webSocketReadWriteCloser{reader: reader, writer: writer, closer: writer}
-		conn := jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
-		<-conn.DisconnectNotify()
-		// defer conn.Close()
-		// conn.ReadMessagesStart(ctx, rwc)
+		// conn := jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
+		// <-conn.DisconnectNotify()
+		jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
 
-		// 	err = conn.Close()
-		// 	if err != nil {
-		// 		log.Printf("langserver-go: wsConn: %p - conn.Close() error - conn: %p, err: %v", wsConn, conn, err)
-		// 		return
-		// 	}
+		if err := writer.Close(); err != nil {
+			log.Printf("langserver-go: wsConn: %p - writer.Close() error - conn: %p, err: %v", wsConn, err)
+			return
+		}
 	}
 }
 
