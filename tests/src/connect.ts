@@ -29,8 +29,8 @@ const run: Types.TestRun = () => {
             resolve(SUCCESS);
         };
 
-        // let uri = `ws://localhost:${PORT_WEBSOCKET}/`;
-        let uri = `ws://echo.websocket.org/`;
+        let uri = `ws://localhost:${PORT_WEBSOCKET}/`;
+        // let uri = `ws://echo.websocket.org/`;
         LOGGER.log('uri: %s', uri);
 
         let ws = new WebSocket(uri);
@@ -53,6 +53,15 @@ const run: Types.TestRun = () => {
 
                 ws.send(asRequest);
             });
+
+            // setTimeout(() => {
+            //    [Messages.Test.INIT].map(msg => {
+            //         let asRequest = msg.toRequest();
+            //         LOGGER.log('-->sending message: ', asRequest);
+
+            //         ws.send(asRequest);
+            //     });
+            // }, 0);
         });
 
         ws.on('error', errorHandler);

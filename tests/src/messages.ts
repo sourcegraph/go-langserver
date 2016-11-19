@@ -19,11 +19,23 @@ export class JsonRpcMessage {
 	}
 }
 
+// const INIT = new JsonRpcMessage({
+// 	"initMessage": "2.0",
+// 	"id": 1,
+// 	"method": "initialize",
+// 	"params": {
+// 	}
+// });
+
 const INIT = new JsonRpcMessage({
-	"initMessage": "2.0",
-	"id": 1,
+	"jsonrpc": "2.0",
+	"id": 0,
 	"method": "initialize",
 	"params": {
+		"processId": 18252,
+		"rootPath": "/Users/mbana/go/src/github.com/sourcegraph/jsonrpc2",
+		"capabilities": {},
+		"trace": "verbose"
 	}
 });
 
