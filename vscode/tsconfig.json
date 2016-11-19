@@ -1,21 +1,24 @@
 {
 	"compilerOptions": {
 		"target": "es6",
-		"lib": [ "es6" ],
+		"lib": [
+			"es6"
+		],
 
 		"module": "commonjs",
 		"moduleResolution": "node",
 
 		"outDir": "out",
 
-		"sourceMap": false,
-		"inlineSources": true,
-		"inlineSourceMap": true,
+		"sourceMap": true,
+		"inlineSources": false,
 		"declaration": true,
 		"stripInternal": false,
 		"preserveConstEnums": true,
 		"noEmitOnError": true,
 		"pretty": true,
+		"inlineSourceMap": false,
+
 		"removeComments": false,
 		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true

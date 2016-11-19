@@ -28,6 +28,20 @@ See the [Node.js example language server tutorial](https://code.visualstudio.com
 
 ### Debugging
 
+#### Tracing
+
+Set these options in `settings.json`:
+
+```json
+...
+    "langserver-antha.trace.server": "verbose",
+    "langserver-go.trace.server": "verbose",
+    "langserver-go.transportKind.server": "websocket"
+...
+```
+
+#### Debugger
+
 If the debugger doesn't break, please try adding the below to `settings.json`:
 
 ```json

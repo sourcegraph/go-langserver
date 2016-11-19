@@ -4,10 +4,13 @@
 # vscode-languageclient, so use yarn to link it.
 
 echo "---"
-DEPS="vscode-languageclient"
+DEPS="vscode-jsonrpc vscode-languageserver-types vscode-languageclient"
 echo "BUILDING `pwd`"
 echo "DEPS: $DEPS"
 
-yarn link "${DEPS}"
-yarn run compile
+for DEP in ${DEPS}; do
+    yarn link "${DEP}"
+    yarn run compile
+done
+
 echo "---"
