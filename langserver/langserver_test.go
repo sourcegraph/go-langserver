@@ -571,10 +571,12 @@ type Header struct {
 				t.Fatal("initialize:", err)
 			}
 
+			h.Mu.Lock()
 			h.FS.Bind(rootFSPath, mapFS(test.fs), "/", ctxvfs.BindReplace)
 			for mountDir, fs := range test.mountFS {
 				h.FS.Bind(mountDir, mapFS(fs), "/", ctxvfs.BindAfter)
 			}
+			h.Mu.Unlock()
 
 			lspTests(t, ctx, conn, rootFSPath, test.wantHover, test.wantDefinition, test.wantReferences, test.wantSymbols, test.wantWorkspaceSymbols, test.wantWorkspaceReferences)
 		})
