@@ -9,7 +9,18 @@ type InitializeParams struct {
 	Capabilities          ClientCapabilities `json:"capabilities"`
 }
 
-type ClientCapabilities struct{}
+type ClientCapabilities struct {
+	// Below are Sourcegraph extensions. They do not live in lspext since
+	// they are extending the field InitializeParams.Capabilities
+
+	// XFilesProvider indicates the client provides support for
+	// workspace/xfiles. This is a Sourcegraph extension.
+	XFilesProvider bool `json:"xfilesProvider,omitempty"`
+
+	// XContentProvider indicates the client provides support for
+	// textDocument/xcontent. This is a Sourcegraph extension.
+	XContentProvider bool `json:"xcontentProvider,omitempty"`
+}
 
 type InitializeResult struct {
 	Capabilities ServerCapabilities `json:"capabilities,omitempty"`
