@@ -748,7 +748,7 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(references, want) {
-		t.Errorf("got %#v, want %q", references, want)
+		t.Errorf("\ngot  %q\nwant %q", references, want)
 	}
 }
 
