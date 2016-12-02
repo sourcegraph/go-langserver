@@ -239,8 +239,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantWorkspaceReferences: []string{
 				// TODO: bug: our end locations are invalid (the commented lines are correct).
-				"/src/test/pkg/a.go:1:18-1:17 -> /goroot/src/fmt fmt/<none>",
-				"/src/test/pkg/a.go:1:37-1:43 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/a.go:1:19-1:17 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/a.go:1:38-1:43 -> /goroot/src/fmt fmt/Println",
 			},
 		},
 		"gopath": {
@@ -366,9 +366,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantWorkspaceReferences: []string{
 				// TODO: bug: our end locations are invalid (the commented lines are correct).
-				"/src/test/pkg/a.go:1:18-1:17 -> /src/github.com/d/dep dep/<none>",
-				"/src/test/pkg/a.go:1:50-1:50 -> /src/github.com/d/dep dep/D",
-				"/src/test/pkg/a.go:1:65-1:65 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:19-1:17 -> /src/github.com/d/dep dep/<none>",
+				"/src/test/pkg/a.go:1:51-1:50 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:66-1:65 -> /src/github.com/d/dep dep/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -386,9 +386,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantWorkspaceReferences: []string{
 				// TODO: bug: our end locations are invalid (the commented lines are correct).
-				"/src/test/pkg/a.go:1:18-1:17 -> /src/github.com/d/dep dep/<none>",
-				"/src/test/pkg/a.go:1:54-1:54 -> /src/github.com/d/dep/vendor/vendp F/V",
-				"/src/test/pkg/a.go:1:50-1:50 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:19-1:17 -> /src/github.com/d/dep dep/<none>",
+				"/src/test/pkg/a.go:1:55-1:54 -> /src/github.com/d/dep/vendor/vendp F/V",
+				"/src/test/pkg/a.go:1:51-1:50 -> /src/github.com/d/dep dep/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": map[string]string{
@@ -410,8 +410,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantWorkspaceReferences: []string{
 				// TODO: bug: our end locations are invalid (the commented lines are correct).
-				"/src/test/pkg/a.go:1:18-1:17 -> /src/github.com/d/dep/subp subp/<none>",
-				"/src/test/pkg/a.go:1:56-1:56 -> /src/github.com/d/dep/subp subp/D",
+				"/src/test/pkg/a.go:1:19-1:17 -> /src/github.com/d/dep/subp subp/<none>",
+				"/src/test/pkg/a.go:1:57-1:56 -> /src/github.com/d/dep/subp subp/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -434,9 +434,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantWorkspaceReferences: []string{
 				// TODO: bug: our end locations are invalid (the commented lines are correct).
-				"/src/test/pkg/a.go:1:18-1:17 -> /src/github.com/d/dep1 dep1/<none>",
-				"/src/test/pkg/a.go:1:57-1:58 -> /src/github.com/d/dep2 D2/D2",
-				"/src/test/pkg/a.go:1:52-1:53 -> /src/github.com/d/dep1 dep1/D1",
+				"/src/test/pkg/a.go:1:19-1:17 -> /src/github.com/d/dep1 dep1/<none>",
+				"/src/test/pkg/a.go:1:58-1:58 -> /src/github.com/d/dep2 D2/D2",
+				"/src/test/pkg/a.go:1:53-1:53 -> /src/github.com/d/dep1 dep1/D1",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep1": {
