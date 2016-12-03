@@ -543,6 +543,29 @@ type Header struct {
 				"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
 			},
 		},
+		"workspace references multiple files": {
+			rootPath: "file:///src/test/pkg",
+			fs: map[string]string{
+				"a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
+				"b.go": `package p; import "fmt"; var _ = fmt.Println; var y int`,
+				"c.go": `package p; import "fmt"; var _ = fmt.Println; var z int`,
+			},
+			mountFS: map[string]map[string]string{
+				"/goroot": {
+					"src/fmt/print.go":       "package fmt; func Println(a ...interface{}) (n int, err error) { return }",
+					"src/builtin/builtin.go": "package builtin; type int int",
+				},
+			},
+			wantWorkspaceReferences: []string{
+				// TODO: bug: our end locations are invalid (the commented lines are correct).
+				"/src/test/pkg/a.go:1:19-1:17 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/a.go:1:38-1:43 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/b.go:1:19-1:17 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/b.go:1:38-1:43 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/c.go:1:19-1:17 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/c.go:1:38-1:43 -> /goroot/src/fmt fmt/Println",
+			},
+		},
 	}
 	for label, test := range tests {
 		t.Run(label, func(t *testing.T) {
