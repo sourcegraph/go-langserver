@@ -234,8 +234,7 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 			Name:          defName,
 			ContainerName: defContainerName,
 			URI:           "file://" + defPkg.Dir,
-			// TODO: This code is EXTREMELY invalid!
-			Location: goRangeToLSPLocation(fs, token.Pos(r.Position.Offset)+1, token.Pos(r.Position.Offset+len(defName)-1)),
+			Location:      goRangeToLSPLocation(fs, r.Pos, r.Pos), // TODO: internal/refs doesn't generate end positions
 		})
 		results.resultsMu.Unlock()
 	})
