@@ -21,8 +21,8 @@ type ClientCapabilities struct {
 	// textDocument/xcontent. This is a Sourcegraph extension.
 	XContentProvider bool `json:"xcontentProvider,omitempty"`
 
-	// XCacheProvider indicates the client provides support for cache/xget
-	// and cache/xset. This is a Sourcegraph extension.
+	// XCacheProvider indicates the client provides support for cache/get
+	// and cache/set. This is a Sourcegraph extension.
 	XCacheProvider bool `json:"xcacheProvider,omitempty"`
 }
 
