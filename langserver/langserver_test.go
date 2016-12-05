@@ -238,8 +238,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /goroot/src/fmt fmt/<none>",
-				"/src/test/pkg/a.go:1:37 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/a.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>", // TODO: valid end location
+				"/src/test/pkg/a.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
 			},
 		},
 		"gopath": {
@@ -364,9 +364,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep dep/<none>",
-				"/src/test/pkg/a.go:1:50 -> /src/github.com/d/dep dep/D",
-				"/src/test/pkg/a.go:1:65 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep dep/<none>", // TODO: valid end location
+				"/src/test/pkg/a.go:1:51-1:51 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:66-1:66 -> /src/github.com/d/dep dep/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -383,9 +383,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep dep/<none>",
-				"/src/test/pkg/a.go:1:54 -> /src/github.com/d/dep/vendor/vendp F/V",
-				"/src/test/pkg/a.go:1:50 -> /src/github.com/d/dep dep/D",
+				// TODO: valid end location
+				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep dep/<none>",
+				"/src/test/pkg/a.go:1:55-1:55 -> /src/github.com/d/dep/vendor/vendp F/V",
+				"/src/test/pkg/a.go:1:51-1:51 -> /src/github.com/d/dep dep/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": map[string]string{
@@ -406,8 +407,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep/subp subp/<none>",
-				"/src/test/pkg/a.go:1:56 -> /src/github.com/d/dep/subp subp/D",
+				// TODO: valid end location
+				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep/subp subp/<none>",
+				"/src/test/pkg/a.go:1:57-1:57 -> /src/github.com/d/dep/subp subp/D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -429,9 +431,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32", // field D2
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:18 -> /src/github.com/d/dep1 dep1/<none>",
-				"/src/test/pkg/a.go:1:57 -> /src/github.com/d/dep2 D2/D2",
-				"/src/test/pkg/a.go:1:52 -> /src/github.com/d/dep1 dep1/D1",
+				// TODO: valid end location
+				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep1 dep1/<none>",
+				"/src/test/pkg/a.go:1:58-1:58 -> /src/github.com/d/dep2 D2/D2",
+				"/src/test/pkg/a.go:1:53-1:53 -> /src/github.com/d/dep1 dep1/D1",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep1": {
@@ -536,6 +539,29 @@ type Header struct {
 				"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
 				"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
 				"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
+			},
+		},
+		"workspace references multiple files": {
+			rootPath: "file:///src/test/pkg",
+			fs: map[string]string{
+				"a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
+				"b.go": `package p; import "fmt"; var _ = fmt.Println; var y int`,
+				"c.go": `package p; import "fmt"; var _ = fmt.Println; var z int`,
+			},
+			mountFS: map[string]map[string]string{
+				"/goroot": {
+					"src/fmt/print.go":       "package fmt; func Println(a ...interface{}) (n int, err error) { return }",
+					"src/builtin/builtin.go": "package builtin; type int int",
+				},
+			},
+			wantWorkspaceReferences: []string{
+				// TODO: bug: our end locations are invalid (the commented lines are correct).
+				"/src/test/pkg/a.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/a.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/b.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/b.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/c.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>",
+				"/src/test/pkg/c.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
 			},
 		},
 	}
@@ -748,7 +774,7 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(references, want) {
-		t.Errorf("got %#v, want %q", references, want)
+		t.Errorf("\ngot  %q\nwant %q", references, want)
 	}
 }
 
@@ -893,6 +919,7 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn) ([]string, e
 	refs := make([]string, len(references))
 	for i, r := range references {
 		start := r.Location.Range.Start
+		end := r.Location.Range.End
 		if r.ContainerName == "" {
 			r.ContainerName = "<none>"
 		}
@@ -902,7 +929,7 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn) ([]string, e
 		path := strings.Join([]string{r.ContainerName, r.Name}, "/")
 		locationURI := strings.TrimPrefix(r.Location.URI, "file://")
 		uri := strings.TrimPrefix(r.URI, "file://")
-		refs[i] = fmt.Sprintf("%s:%d:%d -> %s %s", locationURI, start.Line+1, start.Character+1, uri, path)
+		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %s %s", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, uri, path)
 	}
 	return refs, nil
 }
