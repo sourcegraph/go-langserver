@@ -176,12 +176,13 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
-				TextDocumentSync:        lsp.TDSKFull,
-				DefinitionProvider:      true,
-				DocumentSymbolProvider:  true,
-				HoverProvider:           true,
-				ReferencesProvider:      true,
-				WorkspaceSymbolProvider: true,
+				TextDocumentSync:             lsp.TDSKFull,
+				DefinitionProvider:           true,
+				DocumentSymbolProvider:       true,
+				HoverProvider:                true,
+				ReferencesProvider:           true,
+				WorkspaceSymbolProvider:      true,
+				XWorkspaceReferencesProvider: true,
 			},
 		}, nil
 
@@ -245,15 +246,15 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 		return h.handleWorkspaceSymbol(ctx, conn, req, params)
 
-	case "workspace/reference":
+	case "workspace/xreferences":
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}
-		var params lspext.WorkspaceReferenceParams
+		var params lspext.WorkspaceReferencesParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
 		}
-		return h.handleWorkspaceReference(ctx, conn, req, params)
+		return h.handleWorkspaceReferences(ctx, conn, req, params)
 
 	default:
 		if IsFileSystemRequest(req.Method) {

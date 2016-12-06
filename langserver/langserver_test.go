@@ -167,7 +167,10 @@ func TestServer(t *testing.T) {
 				"dir:./d2":    []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
 				"dir:d2/":     []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
 			},
-			wantWorkspaceReferences: []string{},
+			wantWorkspaceReferences: []string{
+				"/src/test/pkg/d/d2/b.go:1:20-1:20 -> containerName:d meta_package:test/pkg/d",
+				"/src/test/pkg/d/d2/b.go:1:47-1:47 -> containerName:d meta_package:test/pkg/d name:A",
+			},
 		},
 		"go multiple packages in dir": {
 			rootPath: "file:///src/test/pkg",
@@ -238,8 +241,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>", // TODO: valid end location
-				"/src/test/pkg/a.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/a.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
+				"/src/test/pkg/a.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
 			},
 		},
 		"gopath": {
@@ -276,7 +279,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"":            []string{"/src/test/pkg/a/a.go:function:a.A:1:17", "/src/test/pkg/b/b.go:variable:b._:1:33"},
 				"is:exported": []string{"/src/test/pkg/a/a.go:function:a.A:1:17"},
 			},
-			wantWorkspaceReferences: []string{},
+			wantWorkspaceReferences: []string{
+				"/src/test/pkg/b/b.go:1:19-1:19 -> containerName:a meta_package:test/pkg/a",
+				"/src/test/pkg/b/b.go:1:43-1:43 -> containerName:a meta_package:test/pkg/a name:A",
+			},
 		},
 		"go vendored dep": {
 			rootPath: "file:///src/test/pkg",
@@ -304,7 +310,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"":            []string{"/src/test/pkg/a.go:variable:pkg._:1:44", "/src/test/pkg/vendor/github.com/v/vendored/v.go:function:vendored.V:1:24"},
 				"is:exported": []string{},
 			},
-			wantWorkspaceReferences: []string{},
+			wantWorkspaceReferences: []string{
+				"/src/test/pkg/a.go:1:19-1:19 -> containerName:vendored meta_package:test/pkg/vendor/github.com/v/vendored vendor:true",
+				"/src/test/pkg/a.go:1:61-1:61 -> containerName:vendored meta_package:test/pkg/vendor/github.com/v/vendored name:V vendor:true",
+			},
 		},
 		"go vendor symbols with same name": {
 			rootPath: "file:///src/test/pkg",
@@ -364,9 +373,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep dep/<none>", // TODO: valid end location
-				"/src/test/pkg/a.go:1:51-1:51 -> /src/github.com/d/dep dep/D",
-				"/src/test/pkg/a.go:1:66-1:66 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:19-1:19 -> containerName:dep meta_package:github.com/d/dep",
+				"/src/test/pkg/a.go:1:51-1:51 -> containerName:dep meta_package:github.com/d/dep name:D",
+				"/src/test/pkg/a.go:1:66-1:66 -> containerName:dep meta_package:github.com/d/dep name:D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -383,10 +392,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32",
 			},
 			wantWorkspaceReferences: []string{
-				// TODO: valid end location
-				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep dep/<none>",
-				"/src/test/pkg/a.go:1:55-1:55 -> /src/github.com/d/dep/vendor/vendp F/V",
-				"/src/test/pkg/a.go:1:51-1:51 -> /src/github.com/d/dep dep/D",
+				"/src/test/pkg/a.go:1:19-1:19 -> containerName:dep meta_package:github.com/d/dep",
+				"/src/test/pkg/a.go:1:55-1:55 -> containerName:F meta_package:github.com/d/dep/vendor/vendp name:V vendor:true",
+				"/src/test/pkg/a.go:1:51-1:51 -> containerName:dep meta_package:github.com/d/dep name:D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": map[string]string{
@@ -407,9 +415,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20",
 			},
 			wantWorkspaceReferences: []string{
-				// TODO: valid end location
-				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep/subp subp/<none>",
-				"/src/test/pkg/a.go:1:57-1:57 -> /src/github.com/d/dep/subp subp/D",
+				"/src/test/pkg/a.go:1:19-1:19 -> containerName:subp meta_package:github.com/d/dep/subp",
+				"/src/test/pkg/a.go:1:57-1:57 -> containerName:subp meta_package:github.com/d/dep/subp name:D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -431,10 +438,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32", // field D2
 			},
 			wantWorkspaceReferences: []string{
-				// TODO: valid end location
-				"/src/test/pkg/a.go:1:19-1:19 -> /src/github.com/d/dep1 dep1/<none>",
-				"/src/test/pkg/a.go:1:58-1:58 -> /src/github.com/d/dep2 D2/D2",
-				"/src/test/pkg/a.go:1:53-1:53 -> /src/github.com/d/dep1 dep1/D1",
+				"/src/test/pkg/a.go:1:19-1:19 -> containerName:dep1 meta_package:github.com/d/dep1",
+				"/src/test/pkg/a.go:1:58-1:58 -> containerName:D2 meta_package:github.com/d/dep2 name:D2",
+				"/src/test/pkg/a.go:1:53-1:53 -> containerName:dep1 meta_package:github.com/d/dep1 name:D1",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep1": {
@@ -555,13 +561,12 @@ type Header struct {
 				},
 			},
 			wantWorkspaceReferences: []string{
-				// TODO: bug: our end locations are invalid (the commented lines are correct).
-				"/src/test/pkg/a.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>",
-				"/src/test/pkg/a.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
-				"/src/test/pkg/b.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>",
-				"/src/test/pkg/b.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
-				"/src/test/pkg/c.go:1:19-1:19 -> /goroot/src/fmt fmt/<none>",
-				"/src/test/pkg/c.go:1:38-1:38 -> /goroot/src/fmt fmt/Println",
+				"/src/test/pkg/a.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
+				"/src/test/pkg/a.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
+				"/src/test/pkg/b.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
+				"/src/test/pkg/b.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
+				"/src/test/pkg/c.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
+				"/src/test/pkg/c.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
 			},
 		},
 	}
@@ -912,27 +917,55 @@ func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, query string) (
 
 func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn) ([]string, error) {
 	var references []lspext.ReferenceInformation
-	err := c.Call(ctx, "workspace/reference", lspext.WorkspaceReferenceParams{}, &references)
+	err := c.Call(ctx, "workspace/xreferences", lspext.WorkspaceReferencesParams{}, &references)
 	if err != nil {
 		return nil, err
 	}
 	refs := make([]string, len(references))
 	for i, r := range references {
-		start := r.Location.Range.Start
-		end := r.Location.Range.End
-		if r.ContainerName == "" {
-			r.ContainerName = "<none>"
-		}
-		if r.Name == "" {
-			r.Name = "<none>"
-		}
-		path := strings.Join([]string{r.ContainerName, r.Name}, "/")
-		locationURI := strings.TrimPrefix(r.Location.URI, "file://")
-		uri := strings.TrimPrefix(r.URI, "file://")
-		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %s %s", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, uri, path)
+		locationURI := strings.TrimPrefix(r.Reference.URI, "file://")
+		start := r.Reference.Range.Start
+		end := r.Reference.Range.End
+		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, referenceSymbolString(r.Symbol))
 	}
 	return refs, nil
 }
+
+func referenceSymbolString(sym lspext.SymbolDescriptor) string {
+	sm := make(sortedMap, 0, len(sym.Meta))
+	for k, v := range sym.Meta {
+		sm = append(sm, mapValue{key: "meta_" + k, value: v})
+	}
+	stdfield := func(k, v string) {
+		if v != "" {
+			sm = append(sm, mapValue{key: k, value: v})
+		}
+	}
+	stdfield("name", sym.Name)
+	stdfield("kind", symbolKindName[sym.Kind])
+	stdfield("file", sym.File)
+	stdfield("containerName", sym.ContainerName)
+	if sym.Vendor {
+		stdfield("vendor", "true")
+	}
+	sort.Sort(sm)
+	var s string
+	for _, v := range sm {
+		s += fmt.Sprintf("%s:%v ", v.key, v.value)
+	}
+	return strings.TrimSpace(s)
+}
+
+type mapValue struct {
+	key   string
+	value interface{}
+}
+
+type sortedMap []mapValue
+
+func (s sortedMap) Len() int           { return len(s) }
+func (s sortedMap) Less(i, j int) bool { return s[i].key < s[j].key }
+func (s sortedMap) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 type markedStrings []lsp.MarkedString
 

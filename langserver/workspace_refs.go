@@ -25,7 +25,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-func (h *LangHandler) handleWorkspaceReference(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferenceParams) ([]lspext.ReferenceInformation, error) {
+func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]lspext.ReferenceInformation, error) {
 	rootPath := h.FilePath(h.init.RootPath)
 	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
 
@@ -103,15 +103,6 @@ func (h *LangHandler) handleWorkspaceReference(ctx context.Context, conn JSONRPC
 	_ = par.Wait()
 
 	sort.Sort(&results) // sort to provide consistent results
-
-	// TODO: We calculate all the results and then throw them away. If we ever
-	// decide to begin using limiting, we can improve the performance of this
-	// dramatically. For now, it lives in the spec just so that other
-	// implementations are aware it may need to be done and to design with that
-	// in mind.
-	if len(results.results) > params.Limit && params.Limit > 0 {
-		results.results = results.results[:params.Limit]
-	}
 	return results.results, nil
 }
 
@@ -189,10 +180,6 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 	}()
 	span.SetTag("pkg", pkg)
 
-	pkgInWorkspace := func(path string) bool {
-		return PathHasPrefix(path, h.init.RootImportPath)
-	}
-
 	// Compute external references.
 	cfg := &refs.Config{
 		FileSet:  fs,
@@ -222,19 +209,20 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 			return
 		}
 
-		// If the symbol the reference is to is defined within this workspace,
-		// exclude it. We only emit refs to symbols that are external to the
-		// workspace.
-		if pkgInWorkspace(defPkg.ImportPath) {
-			return
-		}
-
 		results.resultsMu.Lock()
 		results.results = append(results.results, lspext.ReferenceInformation{
-			Name:          defName,
-			ContainerName: defContainerName,
-			URI:           "file://" + defPkg.Dir,
-			Location:      goRangeToLSPLocation(fs, r.Pos, r.Pos), // TODO: internal/refs doesn't generate end positions
+			Reference: goRangeToLSPLocation(fs, r.Pos, r.Pos), // TODO: internal/refs doesn't generate end positions
+			Symbol: lspext.SymbolDescriptor{
+				Name:          defName,
+				ContainerName: defContainerName,
+				Vendor:        IsVendorDir(defPkg.Dir),
+				Meta: map[string]interface{}{
+					"package": defPkg.ImportPath,
+				},
+				// TODO: be nice and emit Kind, File and Repo fields too. They
+				// are optional, though, so let's punt on it for now and see
+				// how well it works.
+			},
 		})
 		results.resultsMu.Unlock()
 	})
@@ -257,5 +245,5 @@ type refResultSorter struct {
 func (s *refResultSorter) Len() int      { return len(s.results) }
 func (s *refResultSorter) Swap(i, j int) { s.results[i], s.results[j] = s.results[j], s.results[i] }
 func (s *refResultSorter) Less(i, j int) bool {
-	return s.results[i].Location.URI < s.results[j].Location.URI
+	return s.results[i].Reference.URI < s.results[j].Reference.URI
 }

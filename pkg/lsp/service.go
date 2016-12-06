@@ -54,6 +54,10 @@ type ServerCapabilities struct {
 	DocumentRangeFormattingProvider  bool                             `json:"documentRangeFormattingProvider,omitempty"`
 	DocumentOnTypeFormattingProvider *DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
 	RenameProvider                   bool                             `json:"renameProvider,omitempty"`
+
+	// XWorkspaceReferencesProvider indicates the server provides support for
+	// xworkspace/references. This is a Sourcegraph extension.
+	XWorkspaceReferencesProvider bool `json:"xworkspaceReferencesProvider,omitempty"`
 }
 
 type CompletionOptions struct {
