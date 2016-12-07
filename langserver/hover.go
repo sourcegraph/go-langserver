@@ -27,6 +27,10 @@ func (h *LangHandler) handleHover(ctx context.Context, conn JSONRPC2Conn, req *j
 
 	o := pkg.ObjectOf(node)
 	t := pkg.TypeOf(node)
+	if !o.Pos().IsValid() {
+		// Only builtins have invalid position, and don't have useful info.
+		return nil, nil
+	}
 	if o == nil && t == nil {
 		comments := packageDoc(pkg.Files, node.Name)
 
