@@ -188,16 +188,7 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 		Info:     &pkg.Info,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		var defName, defContainerName string
-		if fields := strings.Fields(r.Def.Path); len(fields) > 0 {
-			defName = fields[0]
-			defContainerName = strings.Join(fields[1:], " ")
-		}
-		if defContainerName == "" {
-			defContainerName = r.Def.PackageName
-		}
-
-		defPkg, err := bctx.Import(r.Def.ImportPath, rootPath, build.FindOnly)
+		symDesc, err := defSymbolDescriptor(bctx, rootPath, r.Def)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -212,17 +203,7 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 		results.resultsMu.Lock()
 		results.results = append(results.results, lspext.ReferenceInformation{
 			Reference: goRangeToLSPLocation(fs, r.Pos, r.Pos), // TODO: internal/refs doesn't generate end positions
-			Symbol: lspext.SymbolDescriptor{
-				Name:          defName,
-				ContainerName: defContainerName,
-				Vendor:        IsVendorDir(defPkg.Dir),
-				Meta: map[string]interface{}{
-					"package": defPkg.ImportPath,
-				},
-				// TODO: be nice and emit Kind, File and Repo fields too. They
-				// are optional, though, so let's punt on it for now and see
-				// how well it works.
-			},
+			Symbol:    *symDesc,
 		})
 		results.resultsMu.Unlock()
 	})
@@ -233,6 +214,34 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 		span.SetTag("err", fmt.Sprintf("externalRefsFromPkg: external refs failed: %v: %v", pkg, refsErr))
 	}
 	return nil
+}
+
+func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*lspext.SymbolDescriptor, error) {
+	var defName, defContainerName string
+	if fields := strings.Fields(def.Path); len(fields) > 0 {
+		defName = fields[0]
+		defContainerName = strings.Join(fields[1:], " ")
+	}
+	if defContainerName == "" {
+		defContainerName = def.PackageName
+	}
+
+	defPkg, err := bctx.Import(def.ImportPath, rootPath, build.FindOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	return &lspext.SymbolDescriptor{
+		Name:          defName,
+		ContainerName: defContainerName,
+		Vendor:        IsVendorDir(defPkg.Dir),
+		Meta: map[string]interface{}{
+			"package": defPkg.ImportPath,
+		},
+		// TODO: be nice and emit Kind, File and Repo fields too. They
+		// are optional, though, so let's punt on it for now and see
+		// how well it works.
+	}, nil
 }
 
 // refResultSorter is a utility struct for collecting, filtering, and

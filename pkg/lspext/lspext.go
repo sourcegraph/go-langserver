@@ -26,3 +26,11 @@ type SymbolDescriptor struct {
 	Vendor        bool                   `json:"vendor,omitempty"`
 	Meta          map[string]interface{} `json:"meta,omitempty"`
 }
+
+// LocationInformation is the response type for the `textDocument/xdefinition` extension.
+type LocationInformation struct {
+	// A concrete location at which the definition is located, if any.
+	Location lsp.Location `json:"location,omitempty"`
+	// Metadata about the definition.
+	Symbol SymbolDescriptor `json:"SymbolDescriptor"`
+}
