@@ -1,6 +1,12 @@
 package lspext
 
-import "github.com/sourcegraph/go-langserver/pkg/lsp"
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/sourcegraph/go-langserver/pkg/lsp"
+)
 
 // WorkspaceReferencesParams is parameters for the `workspace/xreferences` extension
 //
@@ -34,3 +40,41 @@ type LocationInformation struct {
 	// Metadata about the definition.
 	Symbol SymbolDescriptor `json:"SymbolDescriptor"`
 }
+
+// String returns a consistently ordered string representation of the
+// SymbolDescriptor. It is useful for testing.
+func (s SymbolDescriptor) String() string {
+	sm := make(sortedMap, 0, len(s.Meta))
+	for k, v := range s.Meta {
+		sm = append(sm, mapValue{key: "meta_" + k, value: v})
+	}
+	stdfield := func(k, v string) {
+		if v != "" {
+			sm = append(sm, mapValue{key: k, value: v})
+		}
+	}
+	stdfield("name", s.Name)
+	stdfield("kind", s.Kind.String())
+	stdfield("file", s.File)
+	stdfield("containerName", s.ContainerName)
+	if s.Vendor {
+		stdfield("vendor", "true")
+	}
+	sort.Sort(sm)
+	var str string
+	for _, v := range sm {
+		str += fmt.Sprintf("%s:%v ", v.key, v.value)
+	}
+	return strings.TrimSpace(str)
+}
+
+type mapValue struct {
+	key   string
+	value interface{}
+}
+
+type sortedMap []mapValue
+
+func (s sortedMap) Len() int           { return len(s) }
+func (s sortedMap) Less(i, j int) bool { return s[i].key < s[j].key }
+func (s sortedMap) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

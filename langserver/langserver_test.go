@@ -926,7 +926,7 @@ func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, ch
 		if i != 0 {
 			str += ", "
 		}
-		str += fmt.Sprintf("%s:%d:%d %s", loc.Location.URI, loc.Location.Range.Start.Line+1, loc.Location.Range.Start.Character+1, referenceSymbolString(loc.Symbol))
+		str += fmt.Sprintf("%s:%d:%d %s", loc.Location.URI, loc.Location.Range.Start.Line+1, loc.Location.Range.Start.Character+1, loc.Symbol)
 	}
 	return str, nil
 }
@@ -950,27 +950,6 @@ func callReferences(ctx context.Context, c *jsonrpc2.Conn, uri string, line, cha
 	return str, nil
 }
 
-var symbolKindName = map[lsp.SymbolKind]string{
-	lsp.SKFile:        "file",
-	lsp.SKModule:      "module",
-	lsp.SKNamespace:   "namespace",
-	lsp.SKPackage:     "package",
-	lsp.SKClass:       "class",
-	lsp.SKMethod:      "method",
-	lsp.SKProperty:    "property",
-	lsp.SKField:       "field",
-	lsp.SKConstructor: "constructor",
-	lsp.SKEnum:        "enum",
-	lsp.SKInterface:   "interface",
-	lsp.SKFunction:    "function",
-	lsp.SKVariable:    "variable",
-	lsp.SKConstant:    "constant",
-	lsp.SKString:      "string",
-	lsp.SKNumber:      "number",
-	lsp.SKBoolean:     "boolean",
-	lsp.SKArray:       "array",
-}
-
 func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri string) ([]string, error) {
 	var symbols []lsp.SymbolInformation
 	err := c.Call(ctx, "textDocument/documentSymbol", lsp.DocumentSymbolParams{
@@ -981,7 +960,7 @@ func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri string) ([]string, e
 	}
 	syms := make([]string, len(symbols))
 	for i, s := range symbols {
-		syms[i] = fmt.Sprintf("%s:%s:%s.%s:%d:%d", s.Location.URI, symbolKindName[s.Kind], s.ContainerName, s.Name, s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
+		syms[i] = fmt.Sprintf("%s:%s:%s.%s:%d:%d", s.Location.URI, s.Kind, s.ContainerName, s.Name, s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
 	}
 	return syms, nil
 }
@@ -994,7 +973,7 @@ func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, query string) (
 	}
 	syms := make([]string, len(symbols))
 	for i, s := range symbols {
-		syms[i] = fmt.Sprintf("%s:%s:%s.%s:%d:%d", s.Location.URI, symbolKindName[s.Kind], s.ContainerName, s.Name, s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
+		syms[i] = fmt.Sprintf("%s:%s:%s.%s:%d:%d", s.Location.URI, s.Kind, s.ContainerName, s.Name, s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
 	}
 	return syms, nil
 }
@@ -1010,46 +989,10 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn) ([]string, e
 		locationURI := strings.TrimPrefix(r.Reference.URI, "file://")
 		start := r.Reference.Range.Start
 		end := r.Reference.Range.End
-		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, referenceSymbolString(r.Symbol))
+		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)
 	}
 	return refs, nil
 }
-
-func referenceSymbolString(sym lspext.SymbolDescriptor) string {
-	sm := make(sortedMap, 0, len(sym.Meta))
-	for k, v := range sym.Meta {
-		sm = append(sm, mapValue{key: "meta_" + k, value: v})
-	}
-	stdfield := func(k, v string) {
-		if v != "" {
-			sm = append(sm, mapValue{key: k, value: v})
-		}
-	}
-	stdfield("name", sym.Name)
-	stdfield("kind", symbolKindName[sym.Kind])
-	stdfield("file", sym.File)
-	stdfield("containerName", sym.ContainerName)
-	if sym.Vendor {
-		stdfield("vendor", "true")
-	}
-	sort.Sort(sm)
-	var s string
-	for _, v := range sm {
-		s += fmt.Sprintf("%s:%v ", v.key, v.value)
-	}
-	return strings.TrimSpace(s)
-}
-
-type mapValue struct {
-	key   string
-	value interface{}
-}
-
-type sortedMap []mapValue
-
-func (s sortedMap) Len() int           { return len(s) }
-func (s sortedMap) Less(i, j int) bool { return s[i].key < s[j].key }
-func (s sortedMap) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 type markedStrings []lsp.MarkedString
 
