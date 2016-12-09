@@ -54,10 +54,10 @@ func TestServer(t *testing.T) {
 				"b.go:1:23": "/src/test/pkg/a.go:1:17",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17 containerName:p meta_package:test/pkg name:A",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17 containerName:p meta_package:test/pkg name:A",
-				"b.go:1:17": "/src/test/pkg/b.go:1:17 containerName:p meta_package:test/pkg name:B",
-				"b.go:1:23": "/src/test/pkg/a.go:1:17 containerName:p meta_package:test/pkg name:A",
+				"a.go:1:17": "/src/test/pkg/a.go:1:17 attr_package:test/pkg containerName:p name:A",
+				"a.go:1:23": "/src/test/pkg/a.go:1:17 attr_package:test/pkg containerName:p name:A",
+				"b.go:1:17": "/src/test/pkg/b.go:1:17 attr_package:test/pkg containerName:p name:B",
+				"b.go:1:23": "/src/test/pkg/a.go:1:17 attr_package:test/pkg containerName:p name:A",
 			},
 			wantReferences: map[string][]string{
 				"a.go:1:17": []string{
@@ -160,11 +160,11 @@ func TestServer(t *testing.T) {
 				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17 containerName:d meta_package:test/pkg/d name:A",
-				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17 containerName:d meta_package:test/pkg/d name:A",
-				"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39 containerName:d2 meta_package:test/pkg/d/d2 name:B",
-				"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17 containerName:d meta_package:test/pkg/d name:A",
-				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39 containerName:d2 meta_package:test/pkg/d/d2 name:B",
+				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17 attr_package:test/pkg/d containerName:d name:A",
+				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17 attr_package:test/pkg/d containerName:d name:A",
+				"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39 attr_package:test/pkg/d/d2 containerName:d2 name:B",
+				"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17 attr_package:test/pkg/d containerName:d name:A",
+				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39 attr_package:test/pkg/d/d2 containerName:d2 name:B",
 			},
 			wantSymbols: map[string][]string{
 				"a.go":    []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
@@ -182,8 +182,8 @@ func TestServer(t *testing.T) {
 				"dir:d2/":     []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/d/d2/b.go:1:20-1:20 -> containerName:d meta_package:test/pkg/d",
-				"/src/test/pkg/d/d2/b.go:1:47-1:47 -> containerName:d meta_package:test/pkg/d name:A",
+				"/src/test/pkg/d/d2/b.go:1:20-1:20 -> attr_package:test/pkg/d containerName:d",
+				"/src/test/pkg/d/d2/b.go:1:47-1:47 -> attr_package:test/pkg/d containerName:d name:A",
 			},
 		},
 		"go multiple packages in dir": {
@@ -213,8 +213,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "main.go:3:52": "/src/test/pkg/main.go:3:39", // B() -> func B()
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17 containerName:p meta_package:test/pkg name:A",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17 containerName:p meta_package:test/pkg name:A",
+				"a.go:1:17": "/src/test/pkg/a.go:1:17 attr_package:test/pkg containerName:p name:A",
+				"a.go:1:23": "/src/test/pkg/a.go:1:17 attr_package:test/pkg containerName:p name:A",
 			},
 			wantSymbols: map[string][]string{
 				"a.go": []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
@@ -239,7 +239,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go:1:19 containerName:fmt meta_package:fmt name:Println",
+				"a.go:1:40": "/goroot/src/fmt/print.go:1:19 attr_package:fmt containerName:fmt name:Println",
 				// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
 			},
 			mountFS: map[string]map[string]string{
@@ -263,8 +263,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
-				"/src/test/pkg/a.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
+				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:fmt containerName:fmt",
+				"/src/test/pkg/a.go:1:38-1:38 -> attr_package:fmt containerName:fmt name:Println",
 			},
 		},
 		"gopath": {
@@ -284,8 +284,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17",
 			},
 			wantXDefinition: map[string]string{
-				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 containerName:a meta_package:test/pkg/a name:A",
-				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17 containerName:a meta_package:test/pkg/a name:A",
+				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 attr_package:test/pkg/a containerName:a name:A",
+				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17 attr_package:test/pkg/a containerName:a name:A",
 			},
 			wantReferences: map[string][]string{
 				"a/a.go:1:17": []string{
@@ -306,8 +306,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{"/src/test/pkg/a/a.go:function:a.A:1:17"},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/b/b.go:1:19-1:19 -> containerName:a meta_package:test/pkg/a",
-				"/src/test/pkg/b/b.go:1:43-1:43 -> containerName:a meta_package:test/pkg/a name:A",
+				"/src/test/pkg/b/b.go:1:19-1:19 -> attr_package:test/pkg/a containerName:a",
+				"/src/test/pkg/b/b.go:1:43-1:43 -> attr_package:test/pkg/a containerName:a name:A",
 			},
 		},
 		"go vendored dep": {
@@ -323,7 +323,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24 containerName:vendored meta_package:test/pkg/vendor/github.com/v/vendored name:V vendor:true",
+				"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24 attr_package:test/pkg/vendor/github.com/v/vendored containerName:vendored name:V vendor:true",
 			},
 			wantReferences: map[string][]string{
 				"vendor/github.com/v/vendored/v.go:1:24": []string{
@@ -340,8 +340,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> containerName:vendored meta_package:test/pkg/vendor/github.com/v/vendored vendor:true",
-				"/src/test/pkg/a.go:1:61-1:61 -> containerName:vendored meta_package:test/pkg/vendor/github.com/v/vendored name:V vendor:true",
+				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:test/pkg/vendor/github.com/v/vendored containerName:vendored vendor:true",
+				"/src/test/pkg/a.go:1:61-1:61 -> attr_package:test/pkg/vendor/github.com/v/vendored containerName:vendored name:V vendor:true",
 			},
 		},
 		"go vendor symbols with same name": {
@@ -393,7 +393,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19 containerName:dep meta_package:github.com/d/dep name:D",
+				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19 attr_package:github.com/d/dep containerName:dep name:D",
 			},
 			wantReferences: map[string][]string{
 				"a.go:1:51": []string{
@@ -405,9 +405,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> containerName:dep meta_package:github.com/d/dep",
-				"/src/test/pkg/a.go:1:51-1:51 -> containerName:dep meta_package:github.com/d/dep name:D",
-				"/src/test/pkg/a.go:1:66-1:66 -> containerName:dep meta_package:github.com/d/dep name:D",
+				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:github.com/d/dep containerName:dep",
+				"/src/test/pkg/a.go:1:51-1:51 -> attr_package:github.com/d/dep containerName:dep name:D",
+				"/src/test/pkg/a.go:1:66-1:66 -> attr_package:github.com/d/dep containerName:dep name:D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -424,12 +424,12 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32 containerName:F meta_package:github.com/d/dep/vendor/vendp name:V vendor:true",
+				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32 attr_package:github.com/d/dep/vendor/vendp containerName:F name:V vendor:true",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> containerName:dep meta_package:github.com/d/dep",
-				"/src/test/pkg/a.go:1:55-1:55 -> containerName:F meta_package:github.com/d/dep/vendor/vendp name:V vendor:true",
-				"/src/test/pkg/a.go:1:51-1:51 -> containerName:dep meta_package:github.com/d/dep name:D",
+				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:github.com/d/dep containerName:dep",
+				"/src/test/pkg/a.go:1:55-1:55 -> attr_package:github.com/d/dep/vendor/vendp containerName:F name:V vendor:true",
+				"/src/test/pkg/a.go:1:51-1:51 -> attr_package:github.com/d/dep containerName:dep name:D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": map[string]string{
@@ -450,11 +450,11 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20 containerName:subp meta_package:github.com/d/dep/subp name:D",
+				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20 attr_package:github.com/d/dep/subp containerName:subp name:D",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> containerName:subp meta_package:github.com/d/dep/subp",
-				"/src/test/pkg/a.go:1:57-1:57 -> containerName:subp meta_package:github.com/d/dep/subp name:D",
+				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:github.com/d/dep/subp containerName:subp",
+				"/src/test/pkg/a.go:1:57-1:57 -> attr_package:github.com/d/dep/subp containerName:subp name:D",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -476,13 +476,13 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32", // field D2
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 containerName:dep1 meta_package:github.com/d/dep1 name:D1",
-				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32 containerName:D2 meta_package:github.com/d/dep2 name:D2",
+				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 attr_package:github.com/d/dep1 containerName:dep1 name:D1",
+				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32 attr_package:github.com/d/dep2 containerName:D2 name:D2",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> containerName:dep1 meta_package:github.com/d/dep1",
-				"/src/test/pkg/a.go:1:58-1:58 -> containerName:D2 meta_package:github.com/d/dep2 name:D2",
-				"/src/test/pkg/a.go:1:53-1:53 -> containerName:dep1 meta_package:github.com/d/dep1 name:D1",
+				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:github.com/d/dep1 containerName:dep1",
+				"/src/test/pkg/a.go:1:58-1:58 -> attr_package:github.com/d/dep2 containerName:D2 name:D2",
+				"/src/test/pkg/a.go:1:53-1:53 -> attr_package:github.com/d/dep1 containerName:dep1 name:D1",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep1": {
@@ -603,12 +603,12 @@ type Header struct {
 				},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
-				"/src/test/pkg/a.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
-				"/src/test/pkg/b.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
-				"/src/test/pkg/b.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
-				"/src/test/pkg/c.go:1:19-1:19 -> containerName:fmt meta_package:fmt",
-				"/src/test/pkg/c.go:1:38-1:38 -> containerName:fmt meta_package:fmt name:Println",
+				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:fmt containerName:fmt",
+				"/src/test/pkg/a.go:1:38-1:38 -> attr_package:fmt containerName:fmt name:Println",
+				"/src/test/pkg/b.go:1:19-1:19 -> attr_package:fmt containerName:fmt",
+				"/src/test/pkg/b.go:1:38-1:38 -> attr_package:fmt containerName:fmt name:Println",
+				"/src/test/pkg/c.go:1:19-1:19 -> attr_package:fmt containerName:fmt",
+				"/src/test/pkg/c.go:1:38-1:38 -> attr_package:fmt containerName:fmt name:Println",
 			},
 		},
 	}

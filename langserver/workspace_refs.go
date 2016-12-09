@@ -58,7 +58,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		pkgs []string
 	)
 	for pkg := range buildutil.ExpandPatterns(bctx, []string{pkgPat}) {
-		// Ignore any vendor package so we can avoid scanning it for external
+		// Ignore any vendor package so we can avoid scanning it for dependency
 		// references, per the workspace/reference spec. This saves us a
 		// considerable amount of work.
 		bpkg, err := bctx.Import(pkg, rootPath, build.FindOnly)
@@ -71,12 +71,12 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		}
 		pkgs = append(pkgs, pkg)
 	}
-	prog, err := h.externalRefsTypecheck(ctx, bctx, conn, fset, pkgs)
+	prog, err := h.workspaceRefsTypecheck(ctx, bctx, conn, fset, pkgs)
 	if err != nil {
 		return nil, err
 	}
 
-	// Collect external references.
+	// Collect dependency references.
 	results := refResultSorter{results: make([]lspext.ReferenceInformation, 0)}
 	par := parallel.NewRun(parallelism)
 	for _, pkg := range prog.Imported {
@@ -94,9 +94,9 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 					return
 				}
 			}()
-			err := h.externalRefsFromPkg(ctx, bctx, conn, fset, pkg, rootPath, &results)
+			err := h.workspaceRefsFromPkg(ctx, bctx, conn, fset, pkg, rootPath, &results)
 			if err != nil {
-				log.Printf("externalRefsFromPkg: %v: %v", pkg, err)
+				log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
 			}
 		}(pkg)
 	}
@@ -106,8 +106,8 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 	return results.results, nil
 }
 
-func (h *LangHandler) externalRefsTypecheck(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fset *token.FileSet, pkgs []string) (prog *loader.Program, err error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "externalRefsTypecheck")
+func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fset *token.FileSet, pkgs []string) (prog *loader.Program, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "workspaceRefsTypecheck")
 	defer func() {
 		if err != nil {
 			ext.Error.Set(span, true)
@@ -167,10 +167,10 @@ func (h *LangHandler) externalRefsTypecheck(ctx context.Context, bctx *build.Con
 	return prog, nil
 }
 
-// externalRefsFromPkg collects all the external references from the specified
-// package and returns the results.
-func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fs *token.FileSet, pkg *loader.PackageInfo, rootPath string, results *refResultSorter) (err error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "externalRefsFromPkg")
+// workspaceRefsFromPkg collects all the references made to dependencies from
+// the specified package and returns the results.
+func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fs *token.FileSet, pkg *loader.PackageInfo, rootPath string, results *refResultSorter) (err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "workspaceRefsFromPkg")
 	defer func() {
 		if err != nil {
 			ext.Error.Set(span, true)
@@ -180,7 +180,7 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 	}()
 	span.SetTag("pkg", pkg)
 
-	// Compute external references.
+	// Compute workspace references.
 	cfg := &refs.Config{
 		FileSet:  fs,
 		Pkg:      pkg.Pkg,
@@ -194,7 +194,7 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 			// halt execution (hopefully, it is limited to a small subset of
 			// the data).
 			ext.Error.Set(span, true)
-			err := fmt.Errorf("externalRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
+			err := fmt.Errorf("workspaceRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
 			log.Println(err)
 			span.SetTag("error", err.Error())
 			return
@@ -209,9 +209,9 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 	})
 	if refsErr != nil {
 		// Trace the error, but do not consider it a true error. In many cases
-		// it is a problem with the user's code, not our external reference
+		// it is a problem with the user's code, not our workspace reference
 		// finding code.
-		span.SetTag("err", fmt.Sprintf("externalRefsFromPkg: external refs failed: %v: %v", pkg, refsErr))
+		span.SetTag("err", fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
 	}
 	return nil
 }
@@ -235,7 +235,7 @@ func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*l
 		Name:          defName,
 		ContainerName: defContainerName,
 		Vendor:        IsVendorDir(defPkg.Dir),
-		Meta: map[string]interface{}{
+		Attributes: map[string]interface{}{
 			"package": defPkg.ImportPath,
 		},
 		// TODO: be nice and emit Kind, File and Repo fields too. They
@@ -245,7 +245,7 @@ func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*l
 }
 
 // refResultSorter is a utility struct for collecting, filtering, and
-// sorting external reference results.
+// sorting workspace reference results.
 type refResultSorter struct {
 	results   []lspext.ReferenceInformation
 	resultsMu sync.Mutex

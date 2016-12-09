@@ -69,12 +69,8 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 		l.Location.Range.End = l.Location.Range.Start
 
 		// Determine metadata information for the node.
-		//rootFile := pkg.Files[0] // TODO: is this correct?
-		def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, node.Pos())
-		if err != nil {
-			// TODO: tracing
-			log.Println("refs.DefInfo:", err)
-		} else {
+
+		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, node.Pos()); err == nil {
 			symDesc, err := defSymbolDescriptor(bctx, rootPath, *def)
 			if err != nil {
 				// TODO: tracing
@@ -82,6 +78,9 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 			} else {
 				l.Symbol = *symDesc
 			}
+		} else {
+			// TODO: tracing
+			log.Println("refs.DefInfo:", err)
 		}
 		locs = append(locs, l)
 	}

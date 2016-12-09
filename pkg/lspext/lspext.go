@@ -15,22 +15,47 @@ import (
 type WorkspaceReferencesParams struct {
 }
 
-// ReferenceInformation is the array response type for the `workspace/xreferences` extension
-//
-// See: https://github.com/sourcegraph/language-server-protocol/blob/master/extension-workspace-reference.md
-//
+// ReferenceInformation represents information about a reference to programming
+// constructs like variables, classes, interfaces etc.
 type ReferenceInformation struct {
-	Reference lsp.Location     `json:"reference"`
-	Symbol    SymbolDescriptor `json:"symbol"`
+	// Reference is the location in the workspace where the `symbol` has been
+	// referenced.
+	Reference lsp.Location `json:"reference"`
+
+	// Symbol is metadata information describing the symbol being referenced.
+	Symbol SymbolDescriptor `json:"symbol"`
 }
 
+// SymbolDescriptor represents information about a programming construct like a
+// variable, class, interface etc that has a reference to it. Effectively, it
+// contains data similar to SymbolInformation except all fields are optional.
+//
+// SymbolDescriptor usually uniquely identifies a symbol, but it is not
+// guaranteed to do so.
 type SymbolDescriptor struct {
-	Name          string                 `json:"name,omitempty"`
-	Kind          lsp.SymbolKind         `json:"kind,omitempty"`
-	File          string                 `json:"file,omitempty"`
-	ContainerName string                 `json:"containerName,omitempty"`
-	Vendor        bool                   `json:"vendor,omitempty"`
-	Meta          map[string]interface{} `json:"meta,omitempty"`
+	// Name of this symbol (same as `SymbolInformation.name`).
+	Name string `json:"name,omitempty"`
+
+	// Kind of this symbol (same as `SymbolInformation.kind`).
+	Kind lsp.SymbolKind `json:"kind,omitempty"`
+
+	// URI of this symbol (same as `SymbolInformation.location.uri`).
+	URI string `json:"uri,omitempty"`
+
+	// ContainerName represents the name of the symbol containing this symbol
+	// (same as `SymbolInformation.containerName`).
+	ContainerName string `json:"containerName,omitempty"`
+
+	// Whether or not the symbol is defined inside of "vendored" code. In Go, for
+	// example, this means that an external dependency was copied to a subdirectory
+	// named `vendor`. The exact definition of vendor depends on the language,
+	// but it is generally understood to mean "code that was copied from its
+	// original source and now lives in our project directly".
+	Vendor bool `json:"vendor,omitempty"`
+
+	// Attributes describing the symbol that is being referenced. It is up to
+	// the language server to define what exact data this object contains.
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
 // LocationInformation is the response type for the `textDocument/xdefinition` extension.
@@ -44,9 +69,9 @@ type LocationInformation struct {
 // String returns a consistently ordered string representation of the
 // SymbolDescriptor. It is useful for testing.
 func (s SymbolDescriptor) String() string {
-	sm := make(sortedMap, 0, len(s.Meta))
-	for k, v := range s.Meta {
-		sm = append(sm, mapValue{key: "meta_" + k, value: v})
+	sm := make(sortedMap, 0, len(s.Attributes))
+	for k, v := range s.Attributes {
+		sm = append(sm, mapValue{key: "attr_" + k, value: v})
 	}
 	stdfield := func(k, v string) {
 		if v != "" {
@@ -55,7 +80,7 @@ func (s SymbolDescriptor) String() string {
 	}
 	stdfield("name", s.Name)
 	stdfield("kind", s.Kind.String())
-	stdfield("file", s.File)
+	stdfield("uri", s.URI)
 	stdfield("containerName", s.ContainerName)
 	if s.Vendor {
 		stdfield("vendor", "true")
