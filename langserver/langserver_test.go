@@ -424,11 +424,11 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32 attr_package:github.com/d/dep/vendor/vendp attr_packageName:vendp attr_parent:F name:V vendor:true",
+				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32 attr_package:github.com/d/dep/vendor/vendp attr_packageName:vendp attr_parent:V name:F vendor:true",
 			},
 			wantWorkspaceReferences: []string{
 				"/src/test/pkg/a.go:1:19-1:19 -> attr_package:github.com/d/dep attr_packageName:dep",
-				"/src/test/pkg/a.go:1:55-1:55 -> attr_package:github.com/d/dep/vendor/vendp attr_packageName:vendp attr_parent:F name:V vendor:true",
+				"/src/test/pkg/a.go:1:55-1:55 -> attr_package:github.com/d/dep/vendor/vendp attr_packageName:vendp attr_parent:V name:F vendor:true",
 				"/src/test/pkg/a.go:1:51-1:51 -> attr_package:github.com/d/dep attr_packageName:dep name:D",
 			},
 			mountFS: map[string]map[string]string{
