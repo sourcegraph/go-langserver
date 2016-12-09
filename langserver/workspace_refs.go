@@ -217,27 +217,42 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 }
 
 func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*lspext.SymbolDescriptor, error) {
-	var defName, defContainerName string
-	if fields := strings.Fields(def.Path); len(fields) > 0 {
-		defName = fields[0]
-		defContainerName = strings.Join(fields[1:], " ")
-	}
-	if defContainerName == "" {
-		defContainerName = def.PackageName
-	}
+	/*
+		def.
+
+		var defName, defContainerName string
+		if fields := strings.Fields(def.Path); len(fields) > 0 {
+			defName = fields[0]
+			defContainerName = strings.Join(fields[1:], " ")
+		}
+		if defContainerName == "" {
+			defContainerName = def.PackageName
+		}
+	*/
 
 	defPkg, err := bctx.Import(def.ImportPath, rootPath, build.FindOnly)
 	if err != nil {
 		return nil, err
 	}
 
+	attributes := map[string]interface{}{
+		"package":     defPkg.ImportPath,
+		"packageName": def.PackageName,
+	}
+
+	var defName string
+	fields := strings.Fields(def.Path)
+	if len(fields) >= 1 {
+		defName = fields[0]
+	}
+	if len(fields) >= 2 {
+		attributes["parent"] = fields[1]
+	}
+
 	return &lspext.SymbolDescriptor{
-		Name:          defName,
-		ContainerName: defContainerName,
-		Vendor:        IsVendorDir(defPkg.Dir),
-		Attributes: map[string]interface{}{
-			"package": defPkg.ImportPath,
-		},
+		Name:       defName,
+		Vendor:     IsVendorDir(defPkg.Dir),
+		Attributes: attributes,
 		// TODO: be nice and emit Kind, File and Repo fields too. They
 		// are optional, though, so let's punt on it for now and see
 		// how well it works.
