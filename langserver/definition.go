@@ -76,7 +76,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)
 			} else {
-				l.Symbol = *symDesc
+				l.Symbol = append(l.Symbol, *symDesc)
 			}
 		} else {
 			// TODO: tracing

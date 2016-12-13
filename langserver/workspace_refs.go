@@ -222,8 +222,7 @@ func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*l
 		return nil, err
 	}
 
-	attributes := map[string]interface{}{
-		"package":     defPkg.ImportPath,
+	container := map[string]interface{}{
 		"packageName": def.PackageName,
 	}
 
@@ -233,14 +232,18 @@ func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*l
 		defName = fields[0]
 	}
 	if len(fields) >= 2 {
-		attributes["parent"] = fields[0]
+		container["parent"] = fields[0]
 		defName = fields[1]
 	}
 
 	return &lspext.SymbolDescriptor{
-		Name:       defName,
-		Vendor:     IsVendorDir(defPkg.Dir),
-		Attributes: attributes,
+		Name:      defName,
+		Vendor:    IsVendorDir(defPkg.Dir),
+		Container: container,
+		Package: lspext.PackageDescriptor{
+			ID:       defPkg.ImportPath,
+			Registry: "go",
+		},
 		// TODO: be nice and emit Kind, File and Repo fields too. They
 		// are optional, though, so let's punt on it for now and see
 		// how well it works.
