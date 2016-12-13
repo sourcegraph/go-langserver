@@ -3,10 +3,10 @@ package lsp
 type None struct{}
 
 type InitializeParams struct {
-	ProcessID             int                `json:"processId,omitempty"`
-	RootPath              string             `json:"rootPath,omitempty"`
-	InitializationOptions interface{}        `json:"initializationOptions,omitempty"`
-	Capabilities          ClientCapabilities `json:"capabilities"`
+	ProcessID             int                    `json:"processId,omitempty"`
+	RootPath              string                 `json:"rootPath,omitempty"`
+	InitializationOptions *InitializationOptions `json:"initializationOptions,omitempty"`
+	Capabilities          ClientCapabilities     `json:"capabilities"`
 }
 
 type ClientCapabilities struct {
