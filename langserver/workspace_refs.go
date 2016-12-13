@@ -26,7 +26,7 @@ import (
 )
 
 func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]lspext.ReferenceInformation, error) {
-	// TODO(slimsag): respect params.Query and params.Files
+	// TODO(slimsag): respect params.Files
 	// TODO(slimsag): properly handle vendor
 
 	rootPath := h.FilePath(h.init.RootPath)
@@ -97,7 +97,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 					return
 				}
 			}()
-			err := h.workspaceRefsFromPkg(ctx, bctx, conn, fset, pkg, rootPath, &results)
+			err := h.workspaceRefsFromPkg(ctx, bctx, conn, params, fset, pkg, rootPath, &results)
 			if err != nil {
 				log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
 			}
@@ -172,7 +172,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 
 // workspaceRefsFromPkg collects all the references made to dependencies from
 // the specified package and returns the results.
-func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fs *token.FileSet, pkg *loader.PackageInfo, rootPath string, results *refResultSorter) (err error) {
+func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, params lspext.WorkspaceReferencesParams, fs *token.FileSet, pkg *loader.PackageInfo, rootPath string, results *refResultSorter) (err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "workspaceRefsFromPkg")
 	defer func() {
 		if err != nil {
@@ -200,6 +200,9 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 			err := fmt.Errorf("workspaceRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
 			log.Println(err)
 			span.SetTag("error", err.Error())
+			return
+		}
+		if !symDesc.Contains(params.Query) {
 			return
 		}
 

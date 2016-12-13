@@ -47,6 +47,18 @@ type LocationInformation struct {
 	Symbol SymbolDescriptor `json:"SymbolDescriptor"`
 }
 
+// Contains tells if this SymbolDescriptor fully contains all of the keys and
+// values in the other symbol descriptor.
+func (s SymbolDescriptor) Contains(other SymbolDescriptor) bool {
+	for k, v := range other {
+		v2, ok := s[k]
+		if !ok || v != v2 {
+			return false
+		}
+	}
+	return true
+}
+
 // String returns a consistently ordered string representation of the
 // SymbolDescriptor. It is useful for testing.
 func (s SymbolDescriptor) String() string {
