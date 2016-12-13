@@ -1,0 +1,48 @@
+require "language/go"
+
+class GoLangserver < Formula
+  desc "Go language LSP server"
+  homepage "https://github.com/#{REPO_OWNER}/#{REPO_NAME}"
+  url "https://github.com/#{REPO_OWNER}/#{REPO_NAME}/archive/v#{VERSION}.tar.gz"
+  sha256 "#{SHA256SUM}"
+
+  head "https://github.com/#{REPO_OWNER}/#{REPO_NAME}.git"
+
+  depends_on "go" => :build
+
+  #{GO_RESOURCES}
+
+  def install
+    mkdir_p buildpath/"src/github.com/sourcegraph"
+    ln_s buildpath, buildpath/"src/github.com/sourcegraph/go-langserver"
+    ENV["GOPATH"] = buildpath.to_s
+    Language::Go.stage_deps resources, buildpath/"src"
+    system "go", "build", "langserver/cmd/langserver-go/langserver-go.go"
+    bin.install "langserver-go"
+  end
+
+  test do
+    # Set up fake GOROOT and create test Go project
+    mkdir_p testpath/"gopath/src/test"
+    mkdir_p testpath/"goroot"
+    ENV["GOPATH"] = "#{testpath}/gopath"
+    ENV["GOROOT"] = "#{testpath}/goroot"
+    (testpath/"gopath/src/test/p/a.go").write("package p; func A() {}")
+    # Invoke initialize, hover, and finally exit requests and make sure that LSP server returns proper data
+    init_req = "{\"id\":0,\"method\":\"initialize\",\"params\":{\"rootPath\":\"file://#{testpath}/gopath/src/test/p\"}}"
+    init_res = "{\"id\":0,\"result\":{\"capabilities\":{\"textDocumentSync\":1,\"hoverProvider\":true,\"definitionProvider\":true,\"referencesProvider\":true,\"documentSymbolProvider\":true,\"workspaceSymbolProvider\":true}},\"jsonrpc\":\"2.0\"}"
+    hover_req = "{\"id\":1,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"file://#{testpath}/gopath/src/test/p/a.go\"},\"position\":{\"line\":0,\"character\":16}}}"
+    hover_res = "{\"id\":1,\"result\":{\"contents\":[{\"language\":\"go\",\"value\":\"func A()\"}],\"range\":{\"start\":{\"line\":0,\"character\":16},\"end\":{\"line\":0,\"character\":17}}},\"jsonrpc\":\"2.0\"}"
+    exit_req = "{\"id\":2,\"method\":\"exit\",\"params\":{}}"
+    require "open3"
+    Open3.popen3("langserver-go") do |stdin, stdout, _|
+      stdin.write("Content-Length: #{init_req.length}\r\n\r\n#{init_req}")
+      sleep(1)
+      stdin.write("Content-Length: #{hover_req.length}\r\n\r\n#{hover_req}")
+      sleep(1)
+      stdin.write("Content-Length: #{exit_req.length}\r\n\r\n#{exit_req}")
+      stdin.close
+      assert_equal "Content-Length: #{init_res.length}\r\nContent-Type: application/vscode-jsonrpc; charset=utf8\r\n\r\n#{init_res}Content-Length: #{hover_res.length}\r\nContent-Type: application/vscode-jsonrpc; charset=utf8\r\n\r\n#{hover_res}", stdout.read
+    end
+  end
+end
