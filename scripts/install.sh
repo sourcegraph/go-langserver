@@ -13,6 +13,11 @@ git checkout --track -b mbana/master mbana/master
 git merge origin/master
 
 # do the build for both langserver-go and langserver-anth
-go install github.com/sourcegraph/go-langserver/langserver/cmd/langserver-{go,antha}
+go install -x -v -a github.com/sourcegraph/go-langserver/langserver/cmd/langserver-{go,antha}
 ls -lah `which langserver-{go,antha}`
 
+# ( \
+#   go install -x -v -a github.com/sourcegraph/go-langserver/langserver/cmd/langserver-antha && \
+#   ls -lah `which langserver-antha` && \
+#   langserver-antha -mode ws -trace \
+# )

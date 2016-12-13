@@ -7,9 +7,7 @@
     "ws": "^1.1.1"
   },
   "devDependencies": {
-    "@types/ws": "0.0.35",
-    "typescript": "^2.1.0",
-    "ws": "^1.1.1"
+    "typescript": "^2.1.0"
   },
   "scripts": {
     "build": "npm install && npm run compile && npm run test",

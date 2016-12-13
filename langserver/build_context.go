@@ -32,6 +32,9 @@ func (h *LangHandler) defaultBuildContext() *build.Context {
 			ReleaseTags: build.Default.ReleaseTags,
 		}
 	}
+	//log.Printf("langserver-go: defaultBuildContext - bctx: %+v", bctx)
+	//log.Printf("langserver-go: defaultBuildContext - h.init: %+v", h.init)
+
 	return bctx
 }
 

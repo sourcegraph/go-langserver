@@ -89,7 +89,7 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 // exactly.
 func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
-	log.Printf("langserver-go: Handle - req: %+v", req)
+	// log.Printf("langserver-go: Handle - req: %+v", req)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -109,7 +109,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 	if req.Method != "initialize" && h.init == nil {
 		h.mu.Unlock()
 		err := errors.New("server must be initialized")
-		log.Printf("langserver-go: Handle - req: %+v, err: %v", req, err)
+		// log.Printf("langserver-go: Handle - req: %+v, err: %v", req, err)
 		return nil, err
 	}
 	h.mu.Unlock()
@@ -117,12 +117,12 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		if req.Method == "exit" {
 			err = nil
 		}
-		log.Printf("langserver-go: Handle CheckReady - req: %+v, err: %v", req, err)
+		// log.Printf("langserver-go: Handle CheckReady - req: %+v, err: %v", req, err)
 		return nil, err
 	}
 
 	if conn, ok := conn.(*jsonrpc2.Conn); ok && conn != nil {
-		log.Printf("langserver-go: Handle InitTracer - req: %+v, err: %v", req, err)
+		// log.Printf("langserver-go: Handle InitTracer - req: %+v, err: %v", req, err)
 		h.InitTracer(conn)
 	}
 	span, ctx, err := h.SpanForRequest(ctx, "lang", req, opentracing.Tags{"mode": "go"})
@@ -142,31 +142,45 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 	case "initialize":
 		if h.init != nil {
 			err := errors.New("language server is already initialized")
-			log.Printf("langserver-go: Handle initialize - req: %+v, err: %v", req, err)
+			// log.Printf("langserver-go: Handle initialize - req: %+v, err: %v", req, err)
 			return nil, err
 		}
 		if req.Params == nil {
 			err := &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
-			log.Printf("langserver-go: Handle initialize req.Params - req: %+v, req.Params: %+v, err: %v", req, req.Params, err)
+			// log.Printf("langserver-go: Handle initialize req.Params - req: %+v, req.Params: %+v, err: %v", req, req.Params, err)
 			return nil, err
 		}
 		var params InitializeParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			log.Printf("langserver-go: Handle InitializeParams - req: %+v, req.Params: %+v, err: %v", req, req.Params, err)
+			// log.Printf("langserver-go: Handle InitializeParams - req: %+v, req.Params: %+v, err: %v", req, req.Params, err)
 			return nil, err
 		}
+		//log.Printf("langserver-go: Handle InitializeParams - req.Params: %+v, err: %v", req, req.Params)
 
 		// Assume it's a file path if no the URI has no scheme.
 		if strings.HasPrefix(params.RootPath, "/") {
 			params.RootPath = "file://" + params.RootPath
 		}
 
+		if params.InitializationOptions != nil {
+			initOptions := params.InitializationOptions
+			if initOptions.RootImportPath != "" {
+				params.RootImportPath = params.InitializationOptions.RootImportPath
+			}
+			// if initOptions.GOPATH != "" {
+			// 	params.BuildContext.GOPATH = params.InitializationOptions.GOPATH
+			// }
+			// if initOptions.GOROOT != "" {
+			// 	params.BuildContext.GOROOT = params.InitializationOptions.GOROOT
+			// }
+		}
+
 		if err := h.reset(&params); err != nil {
-			log.Printf("langserver-go: Handle h.reset(&params) - req: %+v, req.Params: %+v, err: %v", req, req.Params, err)
+			// log.Printf("langserver-go: Handle h.reset(&params) - req: %+v, req.Params: %+v, err: %v", req, req.Params, err)
 			return nil, err
 		}
 
-		log.Printf("langserver-go: Handle InitializeResult - req: %+v, req.Params: %+v", req, req.Params)
+		// log.Printf("langserver-go: Handle InitializeResult - req: %+v, req.Params: %+v", req, req.Params)
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync:        lsp.TDSKFull,

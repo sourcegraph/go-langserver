@@ -56,14 +56,14 @@ func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.
 			log.Printf("langserver: wsConn: %p - NextReader error - err: %v", wsConn, err)
 			return
 		}
-		log.Printf("langserver: wsConn: %p - NextReader - reader: %p, messageType: %d", wsConn, &reader, messageType)
+		// log.Printf("langserver: wsConn: %p - NextReader - reader: %p, messageType: %d", wsConn, &reader, messageType)
 
 		writer, err := wsConn.NextWriter(messageType)
 		if err != nil {
 			log.Printf("langserver: wsConn: %p - NextWriter error - err: %v", wsConn, err)
 			return
 		}
-		log.Printf("langserver: wsConn: %p - NextWriter - writer: %p", wsConn, &writer)
+		// log.Printf("langserver: wsConn: %p - NextWriter - writer: %p", wsConn, &writer)
 
 		rwc := webSocketReadWriteCloser{reader: reader, writer: writer, closer: writer}
 		// conn := jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
@@ -71,7 +71,7 @@ func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.
 		jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
 
 		if err := writer.Close(); err != nil {
-			log.Printf("langserver-go: wsConn: %p - writer.Close() error - conn: %p, err: %v", wsConn, err)
+			log.Printf("langserver-go: wsConn: %p - writer.Close() error - err: %v", wsConn, err)
 			return
 		}
 	}

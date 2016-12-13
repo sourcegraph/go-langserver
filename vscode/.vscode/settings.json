@@ -1,10 +1,27 @@
 {
-	"files.exclude": {
-		"out": false
-	},
 	"search.exclude": {
-		"out": true
+		"**/out": true,
+
+		"**/node_modules": true,
+		"**/bower_components": true,
+
+		"**/lib": true
+	},
+	"files.exclude": {
+		"**/out": true,
+
+		"**/node_modules": true,
+		"**/bower_components": true,
+
+		"**/.git": true,
+		"**/.svn": true,
+		"**/.hg": true,
+		"**/.DS_Store": true,
+
+		"**/lib": true
 	},
 
+	// "typescript.tsdk": "./node_modules/typescript/lib",
     "debug.allowBreakpointsEverywhere": true
+    // "typescript.tsdk": "./node_modules/typescript/lib"
 }

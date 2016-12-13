@@ -3,12 +3,19 @@ package lsp
 type None struct{}
 
 type InitializeParams struct {
-	ProcessID    int                 `json:"processId,omitempty"`
-	RootPath     string              `json:"rootPath"`
-	Capabilities *ClientCapabilities `json:"capabilities,omitempty"`
+	ProcessID             int                    `json:"processId,omitempty"`
+	RootPath              string                 `json:"rootPath"`
+	Capabilities          *ClientCapabilities    `json:"capabilities,omitempty"`
+	InitializationOptions *InitializationOptions `json:"initializationOptions,omitempty"`
 }
 
 type ClientCapabilities struct{}
+
+type InitializationOptions struct {
+	RootImportPath string `json:"rootImportPath,omitempty"`
+	GOPATH         string `json:"GOPATH,omitempty"`
+	GOROOT         string `json:"GOROOT,omitempty"`
+}
 
 type InitializeResult struct {
 	Capabilities ServerCapabilities `json:"capabilities,omitempty"`

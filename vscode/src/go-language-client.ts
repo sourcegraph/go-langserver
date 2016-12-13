@@ -13,13 +13,7 @@ import {
     Message,
     ResponseError
 } from 'vscode-jsonrpc';
-import * as WebSocket from 'ws'
-
-// TODO: extend LanguageClient 
-
-/**
- * GoLanguageClient
- */
+ 
 export class GoLanguageClient {
     private languageClient: LanguageClient;
     private initializationFailedHandler: InitializationFailedHandler;
