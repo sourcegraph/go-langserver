@@ -54,10 +54,10 @@ func TestServer(t *testing.T) {
 				"b.go:1:23": "/src/test/pkg/a.go:1:17",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p",
-				"b.go:1:17": "/src/test/pkg/b.go:1:17 name:B package:test/pkg packageName:p",
-				"b.go:1:23": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p",
+				"a.go:1:17": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p recv: vendor:false",
+				"a.go:1:23": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p recv: vendor:false",
+				"b.go:1:17": "/src/test/pkg/b.go:1:17 name:B package:test/pkg packageName:p recv: vendor:false",
+				"b.go:1:23": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p recv: vendor:false",
 			},
 			wantReferences: map[string][]string{
 				"a.go:1:17": []string{
@@ -160,11 +160,11 @@ func TestServer(t *testing.T) {
 				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17 name:A package:test/pkg/d packageName:d",
-				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17 name:A package:test/pkg/d packageName:d",
-				"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39 name:B package:test/pkg/d/d2 packageName:d2",
-				"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17 name:A package:test/pkg/d packageName:d",
-				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39 name:B package:test/pkg/d/d2 packageName:d2",
+				"a.go:1:17":    "/src/test/pkg/d/a.go:1:17 name:A package:test/pkg/d packageName:d recv: vendor:false",
+				"a.go:1:23":    "/src/test/pkg/d/a.go:1:17 name:A package:test/pkg/d packageName:d recv: vendor:false",
+				"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39 name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
+				"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17 name:A package:test/pkg/d packageName:d recv: vendor:false",
+				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39 name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
 			},
 			wantSymbols: map[string][]string{
 				"a.go":    []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
@@ -182,8 +182,8 @@ func TestServer(t *testing.T) {
 				"dir:d2/":     []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/d/d2/b.go:1:20-1:20 -> package:test/pkg/d packageName:d",
-				"/src/test/pkg/d/d2/b.go:1:47-1:47 -> name:A package:test/pkg/d packageName:d",
+				"/src/test/pkg/d/d2/b.go:1:20-1:20 -> name: package:test/pkg/d packageName:d recv: vendor:false",
+				"/src/test/pkg/d/d2/b.go:1:47-1:47 -> name:A package:test/pkg/d packageName:d recv: vendor:false",
 			},
 		},
 		"go multiple packages in dir": {
@@ -213,8 +213,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "main.go:3:52": "/src/test/pkg/main.go:3:39", // B() -> func B()
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:17": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p",
-				"a.go:1:23": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p",
+				"a.go:1:17": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p recv: vendor:false",
+				"a.go:1:23": "/src/test/pkg/a.go:1:17 name:A package:test/pkg packageName:p recv: vendor:false",
 			},
 			wantSymbols: map[string][]string{
 				"a.go": []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
@@ -239,7 +239,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go:1:19 name:Println package:fmt packageName:fmt",
+				"a.go:1:40": "/goroot/src/fmt/print.go:1:19 name:Println package:fmt packageName:fmt recv: vendor:false",
 			},
 			mountFS: map[string]map[string]string{
 				"/goroot": {
@@ -262,8 +262,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> package:fmt packageName:fmt",
-				"/src/test/pkg/a.go:1:38-1:38 -> name:Println package:fmt packageName:fmt",
+				"/src/test/pkg/a.go:1:19-1:19 -> name: package:fmt packageName:fmt recv: vendor:false",
+				"/src/test/pkg/a.go:1:38-1:38 -> name:Println package:fmt packageName:fmt recv: vendor:false",
 			},
 		},
 		"gopath": {
@@ -283,8 +283,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17",
 			},
 			wantXDefinition: map[string]string{
-				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 name:A package:test/pkg/a packageName:a",
-				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17 name:A package:test/pkg/a packageName:a",
+				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 name:A package:test/pkg/a packageName:a recv: vendor:false",
+				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17 name:A package:test/pkg/a packageName:a recv: vendor:false",
 			},
 			wantReferences: map[string][]string{
 				"a/a.go:1:17": []string{
@@ -305,8 +305,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{"/src/test/pkg/a/a.go:function:a.A:1:17"},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/b/b.go:1:19-1:19 -> package:test/pkg/a packageName:a",
-				"/src/test/pkg/b/b.go:1:43-1:43 -> name:A package:test/pkg/a packageName:a",
+				"/src/test/pkg/b/b.go:1:19-1:19 -> name: package:test/pkg/a packageName:a recv: vendor:false",
+				"/src/test/pkg/b/b.go:1:43-1:43 -> name:A package:test/pkg/a packageName:a recv: vendor:false",
 			},
 		},
 		"go vendored dep": {
@@ -322,7 +322,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24 name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored vendor:true",
+				"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24 name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
 			},
 			wantReferences: map[string][]string{
 				"vendor/github.com/v/vendored/v.go:1:24": []string{
@@ -339,8 +339,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"is:exported": []string{},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> package:test/pkg/vendor/github.com/v/vendored packageName:vendored vendor:true",
-				"/src/test/pkg/a.go:1:61-1:61 -> name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored vendor:true",
+				"/src/test/pkg/a.go:1:19-1:19 -> name: package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
+				"/src/test/pkg/a.go:1:61-1:61 -> name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
 			},
 		},
 		"go vendor symbols with same name": {
@@ -392,7 +392,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19 name:D package:github.com/d/dep packageName:dep",
+				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19 name:D package:github.com/d/dep packageName:dep recv: vendor:false",
 			},
 			wantReferences: map[string][]string{
 				"a.go:1:51": []string{
@@ -404,9 +404,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> package:github.com/d/dep packageName:dep",
-				"/src/test/pkg/a.go:1:51-1:51 -> name:D package:github.com/d/dep packageName:dep",
-				"/src/test/pkg/a.go:1:66-1:66 -> name:D package:github.com/d/dep packageName:dep",
+				"/src/test/pkg/a.go:1:19-1:19 -> name: package:github.com/d/dep packageName:dep recv: vendor:false",
+				"/src/test/pkg/a.go:1:51-1:51 -> name:D package:github.com/d/dep packageName:dep recv: vendor:false",
+				"/src/test/pkg/a.go:1:66-1:66 -> name:D package:github.com/d/dep packageName:dep recv: vendor:false",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -426,9 +426,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32 name:F package:github.com/d/dep/vendor/vendp packageName:vendp recv:V vendor:true",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> package:github.com/d/dep packageName:dep",
+				"/src/test/pkg/a.go:1:19-1:19 -> name: package:github.com/d/dep packageName:dep recv: vendor:false",
 				"/src/test/pkg/a.go:1:55-1:55 -> name:F package:github.com/d/dep/vendor/vendp packageName:vendp recv:V vendor:true",
-				"/src/test/pkg/a.go:1:51-1:51 -> name:D package:github.com/d/dep packageName:dep",
+				"/src/test/pkg/a.go:1:51-1:51 -> name:D package:github.com/d/dep packageName:dep recv: vendor:false",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": map[string]string{
@@ -449,11 +449,11 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20",
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20 name:D package:github.com/d/dep/subp packageName:subp",
+				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20 name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> package:github.com/d/dep/subp packageName:subp",
-				"/src/test/pkg/a.go:1:57-1:57 -> name:D package:github.com/d/dep/subp packageName:subp",
+				"/src/test/pkg/a.go:1:19-1:19 -> name: package:github.com/d/dep/subp packageName:subp recv: vendor:false",
+				"/src/test/pkg/a.go:1:57-1:57 -> name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep": {
@@ -475,13 +475,13 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32", // field D2
 			},
 			wantXDefinition: map[string]string{
-				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 name:D1 package:github.com/d/dep1 packageName:dep1",
-				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2",
+				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
+				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> package:github.com/d/dep1 packageName:dep1",
-				"/src/test/pkg/a.go:1:58-1:58 -> name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2",
-				"/src/test/pkg/a.go:1:53-1:53 -> name:D1 package:github.com/d/dep1 packageName:dep1",
+				"/src/test/pkg/a.go:1:19-1:19 -> name: package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
+				"/src/test/pkg/a.go:1:58-1:58 -> name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
+				"/src/test/pkg/a.go:1:53-1:53 -> name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
 			},
 			mountFS: map[string]map[string]string{
 				"/src/github.com/d/dep1": {
@@ -602,12 +602,12 @@ type Header struct {
 				},
 			},
 			wantWorkspaceReferences: []string{
-				"/src/test/pkg/a.go:1:19-1:19 -> package:fmt packageName:fmt",
-				"/src/test/pkg/a.go:1:38-1:38 -> name:Println package:fmt packageName:fmt",
-				"/src/test/pkg/b.go:1:19-1:19 -> package:fmt packageName:fmt",
-				"/src/test/pkg/b.go:1:38-1:38 -> name:Println package:fmt packageName:fmt",
-				"/src/test/pkg/c.go:1:19-1:19 -> package:fmt packageName:fmt",
-				"/src/test/pkg/c.go:1:38-1:38 -> name:Println package:fmt packageName:fmt",
+				"/src/test/pkg/a.go:1:19-1:19 -> name: package:fmt packageName:fmt recv: vendor:false",
+				"/src/test/pkg/a.go:1:38-1:38 -> name:Println package:fmt packageName:fmt recv: vendor:false",
+				"/src/test/pkg/b.go:1:19-1:19 -> name: package:fmt packageName:fmt recv: vendor:false",
+				"/src/test/pkg/b.go:1:38-1:38 -> name:Println package:fmt packageName:fmt recv: vendor:false",
+				"/src/test/pkg/c.go:1:19-1:19 -> name: package:fmt packageName:fmt recv: vendor:false",
+				"/src/test/pkg/c.go:1:38-1:38 -> name:Println package:fmt packageName:fmt recv: vendor:false",
 			},
 		},
 	}

@@ -226,21 +226,24 @@ func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (ls
 	}
 
 	desc := lspext.SymbolDescriptor{
+		"vendor":      IsVendorDir(defPkg.Dir),
 		"package":     defPkg.ImportPath,
 		"packageName": def.PackageName,
-	}
-
-	if IsVendorDir(defPkg.Dir) {
-		desc["vendor"] = true
+		"recv":        "",
+		"name":        "",
 	}
 
 	fields := strings.Fields(def.Path)
-	if len(fields) >= 1 {
-		desc["name"] = fields[0]
-	}
-	if len(fields) >= 2 {
+	switch {
+	case len(fields) == 0:
+		// reference to just a package
+	case len(fields) >= 2:
 		desc["recv"] = fields[0]
 		desc["name"] = fields[1]
+	case len(fields) >= 1:
+		desc["name"] = fields[0]
+	default:
+		panic("invalid def.Path response from internal/refs")
 	}
 	return desc, nil
 }
