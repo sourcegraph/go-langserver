@@ -26,6 +26,9 @@ import (
 )
 
 func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]lspext.ReferenceInformation, error) {
+	// TODO(slimsag): respect params.Query and params.Files
+	// TODO(slimsag): properly handle vendor
+
 	rootPath := h.FilePath(h.init.RootPath)
 	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
 
@@ -203,7 +206,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		results.resultsMu.Lock()
 		results.results = append(results.results, lspext.ReferenceInformation{
 			Reference: goRangeToLSPLocation(fs, r.Pos, r.Pos), // TODO: internal/refs doesn't generate end positions
-			Symbol:    *symDesc,
+			Symbol:    symDesc,
 		})
 		results.resultsMu.Unlock()
 	})
@@ -216,38 +219,30 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	return nil
 }
 
-func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*lspext.SymbolDescriptor, error) {
+func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (lspext.SymbolDescriptor, error) {
 	defPkg, err := bctx.Import(def.ImportPath, rootPath, build.FindOnly)
 	if err != nil {
 		return nil, err
 	}
 
-	container := map[string]interface{}{
+	desc := lspext.SymbolDescriptor{
+		"package":     defPkg.ImportPath,
 		"packageName": def.PackageName,
 	}
 
-	var defName string
-	fields := strings.Fields(def.Path)
-	if len(fields) >= 1 {
-		defName = fields[0]
-	}
-	if len(fields) >= 2 {
-		container["parent"] = fields[0]
-		defName = fields[1]
+	if IsVendorDir(defPkg.Dir) {
+		desc["vendor"] = true
 	}
 
-	return &lspext.SymbolDescriptor{
-		Name:      defName,
-		Vendor:    IsVendorDir(defPkg.Dir),
-		Container: container,
-		Package: lspext.PackageDescriptor{
-			ID:       defPkg.ImportPath,
-			Registry: "go",
-		},
-		// TODO: be nice and emit Kind, File and Repo fields too. They
-		// are optional, though, so let's punt on it for now and see
-		// how well it works.
-	}, nil
+	fields := strings.Fields(def.Path)
+	if len(fields) >= 1 {
+		desc["name"] = fields[0]
+	}
+	if len(fields) >= 2 {
+		desc["recv"] = fields[0]
+		desc["name"] = fields[1]
+	}
+	return desc, nil
 }
 
 // refResultSorter is a utility struct for collecting, filtering, and
