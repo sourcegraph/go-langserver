@@ -1,9 +1,11 @@
 package langserver
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/build"
 	"go/token"
+	"path"
 	"reflect"
 	"testing"
 
@@ -36,9 +38,16 @@ package main`,
 func TestLoader(t *testing.T) {
 	for label, tc := range loaderCases {
 		t.Run(label, func(t *testing.T) {
-			fset, bctx := setUpLoaderTest(tc.fs)
-			if _, _, err := typecheck(fset, bctx, &build.Package{ImportPath: "p", Dir: "/src/p"}); err != nil {
+			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
+			p, _, err := typecheck(fset, bctx, bpkg)
+			if err != nil {
 				t.Error(err)
+			}
+			if len(p.Created) == 0 {
+				t.Error("Expected to loader to create a package")
+			}
+			if len(p.Created[0].Files) == 0 {
+				t.Error("did not load any files")
 			}
 		})
 	}
@@ -53,10 +62,10 @@ func TestLoader(t *testing.T) {
 func BenchmarkLoader(b *testing.B) {
 	for label, tc := range loaderCases {
 		b.Run(label, func(b *testing.B) {
-			fset, bctx := setUpLoaderTest(tc.fs)
+			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if _, _, err := typecheck(fset, bctx, &build.Package{ImportPath: "p", Dir: "/src/p"}); err != nil {
+				if _, _, err := typecheck(fset, bctx, bpkg); err != nil {
 					b.Error(err)
 				}
 			}
@@ -64,7 +73,52 @@ func BenchmarkLoader(b *testing.B) {
 	}
 }
 
-func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context) {
+func TestLoaderDiagnostics(t *testing.T) {
+	m := func(s string) diagnostics {
+		var d diagnostics
+		err := json.Unmarshal([]byte(s), &d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	cases := []struct {
+		Name string
+		FS   map[string]string
+		Want diagnostics
+	}{
+		{
+			Name: "none",
+			FS:   map[string]string{"/src/p/f.go": `package p; func F() {}`},
+		},
+		{
+			Name: "malformed",
+			FS:   map[string]string{"/src/p/f.go": `234ljsdfjb2@#%$`},
+			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"severity":1,"source":"go","message":"expected 'package', found 'INT' 234 (and 4 more errors)"}]}`),
+		},
+		{
+			Name: "undeclared",
+			FS:   map[string]string{"/src/p/f.go": `package p; var _ = http.Get`},
+			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":19},"end":{"line":0,"character":23}},"severity":1,"source":"go","message":"undeclared name: http"}]}`),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			fset, bctx, bpkg := setUpLoaderTest(tc.FS)
+			_, diag, err := typecheck(fset, bctx, bpkg)
+			if err != nil {
+				t.Error(err)
+			}
+			if !reflect.DeepEqual(diag, tc.Want) {
+				got, _ := json.Marshal(diag)
+				want, _ := json.Marshal(tc.Want)
+				t.Errorf("got %s\nwant %s", string(got), string(want))
+			}
+		})
+	}
+}
+
+func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context, *build.Package) {
 	h := LangHandler{HandlerShared: new(HandlerShared)}
 	if err := h.reset(&InitializeParams{
 		InitializeParams:     lsp.InitializeParams{RootPath: "file:///src/p"},
@@ -80,7 +134,11 @@ func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context) {
 	}
 	bctx := h.OverlayBuildContext(nil, &build.Default, false)
 	bctx.GOPATH = "/"
-	return token.NewFileSet(), bctx
+	goFiles := make([]string, 0, len(fs))
+	for n := range fs {
+		goFiles = append(goFiles, path.Base(n))
+	}
+	return token.NewFileSet(), bctx, &build.Package{ImportPath: "p", Dir: "/src/p", GoFiles: goFiles}
 }
 
 func TestBuildPackageForNamedFileInMultiPackageDir(t *testing.T) {

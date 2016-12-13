@@ -30,12 +30,8 @@ type Ref struct {
 	// Def is the definition being referenced.
 	Def Def
 
-	// Position is the position of the reference.
-	Position token.Position
-}
-
-func (r *Ref) String() string {
-	return fmt.Sprintf("&Ref{Def.ImportPath: %q, Def.PackageName: %q, Def.Path: %q, Position: \"%s:%d:%d:%d\"}", r.Def.ImportPath, r.Def.PackageName, r.Def.Path, r.Position.Filename, r.Position.Line, r.Position.Column, r.Position.Offset)
+	// Pos is the position of the reference.
+	Pos token.Pos
 }
 
 type Config struct {
@@ -47,7 +43,8 @@ type Config struct {
 
 func (c *Config) Refs(emit func(*Ref)) error {
 	ref := func(rootFile *ast.File, pos token.Pos) error {
-		d, err := c.defInfo(c.Pkg, c.Info, rootFile, pos)
+		nodes, _ := astutil.PathEnclosingInterval(rootFile, pos, pos)
+		d, err := DefInfo(c.Pkg, c.Info, nodes, pos)
 		if err == errReceiverNotTopLevelNamedType {
 			return nil
 		}
@@ -60,8 +57,8 @@ func (c *Config) Refs(emit func(*Ref)) error {
 			}
 		}
 		emit(&Ref{
-			Def:      *d,
-			Position: c.FileSet.Position(pos),
+			Def: *d,
+			Pos: pos,
 		})
 		return nil
 	}
@@ -127,9 +124,7 @@ func (e *notPackageLevelDef) Error() string {
 	return fmt.Sprintf("not a package-level definition (ident: %v, object: %v) and unable to follow type (type: %v)", e.ident, e.obj, e.t)
 }
 
-func (c *Config) defInfo(pkg *types.Package, info *types.Info, rootFile *ast.File, pos token.Pos) (*Def, error) {
-	nodes, _ := astutil.PathEnclosingInterval(rootFile, pos, pos)
-
+func DefInfo(pkg *types.Package, info *types.Info, nodes []ast.Node, pos token.Pos) (*Def, error) {
 	// Import statements.
 	if len(nodes) > 2 {
 		if im, ok := nodes[1].(*ast.ImportSpec); ok {

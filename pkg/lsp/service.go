@@ -3,13 +3,24 @@ package lsp
 type None struct{}
 
 type InitializeParams struct {
-	ProcessID             int                    `json:"processId,omitempty"`
-	RootPath              string                 `json:"rootPath"`
-	Capabilities          *ClientCapabilities    `json:"capabilities,omitempty"`
-	InitializationOptions *InitializationOptions `json:"initializationOptions,omitempty"`
+	ProcessID             int                `json:"processId,omitempty"`
+	RootPath              string             `json:"rootPath,omitempty"`
+	InitializationOptions interface{}        `json:"initializationOptions,omitempty"`
+	Capabilities          ClientCapabilities `json:"capabilities"`
 }
 
-type ClientCapabilities struct{}
+type ClientCapabilities struct {
+	// Below are Sourcegraph extensions. They do not live in lspext since
+	// they are extending the field InitializeParams.Capabilities
+
+	// XFilesProvider indicates the client provides support for
+	// workspace/xfiles. This is a Sourcegraph extension.
+	XFilesProvider bool `json:"xfilesProvider,omitempty"`
+
+	// XContentProvider indicates the client provides support for
+	// textDocument/xcontent. This is a Sourcegraph extension.
+	XContentProvider bool `json:"xcontentProvider,omitempty"`
+}
 
 type InitializationOptions struct {
 	RootImportPath string `json:"rootImportPath,omitempty"`
@@ -49,6 +60,10 @@ type ServerCapabilities struct {
 	DocumentRangeFormattingProvider  bool                             `json:"documentRangeFormattingProvider,omitempty"`
 	DocumentOnTypeFormattingProvider *DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
 	RenameProvider                   bool                             `json:"renameProvider,omitempty"`
+
+	// XWorkspaceReferencesProvider indicates the server provides support for
+	// xworkspace/references. This is a Sourcegraph extension.
+	XWorkspaceReferencesProvider bool `json:"xworkspaceReferencesProvider,omitempty"`
 }
 
 type CompletionOptions struct {
@@ -185,6 +200,31 @@ const (
 	SKArray       SymbolKind = 18
 )
 
+func (s SymbolKind) String() string {
+	return symbolKindName[s]
+}
+
+var symbolKindName = map[SymbolKind]string{
+	SKFile:        "file",
+	SKModule:      "module",
+	SKNamespace:   "namespace",
+	SKPackage:     "package",
+	SKClass:       "class",
+	SKMethod:      "method",
+	SKProperty:    "property",
+	SKField:       "field",
+	SKConstructor: "constructor",
+	SKEnum:        "enum",
+	SKInterface:   "interface",
+	SKFunction:    "function",
+	SKVariable:    "variable",
+	SKConstant:    "constant",
+	SKString:      "string",
+	SKNumber:      "number",
+	SKBoolean:     "boolean",
+	SKArray:       "array",
+}
+
 type SymbolInformation struct {
 	Name          string     `json:"name"`
 	Kind          SymbolKind `json:"kind"`
@@ -267,8 +307,8 @@ const (
 )
 
 type ShowMessageParams struct {
-	Type    int    `json:"type"`
-	Message string `json:"message"`
+	Type    MessageType `json:"type"`
+	Message string      `json:"message"`
 }
 
 type MessageActionItem struct {
@@ -276,14 +316,14 @@ type MessageActionItem struct {
 }
 
 type ShowMessageRequestParams struct {
-	Type    int                 `json:"type"`
+	Type    MessageType         `json:"type"`
 	Message string              `json:"message"`
 	Actions []MessageActionItem `json:"actions"`
 }
 
 type LogMessageParams struct {
-	Type    int    `json:"type"`
-	Message string `json:"message"`
+	Type    MessageType `json:"type"`
+	Message string      `json:"message"`
 }
 
 type DidChangeConfigurationParams struct {

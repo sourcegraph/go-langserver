@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"go/build"
+	"go/parser"
 	"go/token"
+	"go/types"
 	"log"
 	"runtime"
 	"sort"
@@ -13,6 +15,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/go/loader"
 
 	"github.com/neelance/parallel"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -22,7 +25,7 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-func (h *LangHandler) handleWorkspaceReference(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferenceParams) ([]lspext.ReferenceInformation, error) {
+func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]lspext.ReferenceInformation, error) {
 	rootPath := h.FilePath(h.init.RootPath)
 	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
 
@@ -49,38 +52,125 @@ func (h *LangHandler) handleWorkspaceReference(ctx context.Context, conn JSONRPC
 		parallelism = 1
 	}
 
+	// Perform typechecking.
+	var (
+		fset = token.NewFileSet()
+		pkgs []string
+	)
+	for pkg := range buildutil.ExpandPatterns(bctx, []string{pkgPat}) {
+		// Ignore any vendor package so we can avoid scanning it for dependency
+		// references, per the workspace/reference spec. This saves us a
+		// considerable amount of work.
+		bpkg, err := bctx.Import(pkg, rootPath, build.FindOnly)
+		if err != nil && !isMultiplePackageError(err) {
+			log.Printf("skipping possible package %s: %s", pkg, err)
+			continue
+		}
+		if IsVendorDir(bpkg.Dir) {
+			continue
+		}
+		pkgs = append(pkgs, pkg)
+	}
+	prog, err := h.workspaceRefsTypecheck(ctx, bctx, conn, fset, pkgs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect dependency references.
 	results := refResultSorter{results: make([]lspext.ReferenceInformation, 0)}
 	par := parallel.NewRun(parallelism)
-	pkgs := buildutil.ExpandPatterns(bctx, []string{pkgPat})
-	for pkg := range pkgs {
+	for _, pkg := range prog.Imported {
 		par.Acquire()
-		go func(pkg string) {
+		go func(pkg *loader.PackageInfo) {
 			defer par.Release()
-			err := h.externalRefsFromPkg(ctx, bctx, conn, pkg, rootPath, &results)
+			// Prevent any uncaught panics from taking the entire server down.
+			defer func() {
+				if r := recover(); r != nil {
+					// Same as net/http
+					const size = 64 << 10
+					buf := make([]byte, size)
+					buf = buf[:runtime.Stack(buf, false)]
+					log.Printf("ignoring panic serving %v for pkg %v: %v\n%s", req.Method, pkg, r, buf)
+					return
+				}
+			}()
+			err := h.workspaceRefsFromPkg(ctx, bctx, conn, fset, pkg, rootPath, &results)
 			if err != nil {
-				log.Printf("externalRefsFromPkg: %v: %v\n", pkg, err)
+				log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
 			}
 		}(pkg)
 	}
 	_ = par.Wait()
 
 	sort.Sort(&results) // sort to provide consistent results
-
-	// TODO: We calculate all the results and then throw them away. If we ever
-	// decide to begin using limiting, we can improve the performance of this
-	// dramatically. For now, it lives in the spec just so that other
-	// implementations are aware it may need to be done and to design with that
-	// in mind.
-	if len(results.results) > params.Limit && params.Limit > 0 {
-		results.results = results.results[:params.Limit]
-	}
 	return results.results, nil
 }
 
-// externalRefsFromPkg collects all the external references from the specified
-// package and returns the results.
-func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, pkg string, rootPath string, results *refResultSorter) (err error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "externalRefsFromPkg")
+func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fset *token.FileSet, pkgs []string) (prog *loader.Program, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "workspaceRefsTypecheck")
+	defer func() {
+		if err != nil {
+			ext.Error.Set(span, true)
+			span.SetTag("err", err.Error())
+		}
+		span.Finish()
+	}()
+
+	// Configure the loader.
+	var typeErrs []error
+	conf := loader.Config{
+		Fset: fset,
+		TypeChecker: types.Config{
+			DisableUnusedImportCheck: true,
+			FakeImportC:              true,
+			Error: func(err error) {
+				typeErrs = append(typeErrs, err)
+			},
+		},
+		Build:       bctx,
+		AllowErrors: true,
+		ParserMode:  parser.AllErrors | parser.ParseComments, // prevent parser from bailing out
+		FindPackage: func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+			// When importing a package, ignore any
+			// MultipleGoErrors. This occurs, e.g., when you have a
+			// main.go with "// +build ignore" that imports the
+			// non-main package in the same dir.
+			bpkg, err := bctx.Import(importPath, fromDir, mode)
+			if err != nil && !isMultiplePackageError(err) {
+				return bpkg, err
+			}
+			return bpkg, nil
+		},
+	}
+	for _, path := range pkgs {
+		conf.Import(path)
+	}
+
+	// Load and typecheck the packages.
+	prog, err = conf.Load()
+	if err != nil && prog == nil {
+		return nil, err
+	}
+
+	// Publish typechecking error diagnostics.
+	diags, err := errsToDiagnostics(typeErrs, prog)
+	if err != nil {
+		return nil, err
+	}
+	if len(diags) > 0 {
+		go func() {
+			if err := h.publishDiagnostics(ctx, conn, diags); err != nil {
+				log.Printf("warning: failed to send diagnostics: %s.", err)
+			}
+		}()
+	}
+	return prog, nil
+}
+
+// workspaceRefsFromPkg collects all the references made to dependencies from
+// the specified package and returns the results.
+func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fs *token.FileSet, pkg *loader.PackageInfo, rootPath string, results *refResultSorter) (err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "workspaceRefsFromPkg")
 	defer func() {
 		if err != nil {
 			ext.Error.Set(span, true)
@@ -90,106 +180,75 @@ func (h *LangHandler) externalRefsFromPkg(ctx context.Context, bctx *build.Conte
 	}()
 	span.SetTag("pkg", pkg)
 
-	// Import the package.
-	buildPkg, err := bctx.Import(pkg, rootPath, 0)
-	if err != nil {
-		if !(strings.Contains(err.Error(), "no buildable Go source files") || strings.Contains(err.Error(), "found packages") || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
-			return fmt.Errorf("skipping possible package %s: %s\n", pkg, err)
-		}
-		return nil
-	}
-
-	if strings.HasPrefix(buildPkg.Dir, "vendor/") || strings.Contains(buildPkg.Dir, "/vendor/") {
-		// Per the workspace/reference docs:
-		//
-		// 	- Excluding any `URI` which is located within the workspace.
-		// 	- Excluding any `Location` which is located in vendored code (e.g.
-		// 	  `vendor/...` for Go, `node_modules/...` for JS, .tgz NPM packages, or
-		// 	  .jar files for Java).
-		//
-		// This means that we do not need to consider vendor directories at all
-		// since we do not emit references that are inside the same workspace
-		// (vendor always is) and do not emit references to things that are
-		// vendored. Thus, we can skip typechecking the entire vendor directory
-		// which saves us a a lot of work.
-		return nil
-	}
-
-	pkgInWorkspace := func(path string) bool {
-		return PathHasPrefix(path, h.init.RootImportPath)
-	}
-
-	// Perform type checking.
-	fs, prog, diags, err := h.cachedTypecheck(ctx, bctx, buildPkg)
-	if err != nil {
-		return err
-	}
-	if len(diags) > 0 {
-		if err := h.publishDiagnostics(ctx, conn, diags); err != nil {
-			return fmt.Errorf("sending diagnostics: %s", err)
-		}
-	}
-
-	// Compute external references.
+	// Compute workspace references.
 	cfg := &refs.Config{
 		FileSet:  fs,
-		Pkg:      prog.Package(pkg).Pkg,
-		PkgFiles: prog.Package(pkg).Files,
-		Info:     &prog.Package(pkg).Info,
+		Pkg:      pkg.Pkg,
+		PkgFiles: pkg.Files,
+		Info:     &pkg.Info,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		var defName, defContainerName string
-		if fields := strings.Fields(r.Def.Path); len(fields) > 0 {
-			defName = fields[0]
-			defContainerName = strings.Join(fields[1:], " ")
-		}
-		if defContainerName == "" {
-			defContainerName = r.Def.PackageName
-		}
-
-		defPkg, err := bctx.Import(r.Def.ImportPath, rootPath, build.FindOnly)
+		symDesc, err := defSymbolDescriptor(bctx, rootPath, r.Def)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
 			// the data).
 			ext.Error.Set(span, true)
-			err := fmt.Errorf("externalRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
+			err := fmt.Errorf("workspaceRefsFromPkg: failed to import %v: %v", r.Def.ImportPath, err)
 			log.Println(err)
 			span.SetTag("error", err.Error())
 			return
 		}
 
-		// If the symbol the reference is to is defined within this workspace,
-		// exclude it. We only emit refs to symbols that are external to the
-		// workspace.
-		if pkgInWorkspace(defPkg.ImportPath) {
-			return
-		}
-
 		results.resultsMu.Lock()
 		results.results = append(results.results, lspext.ReferenceInformation{
-			Name:          defName,
-			ContainerName: defContainerName,
-			URI:           "file://" + defPkg.Dir,
-			Location:      goRangeToLSPLocation(fs, token.Pos(r.Position.Offset), token.Pos(r.Position.Offset+len(defName)-1)),
+			Reference: goRangeToLSPLocation(fs, r.Pos, r.Pos), // TODO: internal/refs doesn't generate end positions
+			Symbol:    *symDesc,
 		})
 		results.resultsMu.Unlock()
 	})
 	if refsErr != nil {
-		// Log the error, and flag it as one in the trace -- but do not
-		// halt execution (hopefully, it is limited to a small subset of
-		// the data, remember this is just external refs for one single
-		// package).
-		ext.Error.Set(span, true)
-		err := fmt.Errorf("externalRefsFromPkg: external refs failed: %v: %v", pkg, refsErr)
-		log.Println(err)
-		span.SetTag("err", err.Error())
+		// Trace the error, but do not consider it a true error. In many cases
+		// it is a problem with the user's code, not our workspace reference
+		// finding code.
+		span.SetTag("err", fmt.Sprintf("workspaceRefsFromPkg: workspace refs failed: %v: %v", pkg, refsErr))
 	}
 	return nil
 }
 
+func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (*lspext.SymbolDescriptor, error) {
+	defPkg, err := bctx.Import(def.ImportPath, rootPath, build.FindOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	attributes := map[string]interface{}{
+		"package":     defPkg.ImportPath,
+		"packageName": def.PackageName,
+	}
+
+	var defName string
+	fields := strings.Fields(def.Path)
+	if len(fields) >= 1 {
+		defName = fields[0]
+	}
+	if len(fields) >= 2 {
+		attributes["parent"] = fields[0]
+		defName = fields[1]
+	}
+
+	return &lspext.SymbolDescriptor{
+		Name:       defName,
+		Vendor:     IsVendorDir(defPkg.Dir),
+		Attributes: attributes,
+		// TODO: be nice and emit Kind, File and Repo fields too. They
+		// are optional, though, so let's punt on it for now and see
+		// how well it works.
+	}, nil
+}
+
 // refResultSorter is a utility struct for collecting, filtering, and
-// sorting external reference results.
+// sorting workspace reference results.
 type refResultSorter struct {
 	results   []lspext.ReferenceInformation
 	resultsMu sync.Mutex
@@ -198,5 +257,5 @@ type refResultSorter struct {
 func (s *refResultSorter) Len() int      { return len(s.results) }
 func (s *refResultSorter) Swap(i, j int) { s.results[i], s.results[j] = s.results[j], s.results[i] }
 func (s *refResultSorter) Less(i, j int) bool {
-	return s.results[i].Location.URI < s.results[j].Location.URI
+	return s.results[i].Reference.URI < s.results[j].Reference.URI
 }
