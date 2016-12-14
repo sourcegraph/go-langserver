@@ -960,7 +960,7 @@ func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, cha
 }
 
 func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
-	var res []lspext.LocationInformation
+	var res []lspext.SymbolLocationInformation
 	err := c.Call(ctx, "textDocument/xdefinition", lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
 		Position:     lsp.Position{Line: line, Character: char},

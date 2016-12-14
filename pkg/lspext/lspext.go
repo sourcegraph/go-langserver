@@ -39,8 +39,8 @@ type ReferenceInformation struct {
 // guaranteed to do so.
 type SymbolDescriptor map[string]interface{}
 
-// LocationInformation is the response type for the `textDocument/xdefinition` extension.
-type LocationInformation struct {
+// SymbolLocationInformation is the response type for the `textDocument/xdefinition` extension.
+type SymbolLocationInformation struct {
 	// A concrete location at which the definition is located, if any.
 	Location lsp.Location `json:"location,omitempty"`
 	// Metadata about the definition.
