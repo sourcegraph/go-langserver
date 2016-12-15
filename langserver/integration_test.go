@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
@@ -73,9 +74,16 @@ func TestIntegration_FileSystem(t *testing.T) {
 
 	// Now mimic what happens when a file is edited but not yet
 	// saved. It should re-typecheck using the unsaved file contents.
+
+	uri := "file://"
+	if runtime.GOOS == "windows" {
+		uri += "/"
+	}
+	uri += filepath.ToSlash(filepath.Join(rootPath, "a.go"))
+
 	if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 		TextDocument: lsp.TextDocumentItem{
-			URI:  "file://" + filepath.Join(rootPath, "a.go"),
+			URI:  uri,
 			Text: "package p; func A() int { return 0 }",
 		},
 	}, nil); err != nil {

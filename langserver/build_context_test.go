@@ -13,11 +13,12 @@ func TestContainingPackage(t *testing.T) {
 			"a_test.go": "package p_test",
 		},
 	})
+
 	bctx.GOPATH = "/go"
 
 	tests := map[string]string{
-		"/go/src/p/a.go":      "p",
-		"/go/src/p/a_test.go": "p_test",
+		bctx.GOPATH + "/src/p/a.go":      "p",
+		bctx.GOPATH + "/src/p/a_test.go": "p_test",
 	}
 	for file, wantPkgName := range tests {
 		pkg, err := ContainingPackage(bctx, file)
