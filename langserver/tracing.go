@@ -19,13 +19,12 @@ import (
 func (h *HandlerCommon) InitTracer(conn *jsonrpc2.Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.tracerOK {
+	if h.tracer != nil {
 		return
 	}
 
 	if hasGlobalTracer() {
 		h.tracer = opentracing.GlobalTracer()
-		h.tracerOK = true
 		return
 	}
 
@@ -33,7 +32,6 @@ func (h *HandlerCommon) InitTracer(conn *jsonrpc2.Conn) {
 	opt := basictracer.DefaultOptions()
 	opt.Recorder = &t
 	h.tracer = basictracer.NewWithOptions(opt)
-	h.tracerOK = true
 	go func() {
 		<-conn.DisconnectNotify()
 		t.mu.Lock()
