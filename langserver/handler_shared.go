@@ -15,9 +15,10 @@ type HandlerShared struct {
 	Shared bool             // true if this struct is shared with a build server
 	FS     ctxvfs.NameSpace // full filesystem (mounts both deps and overlay)
 
-	overlayFSMu      sync.Mutex        // guards overlayFS map
-	overlayFS        map[string][]byte // files to overlay
-	OverlayMountPath string            // mount point of overlay on fs (usually /src/github.com/foo/bar)
+	overlayFSMu sync.Mutex        // guards overlayFS map
+	overlayFS   map[string][]byte // files to overlay
+	useOSFS     bool              // should we use OS FS?
+
 }
 
 func (h *HandlerShared) Reset(overlayRootURI string, useOSFS bool) error {
@@ -31,12 +32,12 @@ func (h *HandlerShared) Reset(overlayRootURI string, useOSFS bool) error {
 	if !strings.HasPrefix(overlayRootURI, "file:///") {
 		return fmt.Errorf("invalid overlay root URI %q: must be file:///", overlayRootURI)
 	}
-	h.OverlayMountPath = strings.TrimPrefix(overlayRootURI, "file://")
+	h.useOSFS = useOSFS
 	if useOSFS {
 		// The overlay FS takes precedence, but we fall back to the OS
 		// file system.
-		h.FS.Bind("/", ctxvfs.OS("/"), "/", ctxvfs.BindAfter)
+		h.FS.Bind("", ctxvfs.OS(""), "", ctxvfs.BindAfter)
 	}
-	h.FS.Bind("/", ctxvfs.Sync(&h.overlayFSMu, ctxvfs.Map(h.overlayFS)), "/", ctxvfs.BindBefore)
+	h.FS.Bind("", ctxvfs.Sync(&h.overlayFSMu, ctxvfs.Map(h.overlayFS)), "", ctxvfs.BindBefore)
 	return nil
 }

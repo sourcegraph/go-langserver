@@ -3,6 +3,7 @@ package langserver
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
@@ -117,7 +118,9 @@ func Test_resultSorter(t *testing.T) {
 	for _, test := range tests {
 		results := resultSorter{Query: ParseQuery(test.rawQuery)}
 		for _, s := range test.allSymbols {
-			results.Collect(s)
+			results.Collect(s, func(path string) string {
+				return strings.TrimPrefix(path, "file://")
+			})
 		}
 		sort.Sort(&results)
 		if !reflect.DeepEqual(results.Results(), test.expResults) {

@@ -31,7 +31,7 @@ func (h *HandlerCommon) Reset(rootURI string) error {
 	if !strings.HasPrefix(rootURI, "file:///") {
 		return fmt.Errorf("invalid root path %q: must be file:/// URI", rootURI)
 	}
-	h.RootFSPath = strings.TrimPrefix(rootURI, "file://") // retain leading slash
+	h.RootFSPath = uriToPath(rootURI) // retain leading slash
 	return nil
 }
 

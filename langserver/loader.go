@@ -103,7 +103,7 @@ func (e *invalidNodeError) Error() string {
 func posForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {
 	var f *token.File
 	fset.Iterate(func(ff *token.File) bool {
-		if ff.Name() == filename {
+		if pathEqual(ff.Name(), filename) {
 			f = ff
 			return false // break out of loop
 		}
@@ -283,7 +283,7 @@ func typecheck(fset *token.FileSet, bctx *build.Context, bpkg *build.Package) (*
 		goFiles = append(goFiles, bpkg.XTestGoFiles...)
 	}
 	for i, filename := range goFiles {
-		goFiles[i] = filepath.Join(bpkg.Dir, filename)
+		goFiles[i] = normalizePath(filepath.Join(bpkg.Dir, filename))
 	}
 	conf.CreateFromFilenames(bpkg.ImportPath, goFiles...)
 	prog, err := conf.Load()
