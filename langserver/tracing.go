@@ -23,7 +23,8 @@ func (h *HandlerCommon) InitTracer(conn *jsonrpc2.Conn) {
 		return
 	}
 
-	if hasGlobalTracer() {
+	if _, isNoopTracer := opentracing.GlobalTracer().(opentracing.NoopTracer); !isNoopTracer {
+		// We have configured a tracer, use that instead of telemetry/event
 		h.tracer = opentracing.GlobalTracer()
 		return
 	}
@@ -82,17 +83,6 @@ func (h *HandlerCommon) SpanForRequest(ctx context.Context, buildOrLang string, 
 	}
 
 	return span, opentracing.ContextWithSpan(ctx, span), nil
-}
-
-// hasGlobalTracer checks if someone has setup a global tracer for this
-// process.
-func hasGlobalTracer() bool {
-	t := opentracing.GlobalTracer()
-	if t == nil {
-		return false
-	}
-	_, ok := t.(opentracing.NoopTracer)
-	return !ok
 }
 
 type tracer struct {
