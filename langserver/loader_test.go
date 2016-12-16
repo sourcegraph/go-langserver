@@ -1,6 +1,7 @@
 package langserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/build"
@@ -36,10 +37,11 @@ package main`,
 }
 
 func TestLoader(t *testing.T) {
+	ctx := context.Background()
 	for label, tc := range loaderCases {
 		t.Run(label, func(t *testing.T) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
-			p, _, err := typecheck(fset, bctx, bpkg)
+			p, _, err := typecheck(ctx, fset, bctx, bpkg, nil)
 			if err != nil {
 				t.Error(err)
 			}
@@ -60,12 +62,13 @@ func TestLoader(t *testing.T) {
 //
 //   go test ./langserver -bench Loader -benchmem
 func BenchmarkLoader(b *testing.B) {
+	ctx := context.Background()
 	for label, tc := range loaderCases {
 		b.Run(label, func(b *testing.B) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if _, _, err := typecheck(fset, bctx, bpkg); err != nil {
+				if _, _, err := typecheck(ctx, fset, bctx, bpkg, nil); err != nil {
 					b.Error(err)
 				}
 			}
@@ -102,10 +105,11 @@ func TestLoaderDiagnostics(t *testing.T) {
 			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":19},"end":{"line":0,"character":23}},"severity":1,"source":"go","message":"undeclared name: http"}]}`),
 		},
 	}
+	ctx := context.Background()
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.FS)
-			_, diag, err := typecheck(fset, bctx, bpkg)
+			_, diag, err := typecheck(ctx, fset, bctx, bpkg, nil)
 			if err != nil {
 				t.Error(err)
 			}
