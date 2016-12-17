@@ -211,6 +211,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 				ReferencesProvider:           true,
 				WorkspaceSymbolProvider:      true,
 				XWorkspaceReferencesProvider: true,
+				XDefinitionProvider:          true,
 			},
 		}, nil
 
