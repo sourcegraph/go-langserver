@@ -8,7 +8,8 @@
 # )
 
 ( \
-  go install -x -v -a -race github.com/sourcegraph/go-langserver/langserver/cmd/langserver-antha && \
+  go build -v -race github.com/sourcegraph/go-langserver/langserver/cmd/langserver-antha && \
+  go install -v -race github.com/sourcegraph/go-langserver/langserver/cmd/langserver-antha && \
   ls -lah `which langserver-antha` && \
-  langserver-go.go -trace -mode ws \
+  langserver-antha -trace -mode ws \
 )

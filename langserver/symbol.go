@@ -235,9 +235,6 @@ func score(q Query, s lsp.SymbolInformation) (scor int) {
 		// boost for exported symbols
 		scor++
 	}
-	if strings.Contains(s.Location.URI, "handler.go") {
-		log.Printf("langserver-go: - score - scor: %v", scor)
-	}
 	return scor
 }
 
@@ -279,8 +276,6 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 		fs := token.NewFileSet()
 		rootPath := h.FilePath(h.init.RootPath)
 		bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
-		log.Printf("langserver-go: handleSymbol - bctx: %+v", bctx)
-		log.Printf("langserver-go: handleSymbol - h.init: %+v", h.init)
 
 		var pkgPat string
 		if h.init.RootImportPath == "" {
@@ -294,25 +289,18 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 		par := parallel.NewRun(8)
 		pkgs := buildutil.ExpandPatterns(bctx, []string{pkgPat})
 		for pkg := range pkgs {
-			// log.Printf("langserver-go: handleSymbol - pkg: %v", pkg)
 			// If we're restricting results to a single file or dir, ensure the
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
 				filePkgPath := path.Dir(results.Query.File)
-				if PathHasPrefix(filePkgPath, bctx.GOROOT) {
-					filePkgPath = PathTrimPrefix(filePkgPath, bctx.GOROOT)
+				if PathHasPrefix(filePkgPath, h.init.BuildContext.GOROOT) {
+					filePkgPath = PathTrimPrefix(filePkgPath, h.init.BuildContext.GOROOT)
 				} else {
-					filePkgPath = PathTrimPrefix(filePkgPath, bctx.GOPATH)
+					filePkgPath = PathTrimPrefix(filePkgPath, h.init.BuildContext.GOPATH)
 				}
-				// log.Printf("langserver-go: handleSymbol - filePkgPath: %v", filePkgPath)
 				filePkgPath = PathTrimPrefix(filePkgPath, "src")
-				// log.Printf("langserver-go: handleSymbol - filePkgPath: %v", filePkgPath)
-
 				if !pathEqual(pkg, filePkgPath) {
-					// log.Printf("langserver-go: handleSymbol != pathEqual - pkg: %v, filePkgPath: %v", pkg, filePkgPath)
 					continue
-				} else {
-					log.Printf("langserver-go: handleSymbol == pathEqual - pkg: %v, filePkgPath: %v", pkg, filePkgPath)
 				}
 			}
 			if results.Query.Filter == FilterDir && !pathEqual(pkg, results.Query.Dir) {
@@ -321,7 +309,6 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 
 			par.Acquire()
 			go func(pkg string) {
-				log.Printf("langserver-go: handleSymbol - par.Acquire - pkg: %v", pkg)
 				defer par.Release()
 				// Prevent any uncaught panics from taking the
 				// entire server down. For an example see
@@ -341,12 +328,8 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 		}
 		_ = par.Wait()
 	}
-	log.Printf("langserver-go: handleSymbol - results.results: %v", len(results.results))
-
 	sort.Sort(&results)
 	if len(results.results) > limit && limit > 0 {
-		log.Printf("langserver-go: handleSymbol - results.results: %v", results.results)
-
 		results.results = results.results[:limit]
 	}
 
@@ -382,14 +365,8 @@ func (h *LangHandler) setPkgSyms(pkg string, syms []lsp.SymbolInformation) {
 // speed up repeated calls.
 func (h *LangHandler) collectFromPkg(bctx *build.Context, fs *token.FileSet, pkg string, rootPath string, results *resultSorter) {
 	pkgSyms := h.getPkgSyms(pkg)
-	log.Printf("langserver-go: collectFromPkg - pkg: %v", pkg)
-	log.Printf("langserver-go: collectFromPkg - rootPath: %v", rootPath)
-	log.Printf("langserver-go: collectFromPkg - pkgSyms: %v", pkgSyms)
-
 	if pkgSyms == nil {
 		buildPkg, err := bctx.Import(pkg, rootPath, 0)
-		// log.Printf("langserver-go: collectFromPkg - buildPkg: %v, err: %v", buildPkg, err)
-
 		if err != nil {
 			maybeLogImportError(pkg, err)
 			return
@@ -454,18 +431,12 @@ func (h *LangHandler) collectFromPkg(bctx *build.Context, fs *token.FileSet, pkg
 		h.setPkgSyms(pkg, pkgSyms)
 	}
 
-	log.Printf("langserver-go: collectFromPkg - pkgSyms: %v", len(pkgSyms))
-
 	for _, sym := range pkgSyms {
 		if results.Query.Filter == FilterExported && !ast.IsExported(sym.Name) {
 			continue
 		}
-		log.Printf("langserver-go: collectFromPkg - results.Collect - sym: %+v", sym)
 		results.Collect(sym)
 	}
-
-	log.Printf("langserver-go: collectFromPkg - results.results: %v", len(results.results))
-
 }
 
 // parseDir mirrors parser.ParseDir, but uses the passed in build context's VFS. In other words,
