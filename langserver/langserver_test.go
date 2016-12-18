@@ -716,7 +716,7 @@ func startServer(t testing.TB, h jsonrpc2.Handler) (addr string, done func()) {
 		t.Fatal("Listen:", err)
 	}
 	go func() {
-		if err := jsonrpc2.Serve(context.Background(), l, h); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+		if err := serve(context.Background(), l, h); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			t.Fatal("jsonrpc2.Serve:", err)
 		}
 	}()
@@ -727,12 +727,22 @@ func startServer(t testing.TB, h jsonrpc2.Handler) (addr string, done func()) {
 	}
 }
 
+func serve(ctx context.Context, lis net.Listener, h jsonrpc2.Handler, opt ...jsonrpc2.ConnOpt) error {
+	for {
+		conn, err := lis.Accept()
+		if err != nil {
+			return err
+		}
+		jsonrpc2.NewConn(ctx, jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), h, opt...)
+	}
+}
+
 func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
 	conn, err := (&net.Dialer{}).Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return jsonrpc2.NewConn(context.Background(), conn, jsonrpc2.HandlerWithError(func(context.Context, *jsonrpc2.Conn, *jsonrpc2.Request) (interface{}, error) {
+	return jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), jsonrpc2.HandlerWithError(func(context.Context, *jsonrpc2.Conn, *jsonrpc2.Request) (interface{}, error) {
 		// no-op
 		return nil, nil
 	}))
