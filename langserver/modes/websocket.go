@@ -2,7 +2,6 @@ package modes
 
 import (
 	"context"
-	"io"
 	"log"
 	"net/http"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
+	jsonrpc2ws "github.com/sourcegraph/jsonrpc2/websocket"
 )
 
 var (
@@ -26,90 +26,44 @@ var (
 )
 
 // WebSocket listener on addr with connOpts.
-func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) error {
+func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) (err error) {
 	log.Printf("ws ======== langserver-go: websocket listening on: %s", addr)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("ws ======== langserver-go: wsConn upgrading - w: %p, r: %p", &w, r)
+		log.Printf("ws ======== langserver-go: conn upgrade 					- w: %p, r: %p", &w, r)
 
-		wsConn, err := upgrader.Upgrade(w, r, nil)
+		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("ws ======== langserver-go: wsConn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
+			log.Printf("ws ======== langserver-go: upgrade err  conn: %p", conn)
+			log.Printf("ws ======== langserver-go: upgraded err    w: %p", &w)
+			log.Printf("ws ======== langserver-go: upgraded err    r: %p", r)
 			return
 		}
 
-		log.Printf("ws ======== langserver-go: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
-		webSocketHandler(w, r, wsConn, connOpt)
+		log.Printf("ws ======== langserver-go: upgraded     conn: %p", conn)
+		log.Printf("ws ======== langserver-go: upgraded        w: %p", &w)
+		log.Printf("ws ======== langserver-go: upgraded        r: %p", r)
+
+		webSocketHandler(w, r, conn, connOpt)
+
+		log.Printf("ws ======== langserver-go: done         conn: %p", conn)
+		log.Printf("ws ======== langserver-go: done            w: %p", &w)
+		log.Printf("ws ======== langserver-go: done            r: %p", r)
 	})
 
-	err := http.ListenAndServe(addr, nil)
-	return err
-}
-
-func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
-	defer wsConn.Close()
-
-	handler := langserver.NewHandler()
-	for {
-		reader, writer, messageType, err := getReaderWriter(wsConn)
-		if err != nil {
-			log.Printf("ws ======== langserver-go: getReaderWriter failed - wsConn     : %p", wsConn)
-			log.Printf("ws ======== langserver-go: getReaderWriter        - err        : %v", err)
-			log.Printf("ws ======== langserver-go: getReaderWriter        - messageType: %v", messageType)
-			break
-		}
-
-		rwc := webSocketReadWriteCloser{reader: reader, writer: writer, closer: writer}
-		codec := jsonrpc2.VSCodeObjectCodec{}
-		stream := jsonrpc2.NewBufferedStream(rwc, codec)
-		jsonrpc2.NewConn(
-			ctx,
-			stream,
-			handler,
-			connOpt...)
-
-		if err := writer.Close(); err != nil {
-			log.Printf("ws ======== langserver-go: writer.Close() failed  - wsCon      : %p", wsConn)
-			log.Printf("ws ======== langserver-go: writer.Close() failed  - err        : %v", err)
-			break
-		}
-	}
-
-	log.Printf("ws ======== langserver-go: wsConn: %p - done", wsConn)
-}
-
-func getReaderWriter(wsConn *websocket.Conn) (reader io.Reader, writer io.WriteCloser, messageType int, err error) {
-	messageType, reader, err = wsConn.NextReader()
-	if err != nil {
-		log.Printf("ws ======== langserver-go: wsConn: %p - NextReader err: %v", wsConn, err)
-		return
-	}
-	log.Printf("ws ======== langserver-go: wsConn: %p - NextReader: %p", wsConn, &reader)
-
-	writer, err = wsConn.NextWriter(messageType)
-	if err != nil {
-		log.Printf("ws ======== langserver-go: wsConn: %p - NextWriter err: %v", wsConn, err)
-		return
-	}
-	log.Printf("ws ======== langserver-go: wsConn: %p - NextWriter: %p", wsConn, &writer)
+	err = http.ListenAndServe(addr, nil)
 
 	return
 }
 
-type webSocketReadWriteCloser struct {
-	reader io.Reader
-	writer io.Writer
-	closer io.Closer
-}
-
-func (ws webSocketReadWriteCloser) Read(p []byte) (int, error) {
-	return ws.reader.Read(p)
-}
-
-func (ws webSocketReadWriteCloser) Write(p []byte) (int, error) {
-	return ws.writer.Write(p)
-}
-
-func (ws webSocketReadWriteCloser) Close() error {
-	return ws.closer.Close()
+func webSocketHandler(w http.ResponseWriter, r *http.Request, conn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
+	for {
+		stream := jsonrpc2ws.NewObjectStream(conn, jsonrpc2.VSCodeObjectCodec{})
+		conn := jsonrpc2.NewConn(
+			ctx,
+			stream,
+			langserver.NewHandler(),
+			connOpt...)
+		<-conn.DisconnectNotify()
+	}
 }

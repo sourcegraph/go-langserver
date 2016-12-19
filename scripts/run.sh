@@ -10,6 +10,8 @@
 RACE=$1
 
 ( \
+  go build -v $RACE github.com/sourcegraph/jsonrpc2 && \
+  go install -v $RACE github.com/sourcegraph/jsonrpc2 && \
   go build -v $RACE github.com/sourcegraph/go-langserver/langserver/cmd/langserver-antha && \
   go install -v $RACE github.com/sourcegraph/go-langserver/langserver/cmd/langserver-antha && \
   ls -lah `which langserver-antha` && \
