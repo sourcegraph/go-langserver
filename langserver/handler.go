@@ -184,6 +184,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 				WorkspaceSymbolProvider:      true,
 				XWorkspaceReferencesProvider: true,
 				XDefinitionProvider:          true,
+				SignatureHelpProvider:        &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
 			},
 		}, nil
 
@@ -246,6 +247,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 		return h.handleTextDocumentSymbol(ctx, conn, req, params)
+
+	case "textDocument/signatureHelp":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.TextDocumentPositionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentSignatureHelp(ctx, conn, req, params)
 
 	case "workspace/symbol":
 		if req.Params == nil {

@@ -31,6 +31,7 @@ func TestServer(t *testing.T) {
 		wantReferences          map[string][]string
 		wantSymbols             map[string][]string
 		wantWorkspaceSymbols    map[string][]string
+		wantSignatures			map[string]string
 		wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string
 		mountFS                 map[string]map[string]string // mount dir -> map VFS
 	}{
@@ -659,6 +660,18 @@ type Header struct {
 				},
 			},
 		},
+		"signatures": {
+			rootPath: "file:///src/test/pkg",
+			fs: map[string]string{
+				"a.go": "package p; func A(foo int, bar func(baz int) int) int { return bar(foo) }; func B() {}",
+				"b.go": "package p; func main() { B(); A(); A(0,) }",
+			},
+			wantSignatures: map[string]string{
+				"b.go:1:27": "func() 0",
+				"b.go:1:32": "func(foo int, bar func(baz int) int) int 0",
+				"b.go:1:39": "func(foo int, bar func(baz int) int) int 1",
+			},
+		},
 	}
 	for label, test := range tests {
 		t.Run(label, func(t *testing.T) {
@@ -699,7 +712,7 @@ type Header struct {
 			}
 			h.Mu.Unlock()
 
-			lspTests(t, ctx, conn, rootFSPath, test.wantHover, test.wantDefinition, test.wantXDefinition, test.wantReferences, test.wantSymbols, test.wantWorkspaceSymbols, test.wantWorkspaceReferences)
+			lspTests(t, ctx, conn, rootFSPath, test.wantHover, test.wantDefinition, test.wantXDefinition, test.wantSignatures, test.wantReferences, test.wantSymbols, test.wantWorkspaceSymbols, test.wantWorkspaceReferences)
 		})
 	}
 }
@@ -749,7 +762,7 @@ func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
 }
 
 // lspTests runs all test suites for LSP functionality.
-func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, wantHover, wantDefinition, wantXDefinition map[string]string, wantReferences, wantSymbols, wantWorkspaceSymbols map[string][]string, wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string) {
+func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, wantHover, wantDefinition, wantXDefinition, wantSignatures map[string]string, wantReferences, wantSymbols, wantWorkspaceSymbols map[string][]string, wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string) {
 	for pos, want := range wantHover {
 		tbRun(t, fmt.Sprintf("hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 			hoverTest(t, ctx, c, rootPath, pos, want)
@@ -782,6 +795,12 @@ func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath stri
 	for query, want := range wantWorkspaceSymbols {
 		tbRun(t, fmt.Sprintf("workspaceSymbols(q=%q)", query), func(t testing.TB) {
 			workspaceSymbolsTest(t, ctx, c, rootPath, query, want)
+		})
+	}
+
+	for pos, want := range wantSignatures {
+		tbRun(t, fmt.Sprintf("signature-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
+			signatureTest(t, ctx, c, rootPath, pos, want)
 		})
 	}
 
@@ -892,6 +911,20 @@ func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %#v, want %q", symbols, want)
+	}
+}
+
+func signatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want string) {
+	file, line, char, err := parsePos(pos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signature, err := callSignature(ctx, c, "file://"+path.Join(rootPath, file), line, char)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if signature != want {
+		t.Fatalf("got %q, want %q", signature, want)
 	}
 }
 
@@ -1052,6 +1085,26 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)
 	}
 	return refs, nil
+}
+
+func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
+	var res lsp.SignatureHelp
+	err := c.Call(ctx, "textDocument/signatureHelp", lsp.TextDocumentPositionParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+		Position:     lsp.Position{Line: line, Character: char},
+	}, &res)
+	if err != nil {
+		return "", err
+	}
+	var str string
+	for i, si := range res.Signatures {
+		if i != 0 {
+			str += "; "
+		}
+		str += si.Label
+	}
+	str += fmt.Sprintf(" %d", res.ActiveParameter)
+	return str, nil
 }
 
 type markedStrings []lsp.MarkedString
