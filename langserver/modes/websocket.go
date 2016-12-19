@@ -27,18 +27,18 @@ var (
 
 // WebSocket listener on addr with connOpts.
 func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) error {
-	log.Printf("langserver: websocket listening on: %s", addr)
+	log.Printf("ws ======== langserver-go: websocket listening on: %s", addr)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("langserver-go: wsConn upgrading - w: %p, r: %p", &w, r)
+		log.Printf("ws ======== langserver-go: wsConn upgrading - w: %p, r: %p", &w, r)
 
 		wsConn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("langserver: wsConn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
+			log.Printf("ws ======== langserver-go: wsConn upgrade error - w: %p, r: %p, err: %v", &w, r, err)
 			return
 		}
 
-		log.Printf("langserver: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
+		log.Printf("ws ======== langserver-go: wsConn: %p - upgraded - w: %p, r: %p", wsConn, &w, r)
 		webSocketHandler(w, r, wsConn, connOpt)
 	})
 
@@ -51,30 +51,49 @@ func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.
 
 	handler := langserver.NewHandler()
 	for {
-		messageType, reader, err := wsConn.NextReader()
+		reader, writer, messageType, err := getReaderWriter(wsConn)
 		if err != nil {
-			log.Printf("langserver: wsConn: %p - NextReader err: %v", wsConn, err)
-			return
+			log.Printf("ws ======== langserver-go: getReaderWriter failed - wsConn     : %p", wsConn)
+			log.Printf("ws ======== langserver-go: getReaderWriter        - err        : %v", err)
+			log.Printf("ws ======== langserver-go: getReaderWriter        - messageType: %v", messageType)
+			break
 		}
-		log.Printf("<<<< langserver: wsConn: %p - NextReader: %p", wsConn, &reader)
-
-		writer, err := wsConn.NextWriter(messageType)
-		if err != nil {
-			log.Printf("langserver: wsConn: %p - NextWriter err: %v", wsConn, err)
-			return
-		}
-		log.Printf(">>>> langserver: wsConn: %p - NextWriter: %p", wsConn, &writer)
 
 		rwc := webSocketReadWriteCloser{reader: reader, writer: writer, closer: writer}
-		jsonrpc2.NewConn(ctx, rwc, handler, connOpt...)
+		codec := jsonrpc2.VSCodeObjectCodec{}
+		stream := jsonrpc2.NewBufferedStream(rwc, codec)
+		jsonrpc2.NewConn(
+			ctx,
+			stream,
+			handler,
+			connOpt...)
 
 		if err := writer.Close(); err != nil {
-			log.Printf("langserver-go: wsConn: %p - writer.Close() err: %v", wsConn, err)
+			log.Printf("ws ======== langserver-go: writer.Close() failed  - wsCon      : %p", wsConn)
+			log.Printf("ws ======== langserver-go: writer.Close() failed  - err        : %v", err)
 			break
 		}
 	}
 
-	log.Printf("^^^^ langserver-go: wsConn: %p - done", wsConn)
+	log.Printf("ws ======== langserver-go: wsConn: %p - done", wsConn)
+}
+
+func getReaderWriter(wsConn *websocket.Conn) (reader io.Reader, writer io.WriteCloser, messageType int, err error) {
+	messageType, reader, err = wsConn.NextReader()
+	if err != nil {
+		log.Printf("ws ======== langserver-go: wsConn: %p - NextReader err: %v", wsConn, err)
+		return
+	}
+	log.Printf("ws ======== langserver-go: wsConn: %p - NextReader: %p", wsConn, &reader)
+
+	writer, err = wsConn.NextWriter(messageType)
+	if err != nil {
+		log.Printf("ws ======== langserver-go: wsConn: %p - NextWriter err: %v", wsConn, err)
+		return
+	}
+	log.Printf("ws ======== langserver-go: wsConn: %p - NextWriter: %p", wsConn, &writer)
+
+	return
 }
 
 type webSocketReadWriteCloser struct {
