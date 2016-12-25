@@ -43,11 +43,14 @@ func run() error {
 		defer f.Close()
 		logW = io.MultiWriter(os.Stderr, f)
 	}
+	prefix := fmt.Sprintf("%s:%s:", "langserver-go", *mode)
+	log.SetPrefix(prefix)
 	log.SetOutput(logW)
 
 	var connOpt []jsonrpc2.ConnOpt
 	if *trace {
-		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
+		logger := log.New(logW, "", 0)
+		connOpt = append(connOpt, jsonrpc2.LogMessages(logger))
 	}
 
 	switch *mode {
@@ -58,7 +61,7 @@ func run() error {
 		}
 		defer lis.Close()
 
-		log.Println("langserver-go: listening on", *addr)
+		log.Println("listening on", *addr)
 		for {
 			conn, err := lis.Accept()
 			if err != nil {
@@ -71,7 +74,7 @@ func run() error {
 		return modes.WebSocket(*addr, connOpt)
 
 	case "stdio":
-		log.Println("langserver-go: reading on stdin, writing on stdout")
+		log.Println("reading on stdin, writing on stdout")
 		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), langserver.NewHandler(), connOpt...).DisconnectNotify()
 		log.Println("connection closed")
 		return nil

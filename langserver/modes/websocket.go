@@ -27,43 +27,36 @@ var (
 
 // WebSocket listener on addr with connOpts.
 func WebSocket(addr string, connOpt []jsonrpc2.ConnOpt) (err error) {
-	log.Printf("ws ======== langserver-go: websocket listening on: %s", addr)
+	log.Printf("listening on %s", addr)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("ws ======== langserver-go: conn upgrade 					- w: %p, r: %p", &w, r)
-
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("ws ======== langserver-go: upgrade err  conn: %p", conn)
-			log.Printf("ws ======== langserver-go: upgraded err    w: %p", &w)
-			log.Printf("ws ======== langserver-go: upgraded err    r: %p", r)
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("conn upgrade - w: %p, r: %p", &w, r)
+		if conn, err := upgrader.Upgrade(w, r, nil); err == nil {
+			log.Printf("upgrade ok - conn: %p, w: %p, r: %p", conn, &w, r)
+			webSocketHandler(w, r, conn, connOpt)
+		} else {
+			log.Printf("upgrade err - err: %v, w: %p, r: %p", err, &w, r)
 			return
 		}
-
-		log.Printf("ws ======== langserver-go: upgraded     conn: %p", conn)
-		log.Printf("ws ======== langserver-go: upgraded        w: %p", &w)
-		log.Printf("ws ======== langserver-go: upgraded        r: %p", r)
-
-		webSocketHandler(w, r, conn, connOpt)
-
-		log.Printf("ws ======== langserver-go: done         conn: %p", conn)
-		log.Printf("ws ======== langserver-go: done            w: %p", &w)
-		log.Printf("ws ======== langserver-go: done            r: %p", r)
-	})
-
+	}
+	http.HandleFunc("/", handler)
 	err = http.ListenAndServe(addr, nil)
 
 	return
 }
 
-func webSocketHandler(w http.ResponseWriter, r *http.Request, conn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
+func webSocketHandler(w http.ResponseWriter, r *http.Request, wsConn *websocket.Conn, connOpt []jsonrpc2.ConnOpt) {
 	for {
-		stream := jsonrpc2ws.NewObjectStream(conn, jsonrpc2.VSCodeObjectCodec{})
+		stream := jsonrpc2ws.NewObjectStream(wsConn, jsonrpc2.VSCodeObjectCodec{})
 		conn := jsonrpc2.NewConn(
 			ctx,
 			stream,
 			langserver.NewHandler(),
 			connOpt...)
 		<-conn.DisconnectNotify()
+		conn.Close()
+		break
 	}
+
+	log.Printf("webSocketHandler:Closed - wsConn: %p", wsConn)
 }
