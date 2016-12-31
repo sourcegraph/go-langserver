@@ -147,18 +147,14 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}
 		var params InitializeParams
-		log.Printf("langserver-go - initialize - Params %+v", params)
-
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
 		}
 
-		log.Printf("langserver-go - initialize - Params %+v", params)
 		// Assume it's a file path if no the URI has no scheme.
 		if strings.HasPrefix(params.RootPath, "/") {
 			params.RootPath = "file://" + params.RootPath
 		}
-		log.Printf("langserver-go - initialize - Params %+v", params)
 
 		if err := h.reset(&params); err != nil {
 			return nil, err
