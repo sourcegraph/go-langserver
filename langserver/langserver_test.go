@@ -35,7 +35,7 @@ func TestServer(t *testing.T) {
 		mountFS                 map[string]map[string]string // mount dir -> map VFS
 	}{
 		"go basic": {
-			rootPath: "file:///src/test/pkg",
+			rootPath: "/src/test/pkg",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 				"b.go": "package p; func B() { A() }",
