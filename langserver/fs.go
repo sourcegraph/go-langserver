@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -77,17 +79,29 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 }
 
 func (h *HandlerShared) FilePath(uri string) string {
-	path := strings.TrimPrefix(uri, "file://")
-	if !strings.HasPrefix(path, "/") {
-		panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
-	}
-	if strings.Contains(path, ":") {
-		panic(fmt.Sprintf("bad uri %q (path %q MUST NOT contain ':')", uri, path))
+	var path = uriToPath(uri)
+	if h.useOSFS {
+		if runtime.GOOS == "windows" {
+			path = strings.TrimPrefix(path, "/")
+		}
+		if !filepath.IsAbs(path) {
+			panic(fmt.Sprintf("bad uri %q (path %q MUST be absolute)", uri, path))
+		}
+		if strings.ContainsRune(path, filepath.ListSeparator) {
+			panic(fmt.Sprintf("bad uri %q (path %q MUST NOT contain '%q')", uri, path, filepath.ListSeparator))
+		}
+	} else {
+		if !strings.HasPrefix(path, "/") {
+			panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
+		}
+		if strings.Contains(path, ":") {
+			panic(fmt.Sprintf("bad uri %q (path %q MUST NOT contain ':')", uri, path))
+		}
 	}
 	if strings.Contains(path, "@") {
 		panic(fmt.Sprintf("bad uri %q (path %q MUST NOT contain '@')", uri, path))
 	}
-	return path
+	return normalizePath(path)
 }
 
 func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error) {
@@ -105,7 +119,7 @@ func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error
 }
 
 func uriToOverlayPath(uri string) string {
-	return strings.TrimPrefix(uri, "file:///")
+	return strings.TrimPrefix(normalizePath(uriToPath(uri)), "/")
 }
 
 func (h *HandlerShared) addOverlayFile(uri string, contents []byte) {

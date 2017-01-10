@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -152,8 +152,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 
 		// Assume it's a file path if no the URI has no scheme.
-		if strings.HasPrefix(params.RootPath, "/") {
-			params.RootPath = "file://" + params.RootPath
+		if filepath.IsAbs(params.RootPath) {
+			params.RootPath = pathToURI(params.RootPath)
 		}
 
 		if err := h.reset(&params); err != nil {
