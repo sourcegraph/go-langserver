@@ -668,6 +668,25 @@ type Header struct {
 				},
 			},
 		},
+		"unexpected paths": {
+			// notice the : and @ symbol
+			rootPath: "file:///src/t:est/@hello/pkg",
+			fs: map[string]string{
+				"a.go": "package p; func A() { A() }",
+			},
+			wantHover: map[string]string{
+				"a.go:1:17": "func A()",
+			},
+			wantReferences: map[string][]string{
+				"a.go:1:17": []string{
+					"/src/t:est/@hello/pkg/a.go:1:17",
+					"/src/t:est/@hello/pkg/a.go:1:23",
+				},
+			},
+			wantSymbols: map[string][]string{
+				"a.go": []string{"/src/t:est/@hello/pkg/a.go:function:pkg.A:1:17"},
+			},
+		},
 	}
 	for label, test := range tests {
 		t.Run(label, func(t *testing.T) {
