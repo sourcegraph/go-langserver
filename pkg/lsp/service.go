@@ -150,7 +150,7 @@ type ParameterInformation struct {
 }
 
 type ReferenceContext struct {
-	IncludeDeclaration bool `json:"IncludeDeclaration"`
+	IncludeDeclaration bool `json:"includeDeclaration"`
 }
 
 type ReferenceParams struct {
