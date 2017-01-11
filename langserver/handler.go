@@ -177,6 +177,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync:             lsp.TDSKFull,
 				DefinitionProvider:           true,
+				DocumentFormattingProvider:   true,
 				DocumentSymbolProvider:       true,
 				HoverProvider:                true,
 				ReferencesProvider:           true,
@@ -256,6 +257,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 		return h.handleTextDocumentSignatureHelp(ctx, conn, req, params)
+
+	case "textDocument/formatting":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.DocumentFormattingParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentFormatting(ctx, conn, req, params)
 
 	case "workspace/symbol":
 		if req.Params == nil {

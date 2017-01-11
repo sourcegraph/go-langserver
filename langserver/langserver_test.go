@@ -85,6 +85,9 @@ func TestServer(t *testing.T) {
 					"dir:/ A":     []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
 					"dir:/ B":     []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
 				},
+				wantFormatting: map[string]string{
+					"a.go": "package p\n\nfunc A() { A() }\n",
+				},
 			},
 		},
 		"go detailed": {
@@ -823,6 +826,7 @@ type lspTestCases struct {
 	wantWorkspaceSymbols    map[string][]string
 	wantSignatures          map[string]string
 	wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string
+	wantFormatting          map[string]string
 }
 
 // lspTests runs all test suites for LSP functionality.
@@ -871,6 +875,12 @@ func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath stri
 	for params, want := range cases.wantWorkspaceReferences {
 		tbRun(t, fmt.Sprintf("workspaceReferences"), func(t testing.TB) {
 			workspaceReferencesTest(t, ctx, c, rootPath, *params, want)
+		})
+	}
+
+	for file, want := range cases.wantFormatting {
+		tbRun(t, fmt.Sprintf("formatting-%s", file), func(t testing.TB) {
+			formattingTest(t, ctx, c, rootPath, file, want)
 		})
 	}
 }
@@ -997,6 +1007,29 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 	}
 	if !reflect.DeepEqual(references, want) {
 		t.Errorf("\ngot  %q\nwant %q", references, want)
+	}
+}
+
+func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want string) {
+	edits, err := callFormatting(ctx, c, "file://"+path.Join(rootPath, file))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got string
+	switch len(edits) {
+	case 0:
+		// already gofmt clean
+		got = ""
+	case 2:
+		// our implementation is dumb, it is always delete everything
+		// followed by insert. Since we don't have access to the
+		// input, we cheat and just look at the 2nd operation.
+		got = edits[1].NewText
+	default:
+		t.Errorf("got %d edits, want 0 or 2", len(edits))
+	}
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -1167,6 +1200,14 @@ func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char
 	}
 	str += fmt.Sprintf(" %d", res.ActiveParameter)
 	return str, nil
+}
+
+func callFormatting(ctx context.Context, c *jsonrpc2.Conn, uri string) ([]lsp.TextEdit, error) {
+	var edits []lsp.TextEdit
+	err := c.Call(ctx, "textDocument/formatting", lsp.DocumentFormattingParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+	}, &edits)
+	return edits, err
 }
 
 type markedStrings []lsp.MarkedString
