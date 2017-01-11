@@ -41,8 +41,7 @@ type LangHandler struct {
 	pkgSymCache   map[string][]lsp.SymbolInformation
 
 	// cached typechecking results
-	cacheMus map[typecheckKey]*sync.Mutex
-	cache    map[typecheckKey]typecheckResult
+	cache map[typecheckKey]*typecheckResult
 
 	// cache the reverse import graph
 	importGraphOnce sync.Once
@@ -72,8 +71,7 @@ func (h *LangHandler) resetCaches(lock bool) {
 	if lock {
 		h.mu.Lock()
 	}
-	h.cacheMus = map[typecheckKey]*sync.Mutex{}
-	h.cache = map[typecheckKey]typecheckResult{}
+	h.cache = map[typecheckKey]*typecheckResult{}
 	h.importGraphOnce = sync.Once{}
 	h.importGraph = nil
 	if lock {
@@ -153,8 +151,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 
-		// Assume it's a file path if no the URI has no scheme.
-		if strings.HasPrefix(params.RootPath, "/") {
+		// HACK: RootPath is not a URI, but historically we treated it
+		// as such. Convert it to a file URI
+		if !strings.HasPrefix(params.RootPath, "file://") {
 			params.RootPath = "file://" + params.RootPath
 		}
 

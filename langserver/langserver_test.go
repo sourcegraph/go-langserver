@@ -36,7 +36,7 @@ func TestServer(t *testing.T) {
 		mountFS                 map[string]map[string]string // mount dir -> map VFS
 	}{
 		"go basic": {
-			rootPath: "file:///src/test/pkg",
+			rootPath: "/src/test/pkg",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 				"b.go": "package p; func B() { A() }",
@@ -188,6 +188,15 @@ func TestServer(t *testing.T) {
 
 				// Matching against invalid field name.
 				{Query: lspext.SymbolDescriptor{"nope": "A"}}: []string{},
+
+				// Matching against an invalid dir hint.
+				{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dir": "file:///src/test/pkg/d/d3"}}: []string{},
+
+				// Matching against a dir hint.
+				{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dir": "file:///src/test/pkg/d/d2"}}: []string{
+					"/src/test/pkg/d/d2/b.go:1:20-1:20 -> name: package:test/pkg/d packageName:d recv: vendor:false",
+					"/src/test/pkg/d/d2/b.go:1:47-1:47 -> name:A package:test/pkg/d packageName:d recv: vendor:false",
+				},
 
 				// Matching against single field.
 				{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}}: []string{
@@ -670,6 +679,23 @@ type Header struct {
 				"b.go:1:27": "func() 0",
 				"b.go:1:32": "func(foo int, bar func(baz int) int) int 0",
 				"b.go:1:39": "func(foo int, bar func(baz int) int) int 1",
+		"unexpected paths": {
+			// notice the : and @ symbol
+			rootPath: "file:///src/t:est/@hello/pkg",
+			fs: map[string]string{
+				"a.go": "package p; func A() { A() }",
+			},
+			wantHover: map[string]string{
+				"a.go:1:17": "func A()",
+			},
+			wantReferences: map[string][]string{
+				"a.go:1:17": []string{
+					"/src/t:est/@hello/pkg/a.go:1:17",
+					"/src/t:est/@hello/pkg/a.go:1:23",
+				},
+			},
+			wantSymbols: map[string][]string{
+				"a.go": []string{"/src/t:est/@hello/pkg/a.go:function:pkg.A:1:17"},
 			},
 		},
 	}
