@@ -293,7 +293,6 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
 				filePkgPath := path.Dir(results.Query.File)
-				bctx := h.defaultBuildContext()
 				if PathHasPrefix(filePkgPath, bctx.GOROOT) {
 					filePkgPath = PathTrimPrefix(filePkgPath, bctx.GOROOT)
 				} else {
