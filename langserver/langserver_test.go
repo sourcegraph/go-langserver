@@ -31,7 +31,7 @@ func TestServer(t *testing.T) {
 		wantReferences          map[string][]string
 		wantSymbols             map[string][]string
 		wantWorkspaceSymbols    map[string][]string
-		wantSignatures			map[string]string
+		wantSignatures          map[string]string
 		wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string
 		mountFS                 map[string]map[string]string // mount dir -> map VFS
 	}{
