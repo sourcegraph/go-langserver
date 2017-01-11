@@ -151,8 +151,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 
-		// Assume it's a file path if no the URI has no scheme.
-		if strings.HasPrefix(params.RootPath, "/") {
+		// HACK: RootPath is not a URI, but historically we treated it
+		// as such. Convert it to a file URI
+		if !strings.HasPrefix(params.RootPath, "file://") {
 			params.RootPath = "file://" + params.RootPath
 		}
 
