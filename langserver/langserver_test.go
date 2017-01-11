@@ -679,6 +679,8 @@ type Header struct {
 				"b.go:1:27": "func() 0",
 				"b.go:1:32": "func(foo int, bar func(baz int) int) int 0",
 				"b.go:1:39": "func(foo int, bar func(baz int) int) int 1",
+			},
+		},
 		"unexpected paths": {
 			// notice the : and @ symbol
 			rootPath: "file:///src/t:est/@hello/pkg",
