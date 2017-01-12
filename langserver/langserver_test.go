@@ -190,11 +190,17 @@ func TestServer(t *testing.T) {
 					// Matching against invalid field name.
 					{Query: lspext.SymbolDescriptor{"nope": "A"}}: []string{},
 
-					// Matching against an invalid dir hint.
-					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dir": "file:///src/test/pkg/d/d3"}}: []string{},
+					// Matching against an invalid dirs hint.
+					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d3"}}}: []string{},
 
-					// Matching against a dir hint.
-					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dir": "file:///src/test/pkg/d/d2"}}: []string{
+					// Matching against a dirs hint with multiple dirs.
+					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d2", "file:///src/test/pkg/d/invalid"}}}: []string{
+						"/src/test/pkg/d/d2/b.go:1:20-1:20 -> name: package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:47-1:47 -> name:A package:test/pkg/d packageName:d recv: vendor:false",
+					},
+
+					// Matching against a dirs hint.
+					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d2"}}}: []string{
 						"/src/test/pkg/d/d2/b.go:1:20-1:20 -> name: package:test/pkg/d packageName:d recv: vendor:false",
 						"/src/test/pkg/d/d2/b.go:1:47-1:47 -> name:A package:test/pkg/d packageName:d recv: vendor:false",
 					},
