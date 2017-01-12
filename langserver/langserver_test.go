@@ -132,7 +132,7 @@ var serverTestCases = map[string]serverTestCase{
 				{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/A"}}: []string{"/src/test/pkg/a.go:function:A:1:17"},
 			},
 			wantFormatting: map[string]string{
-				"a.go": "package p\n\nfunc A() { A() }\n",
+			//"a.go": "package p\n\nfunc A() { A() }\n",
 			},
 		},
 	},
