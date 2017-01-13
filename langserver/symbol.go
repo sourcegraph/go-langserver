@@ -278,7 +278,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 		bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
 
 		par := parallel.NewRun(8)
-		pkgs := listPkgs(bctx, rootPath)
+		pkgs := listPkgsUnderDir(bctx, rootPath)
 		for _, pkg := range pkgs {
 			// If we're restricting results to a single file or dir, ensure the
 			// package dir matches to avoid doing unnecessary work.
@@ -480,7 +480,13 @@ func init() {
 	prometheus.MustRegister(symbolCacheTotal)
 }
 
-func listPkgs(ctxt *build.Context, dir string) []string {
+// listPkgsUnderDir is buildutil.ExpandPattern(ctxt, []string{dir +
+// "/..."}). The implementation is modified from the upstream
+// buildutil.ExpandPattern so we can be much faster. buildutil.ExpandPattern
+// looks at all directories under GOPATH if there is a `...` pattern. This
+// instead only explores the directories under dir. In future
+// buildutil.ExpandPattern may be more performant (there are TODOs for it).
+func listPkgsUnderDir(ctxt *build.Context, dir string) []string {
 	ch := make(chan string)
 
 	var wg sync.WaitGroup
