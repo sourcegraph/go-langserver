@@ -41,8 +41,7 @@ type LangHandler struct {
 	pkgSymCache   map[string][]lsp.SymbolInformation
 
 	// cached typechecking results
-	cacheMus map[typecheckKey]*sync.Mutex
-	cache    map[typecheckKey]typecheckResult
+	cache map[typecheckKey]*typecheckResult
 
 	// cache the reverse import graph
 	importGraphOnce sync.Once
@@ -72,8 +71,7 @@ func (h *LangHandler) resetCaches(lock bool) {
 	if lock {
 		h.mu.Lock()
 	}
-	h.cacheMus = map[typecheckKey]*sync.Mutex{}
-	h.cache = map[typecheckKey]typecheckResult{}
+	h.cache = map[typecheckKey]*typecheckResult{}
 	h.importGraphOnce = sync.Once{}
 	h.importGraph = nil
 	if lock {
@@ -154,6 +152,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 
 		// Assume it's a file path if no the URI has no scheme.
+		// HACK: RootPath is not a URI, but historically we treated it
+		// as such. Convert it to a file URI
 		if filepath.IsAbs(params.RootPath) {
 			params.RootPath = pathToURI(params.RootPath)
 		}
@@ -178,12 +178,14 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync:             lsp.TDSKFull,
 				DefinitionProvider:           true,
+				DocumentFormattingProvider:   true,
 				DocumentSymbolProvider:       true,
 				HoverProvider:                true,
 				ReferencesProvider:           true,
 				WorkspaceSymbolProvider:      true,
 				XWorkspaceReferencesProvider: true,
 				XDefinitionProvider:          true,
+				SignatureHelpProvider:        &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
 			},
 		}, nil
 
@@ -246,6 +248,26 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 		return h.handleTextDocumentSymbol(ctx, conn, req, params)
+
+	case "textDocument/signatureHelp":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.TextDocumentPositionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentSignatureHelp(ctx, conn, req, params)
+
+	case "textDocument/formatting":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.DocumentFormattingParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentFormatting(ctx, conn, req, params)
 
 	case "workspace/symbol":
 		if req.Params == nil {

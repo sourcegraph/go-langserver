@@ -33,9 +33,9 @@ func init() {
 // for every logical drive name using empty prefix allowing to read data from any
 // logical disk mimicking Unix's
 //    ns.Bind("/", ctxvfs.OS("/"), "/", mode)
-func bindLocalFs(ns ctxvfs.NameSpace, mode ctxvfs.BindMode) {
+func bindLocalFs(fs *AtomicFS, mode ctxvfs.BindMode) {
 	for _, drive := range drives {
-		ns.Bind(drive, ctxvfs.OS(drive), "", mode)
+		fs.Bind(drive, ctxvfs.OS(drive), "", mode)
 	}
 }
 
@@ -44,21 +44,21 @@ func bindLocalFs(ns ctxvfs.NameSpace, mode ctxvfs.BindMode) {
 // logical disk mimicking Unix's
 //    ns.Bind("/", newfs, "/", mode)
 // As a fallback option, bindFs still binds to "/"
-func bindFs(ns ctxvfs.NameSpace, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
+func bindFs(fs *AtomicFS, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
 	for _, drive := range drives {
-		ns.Bind(drive, newfs, drive, mode)
+		fs.Bind(drive, newfs, drive, mode)
 	}
 	// fallback
-	ns.Bind("/", newfs, "/", mode)
+	fs.Bind("/", newfs, "/", mode)
 }
 
 // bindPath binds file system to path's drive name as a prefix
-func bindPath(path string, ns ctxvfs.NameSpace, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
+func bindPath(path string, fs *AtomicFS, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
 	volume := filepath.VolumeName(path)
 	if volume != "" {
 		volume += ":"
 	}
-	ns.Bind(path, newfs, volume, mode)
+	fs.Bind(path, newfs, volume, mode)
 }
 
 // bitsToDrives converts syscall response to array of logical drive names (lowercase)

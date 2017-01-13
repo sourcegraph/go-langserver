@@ -6,14 +6,14 @@ import (
 	"github.com/sourcegraph/ctxvfs"
 )
 
-func bindLocalFs(ns ctxvfs.NameSpace, mode ctxvfs.BindMode) {
-	ns.Bind("/", ctxvfs.OS("/"), "/", mode)
+func bindLocalFs(fs *AtomicFS, mode ctxvfs.BindMode) {
+	fs.Bind("/", ctxvfs.OS("/"), "/", mode)
 }
 
-func bindFs(ns ctxvfs.NameSpace, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
-	ns.Bind("/", newfs, "/", mode)
+func bindFs(fs *AtomicFS, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
+	fs.Bind("/", newfs, "/", mode)
 }
 
-func bindPath(path string, ns ctxvfs.NameSpace, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
-	ns.Bind(path, newfs, "/", mode)
+func bindPath(path string, fs *AtomicFS, newfs ctxvfs.FileSystem, mode ctxvfs.BindMode) {
+	fs.Bind(path, newfs, "/", mode)
 }
