@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -156,6 +157,10 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		// as such. Convert it to a file URI
 		if filepath.IsAbs(params.RootPath) {
 			params.RootPath = pathToURI(params.RootPath)
+		} else {
+			if !strings.HasPrefix(params.RootPath, "file://") {
+				params.RootPath = "file://" + params.RootPath
+			}
 		}
 
 		if err := h.reset(&params); err != nil {
