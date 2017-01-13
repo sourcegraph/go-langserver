@@ -762,9 +762,9 @@ type Header struct {
 			}
 
 			h.Mu.Lock()
-			h.FS.Bind(rootFSPath, mapFS(test.fs), "/", ctxvfs.BindReplace)
+			bindPath(rootFSPath, h.FS, mapFS(test.fs), ctxvfs.BindReplace)
 			for mountDir, fs := range test.mountFS {
-				h.FS.Bind(mountDir, mapFS(fs), "/", ctxvfs.BindAfter)
+				bindPath(mountDir, h.FS, mapFS(fs), ctxvfs.BindAfter)
 			}
 			h.Mu.Unlock()
 
@@ -775,9 +775,11 @@ type Header struct {
 
 func startServer(t testing.TB, h jsonrpc2.Handler) (addr string, done func()) {
 	bindAddr := ":0"
-	if os.Getenv("CI") != "" {
+	if os.Getenv("CI") != "" || runtime.GOOS == "windows" {
 		// CircleCI has issues with IPv6 (e.g., "dial tcp [::]:39984:
 		// connect: network is unreachable").
+		// On Windoes, there are the following errors:
+		// "dial tcp [::]:61898: connectex: The requested address is not valid in its context."
 		bindAddr = "127.0.0.1:0"
 	}
 	l, err := net.Listen("tcp", bindAddr)

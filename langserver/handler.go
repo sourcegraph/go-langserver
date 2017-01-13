@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -151,10 +152,15 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 
+		// Assume it's a file path if no the URI has no scheme.
 		// HACK: RootPath is not a URI, but historically we treated it
 		// as such. Convert it to a file URI
-		if !strings.HasPrefix(params.RootPath, "file://") {
-			params.RootPath = "file://" + params.RootPath
+		if filepath.IsAbs(params.RootPath) {
+			params.RootPath = pathToURI(params.RootPath)
+		} else {
+			if !strings.HasPrefix(params.RootPath, "file://") {
+				params.RootPath = "file://" + params.RootPath
+			}
 		}
 
 		if err := h.reset(&params); err != nil {

@@ -10,7 +10,7 @@ import (
 	"go/token"
 	"log"
 	"os"
-	"path"
+	pathpkg "path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -157,9 +157,9 @@ func (s *resultSorter) Swap(i, j int) {
 
 // Collect is a thread-safe method that will record the passed-in
 // symbol in the list of results if its score > 0.
-func (s *resultSorter) Collect(si lsp.SymbolInformation) {
+func (s *resultSorter) Collect(si lsp.SymbolInformation, filePath func(uri string) string) {
 	s.resultsMu.Lock()
-	score := score(s.Query, si)
+	score := score(s.Query, si, filePath)
 	if score > 0 {
 		sc := scoredSymbol{score, si}
 		s.results = append(s.results, sc)
@@ -178,14 +178,14 @@ func (s *resultSorter) Results() []lsp.SymbolInformation {
 
 // score returns 0 for results that aren't matches. Results that are matches are assigned
 // a positive score, which should be used for ranking purposes.
-func score(q Query, s lsp.SymbolInformation) (scor int) {
+func score(q Query, s lsp.SymbolInformation, filePath func(uri string) string) (scor int) {
 	if q.Kind != 0 {
 		if q.Kind != s.Kind {
 			return 0
 		}
 	}
 	name, container := strings.ToLower(s.Name), strings.ToLower(s.ContainerName)
-	filename := strings.TrimPrefix(s.Location.URI, "file://")
+	filename := filePath(s.Location.URI)
 	isVendor := strings.HasPrefix(filename, "vendor/") || strings.Contains(filename, "/vendor/")
 	if q.Filter == FilterExported && isVendor {
 		// is:exported excludes vendor symbols always.
@@ -256,7 +256,7 @@ func toSym(name, container string, kind lsp.SymbolKind, fs *token.FileSet, pos t
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	f := strings.TrimPrefix(params.TextDocument.URI, "file://")
+	f := h.FilePath(params.TextDocument.URI)
 	return h.handleSymbol(ctx, conn, req, Query{File: f}, 0)
 }
 
@@ -265,7 +265,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC
 func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
 	q := ParseQuery(params.Query)
 	if q.Filter == FilterDir {
-		q.Dir = path.Join(h.init.RootImportPath, q.Dir)
+		q.Dir = pathpkg.Join(h.init.RootImportPath, q.Dir)
 	}
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
@@ -288,11 +288,12 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 
 		par := parallel.NewRun(8)
 		pkgs := buildutil.ExpandPatterns(bctx, []string{pkgPat})
+
 		for pkg := range pkgs {
 			// If we're restricting results to a single file or dir, ensure the
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
-				filePkgPath := path.Dir(results.Query.File)
+				filePkgPath := pathpkg.Dir(results.Query.File)
 				if PathHasPrefix(filePkgPath, bctx.GOROOT) {
 					filePkgPath = PathTrimPrefix(filePkgPath, bctx.GOROOT)
 				} else {
@@ -435,7 +436,7 @@ func (h *LangHandler) collectFromPkg(bctx *build.Context, fs *token.FileSet, pkg
 		if results.Query.Filter == FilterExported && !ast.IsExported(sym.Name) {
 			continue
 		}
-		results.Collect(sym)
+		results.Collect(sym, h.FilePath)
 	}
 }
 
@@ -450,8 +451,8 @@ func parseDir(fset *token.FileSet, bctx *build.Context, path string, filter func
 	pkgs = map[string]*ast.Package{}
 	for _, d := range list {
 		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
-			filename := filepath.Join(path, d.Name())
-			if src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Join(path, d.Name()), filename, mode); err == nil {
+			filename := pathpkg.Join(path, d.Name())
+			if src, err := buildutil.ParseFile(fset, bctx, nil, pathpkg.Dir(filename), filename, mode); err == nil {
 				name := src.Name.Name
 				pkg, found := pkgs[name]
 				if !found {

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -77,11 +79,20 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 }
 
 func (h *HandlerShared) FilePath(uri string) string {
-	path := strings.TrimPrefix(uri, "file://")
-	if !strings.HasPrefix(path, "/") {
-		panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
+	var path = uriToPath(uri)
+	if h.useOSFS {
+		if runtime.GOOS == "windows" {
+			path = strings.TrimPrefix(path, "/")
+		}
+		if !filepath.IsAbs(path) {
+			panic(fmt.Sprintf("bad uri %q (path %q MUST be absolute)", uri, path))
+		}
+	} else {
+		if !strings.HasPrefix(path, "/") {
+			panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
+		}
 	}
-	return path
+	return normalizePath(path)
 }
 
 func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error) {
@@ -89,7 +100,7 @@ func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error
 	fs := h.FS
 	h.Mu.Unlock()
 	path := h.FilePath(uri)
-	contents, err := ctxvfs.ReadFile(ctx, fs, path)
+	contents, err := ctxvfs.ReadFile(ctx, fs, vfsPath(path))
 	if os.IsNotExist(err) {
 		if _, ok := err.(*os.PathError); !ok {
 			err = &os.PathError{Op: "Open", Path: path, Err: err}
@@ -99,7 +110,7 @@ func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error
 }
 
 func uriToOverlayPath(uri string) string {
-	return strings.TrimPrefix(uri, "file:///")
+	return strings.TrimPrefix(normalizePath(uriToPath(uri)), "/")
 }
 
 func (h *HandlerShared) addOverlayFile(uri string, contents []byte) {

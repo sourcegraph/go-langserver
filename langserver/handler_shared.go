@@ -22,9 +22,10 @@ type HandlerShared struct {
 	// fetch dependencies + cache lookups.
 	FindPackage FindPackageFunc
 
-	overlayFSMu      sync.Mutex        // guards overlayFS map
-	overlayFS        map[string][]byte // files to overlay
-	OverlayMountPath string            // mount point of overlay on fs (usually /src/github.com/foo/bar)
+	overlayFSMu sync.Mutex        // guards overlayFS map
+	overlayFS   map[string][]byte // files to overlay
+	useOSFS     bool              // should we use OS FS?
+
 }
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
@@ -46,12 +47,13 @@ func (h *HandlerShared) Reset(overlayRootURI string, useOSFS bool) error {
 	if !strings.HasPrefix(overlayRootURI, "file:///") {
 		return fmt.Errorf("invalid overlay root URI %q: must be file:///", overlayRootURI)
 	}
-	h.OverlayMountPath = strings.TrimPrefix(overlayRootURI, "file://")
+	h.useOSFS = useOSFS
+
 	if useOSFS {
 		// The overlay FS takes precedence, but we fall back to the OS
 		// file system.
-		h.FS.Bind("/", ctxvfs.OS("/"), "/", ctxvfs.BindAfter)
+		bindLocalFs(h.FS, ctxvfs.BindAfter)
 	}
-	h.FS.Bind("/", ctxvfs.Sync(&h.overlayFSMu, ctxvfs.Map(h.overlayFS)), "/", ctxvfs.BindBefore)
+	bindFs(h.FS, ctxvfs.Sync(&h.overlayFSMu, ctxvfs.Map(h.overlayFS)), ctxvfs.BindBefore)
 	return nil
 }
