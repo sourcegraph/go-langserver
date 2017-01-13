@@ -278,8 +278,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 		bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
 
 		par := parallel.NewRun(8)
-		pkgs := listPkgsUnderDir(bctx, rootPath)
-		for _, pkg := range pkgs {
+		for _, pkg := range listPkgsUnderDir(bctx, rootPath) {
 			// If we're restricting results to a single file or dir, ensure the
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
