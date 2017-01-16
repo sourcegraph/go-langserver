@@ -15,9 +15,9 @@ import (
 
 // BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.
 func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
-	var ctxt *build.Context
+	var bctx *build.Context
 	if override := h.init.BuildContext; override != nil {
-		ctxt = &build.Context{
+		bctx = &build.Context{
 			GOOS:        override.GOOS,
 			GOARCH:      override.GOARCH,
 			GOPATH:      override.GOPATH,
@@ -34,22 +34,22 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	} else {
 		// make a copy since we will mutate it
 		copy := build.Default
-		ctxt = &copy
+		bctx = &copy
 	}
 
 	h.Mu.Lock()
 	fs := h.FS
 	h.Mu.Unlock()
 
-	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
+	bctx.OpenFile = func(path string) (io.ReadCloser, error) {
 		return fs.Open(ctx, path)
 	}
-	ctxt.IsDir = func(path string) bool {
+	bctx.IsDir = func(path string) bool {
 		fi, err := fs.Stat(ctx, path)
 		return err == nil && fi.Mode().IsDir()
 	}
-	ctxt.HasSubdir = func(root, dir string) (rel string, ok bool) {
-		if !ctxt.IsDir(dir) {
+	bctx.HasSubdir = func(root, dir string) (rel string, ok bool) {
+		if !bctx.IsDir(dir) {
 			return "", false
 		}
 		rel, err := filepath.Rel(root, dir)
@@ -58,10 +58,10 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 		}
 		return rel, true
 	}
-	ctxt.ReadDir = func(path string) ([]os.FileInfo, error) {
+	bctx.ReadDir = func(path string) ([]os.FileInfo, error) {
 		return fs.ReadDir(ctx, path)
 	}
-	return ctxt
+	return bctx
 }
 
 // From: https://github.com/golang/tools/blob/b814a3b030588c115189743d7da79bce8b549ce1/go/buildutil/util.go#L84
