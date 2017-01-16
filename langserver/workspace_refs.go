@@ -130,12 +130,8 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 		span.Finish()
 	}()
 
-	findPackage := h.FindPackage
-	if findPackage == nil {
-		findPackage = defaultFindPackageFunc
-	}
-
 	// Configure the loader.
+	findPackage := h.getFindPackageFunc()
 	var typeErrs []error
 	conf := loader.Config{
 		Fset: fset,
