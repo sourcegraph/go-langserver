@@ -275,7 +275,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 	{
 		fs := token.NewFileSet()
 		rootPath := h.FilePath(h.init.RootPath)
-		bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
+		bctx := h.BuildContext(ctx)
 
 		par := parallel.NewRun(8)
 		for _, pkg := range listPkgsUnderDir(bctx, rootPath) {

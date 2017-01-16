@@ -26,7 +26,7 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn JSONRPC2Conn, r
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lspext.SymbolLocationInformation, error) {
 	rootPath := h.FilePath(h.init.RootPath)
-	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
+	bctx := h.BuildContext(ctx)
 
 	fset, node, pathEnclosingInterval, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {

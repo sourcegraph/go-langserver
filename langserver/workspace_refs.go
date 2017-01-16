@@ -29,7 +29,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 	// moderately sized repository more bearable (right now these are really bad).
 
 	rootPath := h.FilePath(h.init.RootPath)
-	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
+	bctx := h.BuildContext(ctx)
 
 	var parallelism int
 	if envWorkspaceReferenceParallelism != "" {

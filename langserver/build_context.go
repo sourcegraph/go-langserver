@@ -1,7 +1,6 @@
 package langserver
 
 import (
-	"context"
 	"fmt"
 	"go/build"
 	"io"
@@ -10,12 +9,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"golang.org/x/net/context"
 )
 
-func (h *LangHandler) defaultBuildContext() *build.Context {
-	bctx := &build.Default
+// BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.
+func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
+	var ctxt *build.Context
 	if override := h.init.BuildContext; override != nil {
-		bctx = &build.Context{
+		ctxt = &build.Context{
 			GOOS:        override.GOOS,
 			GOARCH:      override.GOARCH,
 			GOPATH:      override.GOPATH,
@@ -29,17 +31,15 @@ func (h *LangHandler) defaultBuildContext() *build.Context {
 			// our compiler should understand.
 			ReleaseTags: build.Default.ReleaseTags,
 		}
+	} else {
+		// make a copy since we will mutate it
+		copy := build.Default
+		ctxt = &copy
 	}
-	return bctx
-}
 
-func (h *HandlerShared) OverlayBuildContext(ctx context.Context, orig *build.Context, useOSFileSystem bool) *build.Context {
 	h.Mu.Lock()
 	fs := h.FS
 	h.Mu.Unlock()
-
-	copy := *orig // make a copy
-	ctxt := &copy
 
 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
 		return fs.Open(ctx, path)
