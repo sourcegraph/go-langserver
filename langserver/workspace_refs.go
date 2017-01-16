@@ -47,14 +47,15 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 
 	// Perform typechecking.
 	var (
-		fset = token.NewFileSet()
-		pkgs []string
+		findPackage = h.getFindPackageFunc()
+		fset        = token.NewFileSet()
+		pkgs        []string
 	)
 	for _, pkg := range listPkgsUnderDir(bctx, rootPath) {
 		// Ignore any vendor package so we can avoid scanning it for dependency
 		// references, per the workspace/reference spec. This saves us a
 		// considerable amount of work.
-		bpkg, err := bctx.Import(pkg, rootPath, build.FindOnly)
+		bpkg, err := findPackage(ctx, bctx, pkg, rootPath, build.FindOnly)
 		if err != nil && !isMultiplePackageError(err) {
 			log.Printf("skipping possible package %s: %s", pkg, err)
 			continue
@@ -196,6 +197,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	span.SetTag("pkg", pkg)
 
 	// Compute workspace references.
+	findPackage := h.getFindPackageFunc()
 	cfg := &refs.Config{
 		FileSet:  fs,
 		Pkg:      pkg.Pkg,
@@ -203,7 +205,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		Info:     &pkg.Info,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		symDesc, err := defSymbolDescriptor(bctx, rootPath, r.Def)
+		symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, r.Def, findPackage)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -234,8 +236,8 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	return nil
 }
 
-func defSymbolDescriptor(bctx *build.Context, rootPath string, def refs.Def) (lspext.SymbolDescriptor, error) {
-	defPkg, err := bctx.Import(def.ImportPath, rootPath, build.FindOnly)
+func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath string, def refs.Def, findPackage FindPackageFunc) (lspext.SymbolDescriptor, error) {
+	defPkg, err := findPackage(ctx, bctx, def.ImportPath, rootPath, build.FindOnly)
 	if err != nil {
 		return nil, err
 	}

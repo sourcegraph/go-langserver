@@ -58,6 +58,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 	if len(nodes) == 0 {
 		return nil, errors.New("definition not found")
 	}
+	findPackage := h.getFindPackageFunc()
 	locs := make([]lspext.SymbolLocationInformation, 0, len(nodes))
 	for _, node := range nodes {
 		// Determine location information for the node.
@@ -71,7 +72,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 		// Determine metadata information for the node.
 
 		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, node.Pos()); err == nil {
-			symDesc, err := defSymbolDescriptor(bctx, rootPath, *def)
+			symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)
