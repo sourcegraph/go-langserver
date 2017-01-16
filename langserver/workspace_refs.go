@@ -49,15 +49,9 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		pkgs        []string
 	)
 	for _, pkg := range listPkgsUnderDir(bctx, rootPath) {
-		// Ignore any vendor package so we can avoid scanning it for dependency
-		// references, per the workspace/reference spec. This saves us a
-		// considerable amount of work.
 		bpkg, err := findPackage(ctx, bctx, pkg, rootPath, build.FindOnly)
 		if err != nil && !isMultiplePackageError(err) {
 			log.Printf("skipping possible package %s: %s", pkg, err)
-			continue
-		}
-		if IsVendorDir(bpkg.Dir) {
 			continue
 		}
 
