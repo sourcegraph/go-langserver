@@ -130,6 +130,11 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 		span.Finish()
 	}()
 
+	findPackage := h.FindPackage
+	if findPackage == nil {
+		findPackage = defaultFindPackageFunc
+	}
+
 	// Configure the loader.
 	var typeErrs []error
 	conf := loader.Config{
@@ -149,7 +154,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 			// MultipleGoErrors. This occurs, e.g., when you have a
 			// main.go with "// +build ignore" that imports the
 			// non-main package in the same dir.
-			bpkg, err := bctx.Import(importPath, fromDir, mode)
+			bpkg, err := findPackage(ctx, bctx, importPath, fromDir, mode)
 			if err != nil && !isMultiplePackageError(err) {
 				return bpkg, err
 			}
