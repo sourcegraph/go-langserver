@@ -11,7 +11,6 @@ import (
 	"log"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,20 +27,6 @@ import (
 func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]lspext.ReferenceInformation, error) {
 	rootPath := h.FilePath(h.init.RootPath)
 	bctx := h.BuildContext(ctx)
-
-	var parallelism int
-	if envWorkspaceReferenceParallelism != "" {
-		var err error
-		parallelism, err = strconv.Atoi(envWorkspaceReferenceParallelism)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		parallelism = runtime.NumCPU() / 4 // 1/4 CPU
-	}
-	if parallelism < 1 {
-		parallelism = 1
-	}
 
 	// Perform typechecking.
 	var (
@@ -95,8 +80,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 			return
 		}
 
-		// Do not block the type-checker, but also avoid running with unbounded
-		// parallelism.
+		// Do not block the type-checker.
 		atomic.AddUint32(&started, 1)
 		go func() {
 			// Prevent any uncaught panics from taking the entire server down.
