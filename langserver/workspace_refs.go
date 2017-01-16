@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"golang.org/x/tools/go/loader"
 
@@ -70,9 +69,8 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 	// us to begin looking at packages as they are typechecked, instead of
 	// waiting for all packages to be typechecked (which is IO bound).
 	var (
-		results      = refResultSorter{results: make([]lspext.ReferenceInformation, 0)}
-		finishSignal = make(chan struct{})
-		started      uint32
+		results = refResultSorter{results: make([]lspext.ReferenceInformation, 0)}
+		wg      sync.WaitGroup
 	)
 	afterTypeCheck := func(pkg *loader.PackageInfo, files []*ast.File) {
 		_, interested := unvendoredPackages[pkg.Pkg.Path()]
@@ -81,11 +79,11 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		}
 
 		// Do not block the type-checker.
-		atomic.AddUint32(&started, 1)
+		wg.Add(1)
 		go func() {
 			// Prevent any uncaught panics from taking the entire server down.
 			defer func() {
-				finishSignal <- struct{}{}
+				wg.Done()
 				if r := recover(); r != nil {
 					// Same as net/http
 					const size = 64 << 10
@@ -109,9 +107,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 	}
 
 	// Wait for all worker goroutines to complete.
-	for i := 0; i < int(started); i++ {
-		<-finishSignal
-	}
+	wg.Wait()
 
 	sort.Sort(&results) // sort to provide consistent results
 	return results.results, nil
