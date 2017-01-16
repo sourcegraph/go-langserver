@@ -25,9 +25,6 @@ import (
 )
 
 func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]lspext.ReferenceInformation, error) {
-	// TODO(slimsag): respect params.Files which will make performance in any
-	// moderately sized repository more bearable (right now these are really bad).
-
 	rootPath := h.FilePath(h.init.RootPath)
 	bctx := h.BuildContext(ctx)
 
