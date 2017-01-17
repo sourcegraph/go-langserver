@@ -336,17 +336,18 @@ type pkgSymResult struct {
 func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
 	h.pkgSymCacheMu.Lock()
 	res, ok := h.pkgSymCache[pkg]
-	if !ok {
-		res = &pkgSymResult{ready: make(chan struct{})}
-		h.pkgSymCache[pkg] = res
-		defer close(res.ready)
-	}
-	h.pkgSymCacheMu.Unlock()
-
 	if ok {
 		// cache hit, but wait until ready
+		h.pkgSymCacheMu.Unlock()
 		<-res.ready
 	} else {
+		// cache miss. Add to cache now so other can wait on the ready channel
+		res = &pkgSymResult{ready: make(chan struct{})}
+		h.pkgSymCache[pkg] = res
+		h.pkgSymCacheMu.Unlock()
+		defer close(res.ready)
+
+		// Actually compute result to store in cache
 		findPackage := h.getFindPackageFunc()
 		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
 		if err != nil {
