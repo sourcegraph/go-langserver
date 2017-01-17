@@ -81,7 +81,7 @@ func (h *LangHandler) resetCaches(lock bool) {
 	if lock {
 		h.pkgSymCacheMu.Lock()
 	}
-	h.pkgSymCache = nil
+	h.pkgSymCache = map[string][]lsp.SymbolInformation{}
 	if lock {
 		h.pkgSymCacheMu.Unlock()
 	}

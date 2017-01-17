@@ -325,35 +325,13 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 	return results.Results(), nil
 }
 
-// getPkgSyms returns the cached symbols for package pkg, if they
-// exist. Otherwise, it returns nil.
-func (h *LangHandler) getPkgSyms(pkg string) []lsp.SymbolInformation {
-	h.pkgSymCacheMu.Lock()
-	l, ok := h.pkgSymCache[pkg]
-	h.pkgSymCacheMu.Unlock()
-	if ok {
-		symbolCacheTotal.WithLabelValues("hit").Inc()
-	} else {
-		symbolCacheTotal.WithLabelValues("miss").Inc()
-	}
-	return l
-}
-
-// setPkgSyms updates the cached symbols for package pkg.
-func (h *LangHandler) setPkgSyms(pkg string, syms []lsp.SymbolInformation) {
-	h.pkgSymCacheMu.Lock()
-	if h.pkgSymCache == nil {
-		h.pkgSymCache = map[string][]lsp.SymbolInformation{}
-	}
-	h.pkgSymCache[pkg] = syms
-	h.pkgSymCacheMu.Unlock()
-}
-
 // collectFromPkg collects all the symbols from the specified package
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
 func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
-	pkgSyms := h.getPkgSyms(pkg)
+	h.pkgSymCacheMu.Lock()
+	pkgSyms, _ := h.pkgSymCache[pkg]
+	h.pkgSymCacheMu.Unlock()
 	if pkgSyms == nil {
 		findPackage := h.getFindPackageFunc()
 		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
@@ -419,7 +397,10 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 		for _, v := range docPkg.Funcs {
 			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg.ImportPath, lsp.SKFunction, fs, v.Decl.Name.NamePos))
 		}
-		h.setPkgSyms(pkg, pkgSyms)
+
+		h.pkgSymCacheMu.Lock()
+		h.pkgSymCache[pkg] = pkgSyms
+		h.pkgSymCacheMu.Unlock()
 	}
 
 	for _, sym := range pkgSyms {
