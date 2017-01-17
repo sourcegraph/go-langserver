@@ -20,7 +20,6 @@ import (
 	"golang.org/x/tools/go/buildutil"
 
 	"github.com/neelance/parallel"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -334,39 +333,26 @@ type pkgSymResult struct {
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
 func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
-	h.pkgSymCacheMu.Lock()
-	res, ok := h.pkgSymCache[pkg]
-	if ok {
-		// cache hit, but wait until ready
-		h.pkgSymCacheMu.Unlock()
-		<-res.ready
-	} else {
-		// cache miss. Add to cache now so other can wait on the ready channel
-		res = &pkgSymResult{ready: make(chan struct{})}
-		h.pkgSymCache[pkg] = res
-		h.pkgSymCacheMu.Unlock()
-		defer close(res.ready)
-
-		// Actually compute result to store in cache
+	symbols := h.symbolCache.Get(pkg, func() interface{} {
 		findPackage := h.getFindPackageFunc()
 		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
 		if err != nil {
 			maybeLogImportError(pkg, err)
-			return
+			return nil
 		}
 
 		fs := token.NewFileSet()
 		astPkgs, err := parseDir(fs, bctx, buildPkg.Dir, nil, 0)
 		if err != nil {
 			log.Printf("failed to parse directory %s: %s", buildPkg.Dir, err)
-			return
+			return nil
 		}
 		astPkg := astPkgs[buildPkg.Name]
 		if astPkg == nil {
 			if !strings.HasPrefix(buildPkg.ImportPath, "github.com/golang/go/misc/cgo/") {
 				log.Printf("didn't find build package name %q in parsed AST packages %v", buildPkg.ImportPath, astPkgs)
 			}
-			return
+			return nil
 		}
 		// TODO(keegancsmith) Remove vendored doc/go once https://github.com/golang/go/issues/17788 is shipped
 		docPkg := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
@@ -414,10 +400,14 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg.ImportPath, lsp.SKFunction, fs, v.Decl.Name.NamePos))
 		}
 
-		res.symbols = pkgSyms
+		return pkgSyms
+	})
+
+	if symbols == nil {
+		return
 	}
 
-	for _, sym := range res.symbols {
+	for _, sym := range symbols.([]lsp.SymbolInformation) {
 		if results.Query.Filter == FilterExported && !ast.IsExported(sym.Name) {
 			continue
 		}
@@ -462,17 +452,6 @@ func maybeLogImportError(pkg string, err error) {
 	if !(isNoGoError || !isMultiplePackageError(err) || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
 		log.Printf("skipping possible package %s: %s", pkg, err)
 	}
-}
-
-var symbolCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Namespace: "golangserver",
-	Subsystem: "symbol",
-	Name:      "cache_request_total",
-	Help:      "Count of requests to cache.",
-}, []string{"type"})
-
-func init() {
-	prometheus.MustRegister(symbolCacheTotal)
 }
 
 // listPkgsUnderDir is buildutil.ExpandPattern(ctxt, []string{dir +
