@@ -1,22 +1,36 @@
 package langserver
 
-import "sync"
+import (
+	"sync"
+
+	lru "github.com/hashicorp/golang-lru"
+)
 
 type cache interface {
 	Get(key interface{}, fill func() interface{}) interface{}
 	Purge()
 }
 
-func newTypecheckCache() *unboundedCache {
-	c := &unboundedCache{}
-	c.Purge()
-	return c
+func newTypecheckCache() *boundedCache {
+	c, err := lru.NewARC(1000)
+	if err != nil {
+		// This should never happen since our size is always > 0
+		panic(err)
+	}
+	return &boundedCache{
+		c: c,
+	}
 }
 
-func newSymbolCache() *unboundedCache {
-	c := &unboundedCache{}
-	c.Purge()
-	return c
+func newSymbolCache() *boundedCache {
+	c, err := lru.NewARC(1000)
+	if err != nil {
+		// This should never happen since our size is always > 0
+		panic(err)
+	}
+	return &boundedCache{
+		c: c,
+	}
 }
 
 type cacheValue struct {
@@ -24,22 +38,23 @@ type cacheValue struct {
 	value interface{}
 }
 
-type unboundedCache struct {
+type boundedCache struct {
 	mu sync.Mutex
-	c  map[interface{}]*cacheValue
+	c  *lru.ARCCache
 }
 
-func (c *unboundedCache) Get(k interface{}, fill func() interface{}) interface{} {
+func (c *boundedCache) Get(k interface{}, fill func() interface{}) interface{} {
 	c.mu.Lock()
-	v, ok := c.c[k]
-	if ok {
+	var v *cacheValue
+	if vi, ok := c.c.Get(k); ok {
 		// cache hit, wait until ready
 		c.mu.Unlock()
+		v = vi.(*cacheValue)
 		<-v.ready
 	} else {
 		// cache miss. Add unready result to cache and fill
 		v = &cacheValue{ready: make(chan struct{})}
-		c.c[k] = v
+		c.c.Add(k, v)
 		c.mu.Unlock()
 
 		defer close(v.ready)
@@ -49,8 +64,6 @@ func (c *unboundedCache) Get(k interface{}, fill func() interface{}) interface{}
 	return v.value
 }
 
-func (c *unboundedCache) Purge() {
-	c.mu.Lock()
-	c.c = make(map[interface{}]*cacheValue)
-	c.mu.Unlock()
+func (c *boundedCache) Purge() {
+	c.c.Purge()
 }
