@@ -273,7 +273,6 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn JSONRPC2Co
 func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
 	{
-		fs := token.NewFileSet()
 		rootPath := h.FilePath(h.init.RootPath)
 		bctx := h.BuildContext(ctx)
 
@@ -299,11 +298,11 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 
 			par.Acquire()
 			go func(pkg string) {
-				defer par.Release()
 				// Prevent any uncaught panics from taking the
 				// entire server down. For an example see
 				// https://github.com/golang/go/issues/17788
 				defer func() {
+					par.Release()
 					if r := recover(); r != nil {
 						// Same as net/http
 						const size = 64 << 10
@@ -313,7 +312,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 						return
 					}
 				}()
-				h.collectFromPkg(ctx, bctx, fs, pkg, rootPath, &results)
+				h.collectFromPkg(ctx, bctx, pkg, rootPath, &results)
 			}(pkg)
 		}
 		_ = par.Wait()
@@ -353,7 +352,7 @@ func (h *LangHandler) setPkgSyms(pkg string, syms []lsp.SymbolInformation) {
 // collectFromPkg collects all the symbols from the specified package
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
-func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, fs *token.FileSet, pkg string, rootPath string, results *resultSorter) {
+func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
 	pkgSyms := h.getPkgSyms(pkg)
 	if pkgSyms == nil {
 		findPackage := h.getFindPackageFunc()
@@ -363,6 +362,7 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, f
 			return
 		}
 
+		fs := token.NewFileSet()
 		astPkgs, err := parseDir(fs, bctx, buildPkg.Dir, nil, 0)
 		if err != nil {
 			log.Printf("failed to parse directory %s: %s", buildPkg.Dir, err)
