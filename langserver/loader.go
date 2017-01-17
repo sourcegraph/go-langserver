@@ -181,10 +181,9 @@ type typecheckKey struct {
 }
 
 type typecheckResult struct {
-	ready chan struct{} // closed to broadcast readiness
-	fset  *token.FileSet
-	prog  *loader.Program
-	err   error
+	fset *token.FileSet
+	prog *loader.Program
+	err  error
 }
 
 func (h *LangHandler) cachedTypecheck(ctx context.Context, bctx *build.Context, bpkg *build.Package) (*token.FileSet, *loader.Program, diagnostics, error) {
@@ -196,28 +195,19 @@ func (h *LangHandler) cachedTypecheck(ctx context.Context, bctx *build.Context, 
 	ctx = opentracing.ContextWithSpan(ctx, span)
 	defer span.Finish()
 
-	k := typecheckKey{bpkg.ImportPath, bpkg.Dir, bpkg.Name}
-
-	h.mu.Lock()
-	res, ok := h.cache[k]
-	if !ok {
-		res = &typecheckResult{ready: make(chan struct{})}
-		h.cache[k] = res
-		defer close(res.ready)
-	}
-	h.mu.Unlock()
-
-	span.SetTag("cached", ok)
 	var diags diagnostics
-	if ok {
-		// cache hit, but wait until ready
-		typecheckCacheTotal.WithLabelValues("hit").Inc()
-		<-res.ready
-	} else {
-		typecheckCacheTotal.WithLabelValues("miss").Inc()
-		res.fset = token.NewFileSet()
+	r := h.typecheckCache.Get(typecheckKey{bpkg.ImportPath, bpkg.Dir, bpkg.Name}, func() interface{} {
+		res := &typecheckResult{
+			fset: token.NewFileSet(),
+		}
 		res.prog, diags, res.err = typecheck(ctx, res.fset, bctx, bpkg, h.getFindPackageFunc())
+		return res
+	})
+	if r == nil {
+		// This can happen if we panic
+		return nil, nil, diags, nil
 	}
+	res := r.(*typecheckResult)
 	return res.fset, res.prog, diags, res.err
 }
 
