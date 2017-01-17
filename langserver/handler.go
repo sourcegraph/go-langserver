@@ -38,7 +38,7 @@ type LangHandler struct {
 
 	// cached symbols
 	pkgSymCacheMu sync.Mutex
-	pkgSymCache   map[string][]lsp.SymbolInformation
+	pkgSymCache   map[string]*pkgSymResult
 
 	// cached typechecking results
 	cache map[typecheckKey]*typecheckResult
@@ -81,7 +81,7 @@ func (h *LangHandler) resetCaches(lock bool) {
 	if lock {
 		h.pkgSymCacheMu.Lock()
 	}
-	h.pkgSymCache = map[string][]lsp.SymbolInformation{}
+	h.pkgSymCache = map[string]*pkgSymResult{}
 	if lock {
 		h.pkgSymCacheMu.Unlock()
 	}

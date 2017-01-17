@@ -325,14 +325,28 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 	return results.Results(), nil
 }
 
+type pkgSymResult struct {
+	ready   chan struct{} // closed to broadcast readiness
+	symbols []lsp.SymbolInformation
+}
+
 // collectFromPkg collects all the symbols from the specified package
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
 func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
 	h.pkgSymCacheMu.Lock()
-	pkgSyms, _ := h.pkgSymCache[pkg]
+	res, ok := h.pkgSymCache[pkg]
+	if !ok {
+		res = &pkgSymResult{ready: make(chan struct{})}
+		h.pkgSymCache[pkg] = res
+		defer close(res.ready)
+	}
 	h.pkgSymCacheMu.Unlock()
-	if pkgSyms == nil {
+
+	if ok {
+		// cache hit, but wait until ready
+		<-res.ready
+	} else {
 		findPackage := h.getFindPackageFunc()
 		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
 		if err != nil {
@@ -357,6 +371,7 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 		docPkg := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
 
 		// Emit decls
+		var pkgSyms []lsp.SymbolInformation
 		for _, t := range docPkg.Types {
 			if len(t.Decl.Specs) == 1 { // the type name is the first spec in type declarations
 				pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg.ImportPath, lsp.SKClass, fs, t.Decl.Specs[0].Pos()))
@@ -398,12 +413,10 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg.ImportPath, lsp.SKFunction, fs, v.Decl.Name.NamePos))
 		}
 
-		h.pkgSymCacheMu.Lock()
-		h.pkgSymCache[pkg] = pkgSyms
-		h.pkgSymCacheMu.Unlock()
+		res.symbols = pkgSyms
 	}
 
-	for _, sym := range pkgSyms {
+	for _, sym := range res.symbols {
 		if results.Query.Filter == FilterExported && !ast.IsExported(sym.Name) {
 			continue
 		}
