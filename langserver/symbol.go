@@ -242,8 +242,8 @@ func score(q Query, s lsp.SymbolInformation) (scor int) {
 // from the Go parser and doc packages.
 func toSym(name, container string, kind lsp.SymbolKind, fs *token.FileSet, pos token.Pos) lsp.SymbolInformation {
 	container = filepath.Base(container)
-	if f := strings.Fields(container); len(f) > 0 {
-		container = f[len(f)-1]
+	if i := strings.LastIndex(container, " "); i >= 0 {
+		container = container[i+1:]
 	}
 	return lsp.SymbolInformation{
 		Name:          name,
