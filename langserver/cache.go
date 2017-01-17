@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -21,7 +22,25 @@ var (
 	// cacheID is used to prevent key conflicts between different
 	// LangHandlers in the same process.
 	cacheID int64
+
+	typecheckCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "golangserver",
+		Subsystem: "typecheck",
+		Name:      "cache_request_total",
+		Help:      "Count of requests to cache.",
+	}, []string{"type"})
+	symbolCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "golangserver",
+		Subsystem: "symbol",
+		Name:      "cache_request_total",
+		Help:      "Count of requests to cache.",
+	}, []string{"type"})
 )
+
+func init() {
+	prometheus.MustRegister(typecheckCacheTotal)
+	prometheus.MustRegister(symbolCacheTotal)
+}
 
 type cache interface {
 	Get(key interface{}, fill func() interface{}) interface{}
@@ -30,15 +49,17 @@ type cache interface {
 
 func newTypecheckCache() *boundedCache {
 	return &boundedCache{
-		id: nextCacheID(),
-		c:  typecheckCache,
+		id:      nextCacheID(),
+		c:       typecheckCache,
+		counter: typecheckCacheTotal,
 	}
 }
 
 func newSymbolCache() *boundedCache {
 	return &boundedCache{
-		id: nextCacheID(),
-		c:  symbolCache,
+		id:      nextCacheID(),
+		c:       symbolCache,
+		counter: symbolCacheTotal,
 	}
 }
 
@@ -53,9 +74,10 @@ type cacheValue struct {
 }
 
 type boundedCache struct {
-	mu sync.Mutex
-	id int64
-	c  *lru.ARCCache
+	mu      sync.Mutex
+	id      int64
+	c       *lru.ARCCache
+	counter *prometheus.CounterVec
 }
 
 func (c *boundedCache) Get(k interface{}, fill func() interface{}) interface{} {
@@ -65,6 +87,7 @@ func (c *boundedCache) Get(k interface{}, fill func() interface{}) interface{} {
 	if vi, ok := c.c.Get(key); ok {
 		// cache hit, wait until ready
 		c.mu.Unlock()
+		c.counter.WithLabelValues("hit").Inc()
 		v = vi.(*cacheValue)
 		<-v.ready
 	} else {
@@ -72,6 +95,7 @@ func (c *boundedCache) Get(k interface{}, fill func() interface{}) interface{} {
 		v = &cacheValue{ready: make(chan struct{})}
 		c.c.Add(key, v)
 		c.mu.Unlock()
+		c.counter.WithLabelValues("miss").Inc()
 
 		defer close(v.ready)
 		v.value = fill()

@@ -20,7 +20,6 @@ import (
 	"golang.org/x/tools/go/buildutil"
 
 	"github.com/neelance/parallel"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -453,17 +452,6 @@ func maybeLogImportError(pkg string, err error) {
 	if !(isNoGoError || !isMultiplePackageError(err) || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
 		log.Printf("skipping possible package %s: %s", pkg, err)
 	}
-}
-
-var symbolCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Namespace: "golangserver",
-	Subsystem: "symbol",
-	Name:      "cache_request_total",
-	Help:      "Count of requests to cache.",
-}, []string{"type"})
-
-func init() {
-	prometheus.MustRegister(symbolCacheTotal)
 }
 
 // listPkgsUnderDir is buildutil.ExpandPattern(ctxt, []string{dir +
