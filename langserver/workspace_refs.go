@@ -235,6 +235,7 @@ func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath stri
 		return nil, err
 	}
 
+	// NOTE: fields must be kept in sync with symbol.go:symbolEqual
 	desc := lspext.SymbolDescriptor{
 		"vendor":      IsVendorDir(defPkg.Dir),
 		"package":     defPkg.ImportPath,
