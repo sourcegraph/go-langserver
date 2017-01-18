@@ -13,11 +13,11 @@ import (
 var (
 	// typecheckCache is a process level cache for storing typechecked
 	// values. Do not directly use this, instead use newTypecheckCache()
-	typecheckCache = newARC("SRC_TYPECHECK_CACHE_SIZE", 1000)
+	typecheckCache = newLRU("SRC_TYPECHECK_CACHE_SIZE", 1000)
 
 	// symbolCache is a process level cache for storing symbols found. Do
 	// not directly use this, instead use newSymbolCache()
-	symbolCache = newARC("SRC_SYMBOL_CACHE_SIZE", 1000)
+	symbolCache = newLRU("SRC_SYMBOL_CACHE_SIZE", 1000)
 
 	// cacheID is used to prevent key conflicts between different
 	// LangHandlers in the same process.
@@ -76,11 +76,13 @@ type cacheValue struct {
 type boundedCache struct {
 	mu      sync.Mutex
 	id      int64
-	c       *lru.ARCCache
+	c       *lru.Cache
 	counter *prometheus.CounterVec
 }
 
 func (c *boundedCache) Get(k interface{}, fill func() interface{}) interface{} {
+	// c.c is already thread safe, but we need c.mu so we can insert a
+	// cacheValue only once if we have a miss.
 	c.mu.Lock()
 	key := cacheKey{c.id, k}
 	var v *cacheValue
@@ -113,13 +115,13 @@ func (c *boundedCache) Purge() {
 	c.mu.Unlock()
 }
 
-// newARC is a wrapper around lru.NewARC which does not return an error.
-func newARC(env string, defaultSize int) *lru.ARCCache {
+// newLRU returns an LRU based cache.
+func newLRU(env string, defaultSize int) *lru.Cache {
 	size := defaultSize
 	if i, err := strconv.Atoi(os.Getenv(env)); err == nil && i > 0 {
 		size = i
 	}
-	c, err := lru.NewARC(size)
+	c, err := lru.New(size)
 	if err != nil {
 		// This should never happen since our size is always > 0
 		panic(err)
