@@ -269,13 +269,60 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 			"packageName": bpkg.Name,
 			"recv":        recv,
 			"name":        name,
+			"id":          fmt.Sprintf("%s:%s:%s:%s", path.Clean(bpkg.ImportPath), bpkg.Name, recv, name),
 		},
 	}
 }
 
+func parseID(v string) (pkg, packageName, recv, name string) {
+	f := strings.Split(v, ":")
+	if len(f) != 3 && len(f) != 4 {
+		log.Printf("parseID: invalid ID encountered: %q", v)
+		return "", "", "", ""
+	}
+	if len(f) == 3 {
+		return f[0], "", f[1], f[2]
+	}
+	return f[0], f[1], f[2], f[3]
+}
+
+// idEqual tells if two SymbolDescriptor IDs are equal. The Go IDs are in the form:
+//
+//  <package>:<packageName>:<recv>:<name>
+//
+// Additionally, an extra form with <packageName> omitted entirely is supported:
+//
+//  <package>:<recv>:<name>
+//
+// Examples:
+//
+//  github.com/gorilla/mux:mux_test:Router:ServeHTTP
+//  github.com/gorilla/mux:Router:ServeHTTP
+//
+// When <packageName> is omitted in either a or b, idEqual simply makes no
+// comparison of that field. That is,t he above two examples are said to be
+// equal.
+func idEqual(a, b string) bool {
+	aPkg, aPackageName, aRecv, aName := parseID(a)
+	bPkg, bPackageName, bRecv, bName := parseID(b)
+	if aPackageName == "" || bPackageName == "" {
+		return aPkg == bPkg && aRecv == bRecv && aName == bName
+	}
+	return aPkg == bPkg && aPackageName == bPackageName && aRecv == bRecv && aName == bName
+}
+
 // symbolContains tells if a exactly contains b.
+//
+// The only exception is the `id` field, which is treated specially. Instead of
+// a byte-by-byte string comparison, idEqual is used.
 func symbolContains(a, b lspext.SymbolDescriptor) bool {
 	for k, v := range a {
+		if k == "id" {
+			if bv, ok := b[k]; !ok || !idEqual(v.(string), bv.(string)) {
+				return false
+			}
+			continue
+		}
 		if bv, ok := b[k]; !ok || bv != v {
 			return false
 		}

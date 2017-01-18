@@ -242,6 +242,7 @@ func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath stri
 		"packageName": def.PackageName,
 		"recv":        "",
 		"name":        "",
+		"id":          "",
 	}
 
 	fields := strings.Fields(def.Path)
@@ -256,6 +257,7 @@ func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath stri
 	default:
 		panic("invalid def.Path response from internal/refs")
 	}
+	desc["id"] = fmt.Sprintf("%s:%s:%s:%s", desc["package"], desc["packageName"], desc["recv"], desc["name"])
 	return desc, nil
 }
 
