@@ -107,13 +107,9 @@ func TestServer(t *testing.T) {
 					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": ""}}:                  []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
 					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
 
-					// By ID (first form, `<package>:<packageName>:<recv>:<name>`).
+					// By ID.
 					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg:p::B"}}: []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
 					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg:p::A"}}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-
-					// By ID (second form, `<package>:<recv>:<name>`).
-					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg::B"}}: []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg::A"}}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
 				},
 				wantFormatting: map[string]string{
 					"a.go": "package p\n\nfunc A() { A() }\n",
