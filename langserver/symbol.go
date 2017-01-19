@@ -385,9 +385,6 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 		}
 		astPkg := astPkgs[buildPkg.Name]
 		if astPkg == nil {
-			if !strings.HasPrefix(buildPkg.ImportPath, "github.com/golang/go/misc/cgo/") {
-				log.Printf("didn't find build package name %q in parsed AST packages %v", buildPkg.ImportPath, astPkgs)
-			}
 			return nil
 		}
 		// TODO(keegancsmith) Remove vendored doc/go once https://github.com/golang/go/issues/17788 is shipped
