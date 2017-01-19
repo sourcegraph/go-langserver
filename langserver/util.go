@@ -1,6 +1,7 @@
 package langserver
 
 import (
+	"net/url"
 	"os"
 	"strings"
 )
@@ -30,4 +31,45 @@ func pathEqual(a, b string) bool {
 // IsVendorDir tells if the specified directory is a vendor directory.
 func IsVendorDir(dir string) bool {
 	return strings.HasPrefix(dir, "vendor/") || strings.Contains(dir, "/vendor/")
+}
+
+// isUri tells if s denotes an URI
+func isUri(s string) bool {
+	return strings.HasPrefix(s, "file://")
+}
+
+// pathToUri converts given path to file URI
+func pathToUri(path string) string {
+	prefix := "file://"
+	if !strings.HasPrefix(path, "/") {
+		// On Windows there should be triple slash
+		prefix += "/"
+	}
+	path = strings.Replace(path, "\\", "/", -1)
+	// encoding URI components
+	// TODO: wait for net/url: PathEscape, PathUnescape
+	// see https://github.com/golang/go/commit/7e2bf952a905f16a17099970392ea17545cdd193
+	components := strings.Split(path, "/")
+	for i, _ := range components {
+		components[i] = url.QueryEscape(components[i])
+	}
+	return prefix + strings.Join(components, "/")
+}
+
+// uriToPath converts given file URI to path
+func uriToPath(uri string) string {
+	if isUri(uri) {
+		path := strings.TrimPrefix(uri, "file://")
+		// On Windows, VS Code sends "file:///c%3A/..."
+		if unescaped, err := url.QueryUnescape(path); err == nil {
+			path = unescaped
+		}
+		// checking if we have a Windows-style URL such as file:///C:/
+		// if so, removing leading slash
+		if len(path) > 2 && path[0] == '/' && path[2] == ':' {
+			path = path[1:]
+		}
+		return path
+	}
+	return uri
 }
