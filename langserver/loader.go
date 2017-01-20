@@ -12,10 +12,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 
@@ -42,7 +40,7 @@ func (h *LangHandler) typecheck(ctx context.Context, conn JSONRPC2Conn, fileURI 
 		return nil, nil, nil, nil, nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, position.Line, position.Character, why)
 	}
 
-	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
+	bctx := h.BuildContext(ctx)
 
 	bpkg, err := ContainingPackage(bctx, filename)
 	if mpErr, ok := err.(*build.MultiplePackageError); ok {
@@ -83,7 +81,7 @@ func (h *LangHandler) typecheck(ctx context.Context, conn JSONRPC2Conn, fileURI 
 			pp := fset.Position(p)
 			return fmt.Sprintf("%d:%d", pp.Line, pp.Column)
 		}
-		return nil, nil, nil, nil, nil, &invalidNodeError{
+		return fset, nil, nodes, prog, pkg, &invalidNodeError{
 			Node: nodes[0],
 			msg:  fmt.Sprintf("invalid node: %s (%s-%s)", reflect.TypeOf(nodes[0]).Elem(), lineCol(nodes[0].Pos()), lineCol(nodes[0].End())),
 		}
@@ -196,46 +194,24 @@ func (h *LangHandler) cachedTypecheck(ctx context.Context, bctx *build.Context, 
 	ctx = opentracing.ContextWithSpan(ctx, span)
 	defer span.Finish()
 
-	k := typecheckKey{bpkg.ImportPath, bpkg.Dir, bpkg.Name}
-
-	// Acquire a per-K mutex. This prevents us from doing duplicate work to
-	// prepare K. It does not, however, protect against concurrent writes by
-	// multiple K's to h.cache (we use h.mu for that).
-	h.mu.Lock()
-	kmu, ok := h.cacheMus[k]
-	if !ok {
-		kmu = new(sync.Mutex)
-		h.cacheMus[k] = kmu
-	}
-	h.mu.Unlock()
-
-	kmu.Lock()
-	defer kmu.Unlock()
-
-	h.mu.Lock()
-	res, ok := h.cache[k]
-	h.mu.Unlock()
-	span.SetTag("cached", ok)
 	var diags diagnostics
-	if !ok {
-		typecheckCacheTotal.WithLabelValues("miss").Inc()
-		res.fset = token.NewFileSet()
-		res.prog, diags, res.err = typecheck(ctx, res.fset, bctx, bpkg, h.FindPackage)
-		h.mu.Lock()
-		h.cache[k] = res
-		h.mu.Unlock()
-	} else {
-		typecheckCacheTotal.WithLabelValues("hit").Inc()
+	r := h.typecheckCache.Get(typecheckKey{bpkg.ImportPath, bpkg.Dir, bpkg.Name}, func() interface{} {
+		res := &typecheckResult{
+			fset: token.NewFileSet(),
+		}
+		res.prog, diags, res.err = typecheck(ctx, res.fset, bctx, bpkg, h.getFindPackageFunc())
+		return res
+	})
+	if r == nil {
+		// This can happen if we panic
+		return nil, nil, diags, nil
 	}
+	res := r.(*typecheckResult)
 	return res.fset, res.prog, diags, res.err
 }
 
 // TODO(sqs): allow typechecking just a specific file not in a package, too
 func typecheck(ctx context.Context, fset *token.FileSet, bctx *build.Context, bpkg *build.Package, findPackage FindPackageFunc) (*loader.Program, diagnostics, error) {
-	if findPackage == nil {
-		findPackage = defaultFindPackageFunc
-	}
-
 	var typeErrs []error
 	conf := loader.Config{
 		Fset: fset,
@@ -324,15 +300,4 @@ func clearInfoFields(info *loader.PackageInfo) {
 func isMultiplePackageError(err error) bool {
 	_, ok := err.(*build.MultiplePackageError)
 	return ok
-}
-
-var typecheckCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Namespace: "golangserver",
-	Subsystem: "typecheck",
-	Name:      "cache_request_total",
-	Help:      "Count of requests to cache.",
-}, []string{"type"})
-
-func init() {
-	prometheus.MustRegister(typecheckCacheTotal)
 }

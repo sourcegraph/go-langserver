@@ -8,7 +8,6 @@ import (
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -24,9 +23,9 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn JSONRPC2Conn, r
 	return locs, nil
 }
 
-func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lspext.SymbolLocationInformation, error) {
+func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
 	rootPath := h.FilePath(h.init.RootPath)
-	bctx := h.OverlayBuildContext(ctx, h.defaultBuildContext(), !h.init.NoOSFileSystemAccess)
+	bctx := h.BuildContext(ctx)
 
 	fset, node, pathEnclosingInterval, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
@@ -58,10 +57,11 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 	if len(nodes) == 0 {
 		return nil, errors.New("definition not found")
 	}
-	locs := make([]lspext.SymbolLocationInformation, 0, len(nodes))
+	findPackage := h.getFindPackageFunc()
+	locs := make([]symbolLocationInformation, 0, len(nodes))
 	for _, node := range nodes {
 		// Determine location information for the node.
-		l := lspext.SymbolLocationInformation{
+		l := symbolLocationInformation{
 			Location: goRangeToLSPLocation(fset, node.Pos(), node.End()),
 		}
 		// LSP expects a range to be of the entire body, not just of the
@@ -71,7 +71,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 		// Determine metadata information for the node.
 
 		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, node.Pos()); err == nil {
-			symDesc, err := defSymbolDescriptor(bctx, rootPath, *def)
+			symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)

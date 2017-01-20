@@ -117,7 +117,7 @@ func Test_resultSorter(t *testing.T) {
 	for _, test := range tests {
 		results := resultSorter{Query: ParseQuery(test.rawQuery)}
 		for _, s := range test.allSymbols {
-			results.Collect(s)
+			results.Collect(symbolPair{SymbolInformation: s})
 		}
 		sort.Sort(&results)
 		if !reflect.DeepEqual(results.Results(), test.expResults) {
