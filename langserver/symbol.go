@@ -12,7 +12,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -72,11 +71,7 @@ func queryJoin(s, e string) string {
 }
 
 func parseCaseSensitive(q string) (qu Query, fields []string) {
-	reflectVal := reflect.Indirect(reflect.ValueOf(qu)).Type()
-	FieldIndex := reflectVal.NumField() - 1
-	Field := reflectVal.Field(FieldIndex)
-	// Field: %+v: {Name:CaseSensitive PkgPath: Type:bool Tag: Offset:80 Index:[5] Anonymous:false}
-	FieldName := Field.Name
+	FieldName := "CaseSensitive"
 	FieldNamePrefix := fmt.Sprintf("%s:", FieldName)
 
 	for _, field := range strings.Fields(q) {
