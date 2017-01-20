@@ -68,6 +68,11 @@ type ServerCapabilities struct {
 	// XDefinitionProvider indicates the server provides support for
 	// textDocument/xdefinition. This is a Sourcegraph extension.
 	XDefinitionProvider bool `json:"xdefinitionProvider,omitempty"`
+
+	// XWorkspaceSymbolByProperties indicates the server provides support for
+	// querying symbols by properties with WorkspaceSymbolParams.symbol. This
+	// is a Sourcegraph extension.
+	XWorkspaceSymbolByProperties bool `json:"xworkspaceSymbolByProperties,omitempty"`
 }
 
 type CompletionOptions struct {
@@ -140,14 +145,14 @@ type MarkedString struct {
 
 type SignatureHelp struct {
 	Signatures      []SignatureInformation `json:"signatures"`
-	ActiveSignature int                    `json:"activeSignature,omitempty"`
-	ActiveParameter int                    `json:"activeParameter,omitempty"`
+	ActiveSignature int                    `json:"activeSignature"`
+	ActiveParameter int                    `json:"activeParameter"`
 }
 
 type SignatureInformation struct {
 	Label         string                 `json:"label"`
 	Documentation string                 `json:"documentation,omitempty"`
-	Paramaters    []ParameterInformation `json:"paramaters,omitempty"`
+	Parameters    []ParameterInformation `json:"parameters,omitempty"`
 }
 
 type ParameterInformation struct {
@@ -156,7 +161,7 @@ type ParameterInformation struct {
 }
 
 type ReferenceContext struct {
-	IncludeDeclaration bool `json:"IncludeDeclaration"`
+	IncludeDeclaration bool `json:"includeDeclaration"`
 }
 
 type ReferenceParams struct {

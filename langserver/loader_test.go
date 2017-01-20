@@ -41,7 +41,7 @@ func TestLoader(t *testing.T) {
 	for label, tc := range loaderCases {
 		t.Run(label, func(t *testing.T) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
-			p, _, err := typecheck(ctx, fset, bctx, bpkg, nil)
+			p, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc)
 			if err != nil {
 				t.Error(err)
 			}
@@ -68,7 +68,7 @@ func BenchmarkLoader(b *testing.B) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if _, _, err := typecheck(ctx, fset, bctx, bpkg, nil); err != nil {
+				if _, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc); err != nil {
 					b.Error(err)
 				}
 			}
@@ -109,7 +109,7 @@ func TestLoaderDiagnostics(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.FS)
-			_, diag, err := typecheck(ctx, fset, bctx, bpkg, nil)
+			_, diag, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc)
 			if err != nil {
 				t.Error(err)
 			}
@@ -136,7 +136,7 @@ func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context, *bui
 	for filename, contents := range fs {
 		h.addOverlayFile("file://"+filename, []byte(contents))
 	}
-	bctx := h.OverlayBuildContext(nil, &build.Default, false)
+	bctx := h.BuildContext(context.Background())
 	bctx.GOPATH = "/"
 	goFiles := make([]string, 0, len(fs))
 	for n := range fs {

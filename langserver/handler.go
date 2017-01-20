@@ -36,12 +36,8 @@ type LangHandler struct {
 	*HandlerShared
 	init *InitializeParams // set by "initialize" request
 
-	// cached symbols
-	pkgSymCacheMu sync.Mutex
-	pkgSymCache   map[string][]lsp.SymbolInformation
-
-	// cached typechecking results
-	cache map[typecheckKey]*typecheckResult
+	typecheckCache cache
+	symbolCache    cache
 
 	// cache the reverse import graph
 	importGraphOnce sync.Once
@@ -71,19 +67,24 @@ func (h *LangHandler) resetCaches(lock bool) {
 	if lock {
 		h.mu.Lock()
 	}
-	h.cache = map[typecheckKey]*typecheckResult{}
+
 	h.importGraphOnce = sync.Once{}
 	h.importGraph = nil
-	if lock {
-		h.mu.Unlock()
+
+	if h.typecheckCache == nil {
+		h.typecheckCache = newTypecheckCache()
+	} else {
+		h.typecheckCache.Purge()
+	}
+
+	if h.symbolCache == nil {
+		h.symbolCache = newSymbolCache()
+	} else {
+		h.symbolCache.Purge()
 	}
 
 	if lock {
-		h.pkgSymCacheMu.Lock()
-	}
-	h.pkgSymCache = nil
-	if lock {
-		h.pkgSymCacheMu.Unlock()
+		h.mu.Unlock()
 	}
 }
 
@@ -151,8 +152,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 
-		// Assume it's a file path if no the URI has no scheme.
-		if strings.HasPrefix(params.RootPath, "/") {
+		// HACK: RootPath is not a URI, but historically we treated it
+		// as such. Convert it to a file URI
+		if !strings.HasPrefix(params.RootPath, "file://") {
 			params.RootPath = "file://" + params.RootPath
 		}
 
@@ -165,7 +167,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			go func() {
 				ctx, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
 				defer cancel()
-				_, _ = h.handleWorkspaceSymbol(ctx, conn, req, lsp.WorkspaceSymbolParams{
+				_, _ = h.handleWorkspaceSymbol(ctx, conn, req, lspext.WorkspaceSymbolParams{
 					Query: "",
 					Limit: 100,
 				})
@@ -176,12 +178,15 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync:             lsp.TDSKFull,
 				DefinitionProvider:           true,
+				DocumentFormattingProvider:   true,
 				DocumentSymbolProvider:       true,
 				HoverProvider:                true,
 				ReferencesProvider:           true,
 				WorkspaceSymbolProvider:      true,
 				XWorkspaceReferencesProvider: true,
 				XDefinitionProvider:          true,
+				XWorkspaceSymbolByProperties: true,
+				SignatureHelpProvider:        &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
 			},
 		}, nil
 
@@ -245,11 +250,31 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 		return h.handleTextDocumentSymbol(ctx, conn, req, params)
 
+	case "textDocument/signatureHelp":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.TextDocumentPositionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentSignatureHelp(ctx, conn, req, params)
+
+	case "textDocument/formatting":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.DocumentFormattingParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentFormatting(ctx, conn, req, params)
+
 	case "workspace/symbol":
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}
-		var params lsp.WorkspaceSymbolParams
+		var params lspext.WorkspaceSymbolParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
 		}
