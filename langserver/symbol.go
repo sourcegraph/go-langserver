@@ -31,11 +31,11 @@ import (
 // Query is a structured representation that is parsed from the user's
 // raw query string.
 type Query struct {
-	Kind         lsp.SymbolKind
-	Filter       FilterType
-	File, Dir    string
-	Tokens       []string
-	CaseSensitve bool
+	Kind          lsp.SymbolKind
+	Filter        FilterType
+	File, Dir     string
+	Tokens        []string
+	CaseSensitive bool
 }
 
 // String converts the query back into a logically equivalent, but not strictly
@@ -61,7 +61,7 @@ func (q Query) String() string {
 	for _, token := range q.Tokens {
 		s = queryJoin(s, token)
 	}
-	s = queryJoin(s, fmt.Sprintf("CaseSensitve:%v", q.CaseSensitve))
+	s = queryJoin(s, fmt.Sprintf("CaseSensitive:%v", q.CaseSensitive))
 	return s
 }
 
@@ -75,22 +75,22 @@ func parseCaseSensitive(q string) (qu Query, fields []string) {
 	reflectVal := reflect.Indirect(reflect.ValueOf(qu)).Type()
 	FieldIndex := reflectVal.NumField() - 1
 	Field := reflectVal.Field(FieldIndex)
-	// Field: %+v: {Name:CaseSensitve PkgPath: Type:bool Tag: Offset:80 Index:[5] Anonymous:false}
+	// Field: %+v: {Name:CaseSensitive PkgPath: Type:bool Tag: Offset:80 Index:[5] Anonymous:false}
 	FieldName := Field.Name
 	FieldNamePrefix := fmt.Sprintf("%s:", FieldName)
 
 	for _, field := range strings.Fields(q) {
-		// Check if the field is a filter like `CaseSensitve:true`.
+		// Check if the field is a filter like `CaseSensitive:true`.
 		if !strings.HasPrefix(field, FieldNamePrefix) {
 			fields = append(fields, field)
 			continue
 		}
 
 		fieldVal := strings.TrimPrefix(field, FieldNamePrefix)
-		if caseSensitve, err := strconv.ParseBool(fieldVal); err != nil {
-			log.Printf("ParseQuery:CaseSensitve - parse error: %v", err)
+		if caseSensitive, err := strconv.ParseBool(fieldVal); err != nil {
+			log.Printf("ParseQuery:CaseSensitive - parse error: %v", err)
 		} else {
-			qu.CaseSensitve = caseSensitve
+			qu.CaseSensitive = caseSensitive
 		}
 	}
 
@@ -105,7 +105,7 @@ func ParseQuery(q string) (qu Query) {
 
 	// Split the query into space-delimited fields.
 	for _, field := range fields {
-		if !qu.CaseSensitve {
+		if !qu.CaseSensitive {
 			field = strings.ToLower(field)
 		}
 
@@ -292,7 +292,7 @@ func toSym(name, container string, kind lsp.SymbolKind, fs *token.FileSet, pos t
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
 	f := strings.TrimPrefix(params.TextDocument.URI, "file://")
-	return h.handleSymbol(ctx, conn, req, Query{File: f, CaseSensitve: true}, 0)
+	return h.handleSymbol(ctx, conn, req, Query{File: f, CaseSensitive: true}, 0)
 }
 
 // handleSymbol handles `workspace/symbol` requests for the Go
