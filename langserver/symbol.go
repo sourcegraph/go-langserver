@@ -258,9 +258,9 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 
 	var id string
 	if recv == "" {
-		id = fmt.Sprintf("%s/%s/%s", path.Clean(bpkg.ImportPath), bpkg.Name, name)
+		id = fmt.Sprintf("%s/-/%s", path.Clean(bpkg.ImportPath), name)
 	} else {
-		id = fmt.Sprintf("%s/%s/%s/%s", path.Clean(bpkg.ImportPath), bpkg.Name, recv, name)
+		id = fmt.Sprintf("%s/-/%s/%s", path.Clean(bpkg.ImportPath), recv, name)
 	}
 
 	return symbolPair{
