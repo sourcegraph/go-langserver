@@ -139,8 +139,8 @@ func TestQueryString(t *testing.T) {
 		{input: "bar baz", expect: "bar baz CaseSensitive:false"},
 		{input: "CaseSensitive:true bar baz", expect: "bar baz CaseSensitive:true"},
 		{input: "CaseSensitive:false bar baz", expect: "bar baz CaseSensitive:false"},
-		{input: "CaseSensitive:true bar baz Baz BAz file:fileCaseSensitve", expect: "bar baz Baz BAz file:fileCaseSensitve CaseSensitive:true"},
-		{input: "CaseSensitive:false bar baz Baz BAz file:fileCaseInsensitve", expect: "bar baz baz baz file:filecaseinsensitve CaseSensitive:false"},
+		{input: "CaseSensitive:true bar baz Baz BAz file:fileCaseSensitive", expect: "bar baz Baz BAz file:fileCaseSensitive CaseSensitive:true"},
+		{input: "CaseSensitive:false bar baz Baz BAz file:fileCaseInsensitive", expect: "bar baz baz baz file:filecaseinsensitive CaseSensitive:false"},
 		// ---
 
 		// Basic queries.
