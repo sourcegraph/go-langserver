@@ -19,7 +19,13 @@ import (
 func (h *HandlerCommon) InitTracer(conn *jsonrpc2.Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.tracerOK {
+	if h.tracer != nil {
+		return
+	}
+
+	if _, isNoopTracer := opentracing.GlobalTracer().(opentracing.NoopTracer); !isNoopTracer {
+		// We have configured a tracer, use that instead of telemetry/event
+		h.tracer = opentracing.GlobalTracer()
 		return
 	}
 
@@ -27,7 +33,6 @@ func (h *HandlerCommon) InitTracer(conn *jsonrpc2.Conn) {
 	opt := basictracer.DefaultOptions()
 	opt.Recorder = &t
 	h.tracer = basictracer.NewWithOptions(opt)
-	h.tracerOK = true
 	go func() {
 		<-conn.DisconnectNotify()
 		t.mu.Lock()

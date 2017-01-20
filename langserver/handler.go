@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
+
+	"golang.org/x/tools/refactor/importgraph"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -32,13 +36,12 @@ type LangHandler struct {
 	*HandlerShared
 	init *InitializeParams // set by "initialize" request
 
-	// cached symbols
-	pkgSymCacheMu sync.Mutex
-	pkgSymCache   map[string][]lsp.SymbolInformation
+	typecheckCache cache
+	symbolCache    cache
 
-	// cached typechecking results
-	cacheMus map[typecheckKey]*sync.Mutex
-	cache    map[typecheckKey]typecheckResult
+	// cache the reverse import graph
+	importGraphOnce sync.Once
+	importGraph     importgraph.Graph
 }
 
 // reset clears all internal state in h.
@@ -64,18 +67,24 @@ func (h *LangHandler) resetCaches(lock bool) {
 	if lock {
 		h.mu.Lock()
 	}
-	h.cacheMus = map[typecheckKey]*sync.Mutex{}
-	h.cache = map[typecheckKey]typecheckResult{}
-	if lock {
-		h.mu.Unlock()
+
+	h.importGraphOnce = sync.Once{}
+	h.importGraph = nil
+
+	if h.typecheckCache == nil {
+		h.typecheckCache = newTypecheckCache()
+	} else {
+		h.typecheckCache.Purge()
+	}
+
+	if h.symbolCache == nil {
+		h.symbolCache = newSymbolCache()
+	} else {
+		h.symbolCache.Purge()
 	}
 
 	if lock {
-		h.pkgSymCacheMu.Lock()
-	}
-	h.pkgSymCache = nil
-	if lock {
-		h.pkgSymCacheMu.Unlock()
+		h.mu.Unlock()
 	}
 }
 
@@ -143,22 +152,41 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			return nil, err
 		}
 
-		// Assume it's a file path if no the URI has no scheme.
-		if strings.HasPrefix(params.RootPath, "/") {
+		// HACK: RootPath is not a URI, but historically we treated it
+		// as such. Convert it to a file URI
+		if !strings.HasPrefix(params.RootPath, "file://") {
 			params.RootPath = "file://" + params.RootPath
 		}
 
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
+
+		// PERF: Kick off a workspace/symbol in the background to warm up the server
+		if yes, _ := strconv.ParseBool(envWarmupOnInitialize); yes {
+			go func() {
+				ctx, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
+				defer cancel()
+				_, _ = h.handleWorkspaceSymbol(ctx, conn, req, lspext.WorkspaceSymbolParams{
+					Query: "",
+					Limit: 100,
+				})
+			}()
+		}
+
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
-				TextDocumentSync:        lsp.TDSKFull,
-				DefinitionProvider:      true,
-				DocumentSymbolProvider:  true,
-				HoverProvider:           true,
-				ReferencesProvider:      true,
-				WorkspaceSymbolProvider: true,
+				TextDocumentSync:             lsp.TDSKFull,
+				DefinitionProvider:           true,
+				DocumentFormattingProvider:   true,
+				DocumentSymbolProvider:       true,
+				HoverProvider:                true,
+				ReferencesProvider:           true,
+				WorkspaceSymbolProvider:      true,
+				XWorkspaceReferencesProvider: true,
+				XDefinitionProvider:          true,
+				XWorkspaceSymbolByProperties: true,
+				SignatureHelpProvider:        &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
 			},
 		}, nil
 
@@ -192,6 +220,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 		return h.handleDefinition(ctx, conn, req, params)
 
+	case "textDocument/xdefinition":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.TextDocumentPositionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleXDefinition(ctx, conn, req, params)
+
 	case "textDocument/references":
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
@@ -212,25 +250,45 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 		return h.handleTextDocumentSymbol(ctx, conn, req, params)
 
+	case "textDocument/signatureHelp":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.TextDocumentPositionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentSignatureHelp(ctx, conn, req, params)
+
+	case "textDocument/formatting":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.DocumentFormattingParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentFormatting(ctx, conn, req, params)
+
 	case "workspace/symbol":
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}
-		var params lsp.WorkspaceSymbolParams
+		var params lspext.WorkspaceSymbolParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
 		}
 		return h.handleWorkspaceSymbol(ctx, conn, req, params)
 
-	case "workspace/reference":
+	case "workspace/xreferences":
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}
-		var params lspext.WorkspaceReferenceParams
+		var params lspext.WorkspaceReferencesParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
 		}
-		return h.handleWorkspaceReference(ctx, conn, req, params)
+		return h.handleWorkspaceReferences(ctx, conn, req, params)
 
 	default:
 		if IsFileSystemRequest(req.Method) {
