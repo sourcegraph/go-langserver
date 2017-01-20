@@ -7,18 +7,15 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
-
-	"golang.org/x/net/websocket"
 
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 var (
-	mode    = flag.String("mode", "ws", "communication mode (stdio|tcp|ws)")
-	addr    = flag.String("addr", ":4389", "server listen address (tcp|ws)")
+	mode    = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
+	addr    = flag.String("addr", ":4389", "server listen address (tcp)")
 	trace   = flag.Bool("trace", false, "print all requests and responses")
 	logfile = flag.String("logfile", "", "also log to this file (in addition to stderr)")
 )
@@ -68,15 +65,6 @@ func run() error {
 			}
 			jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), langserver.NewHandler(), connOpt...)
 		}
-
-	case "ws":
-		handler := websocket.Handler(func(ws *websocket.Conn) {
-			<-jsonrpc2.NewConn(context.Background(), ws, langserver.NewHandler(), connOpt...).DisconnectNotify()
-		})
-		log.Println("langserver-go: websocket listening on", *addr)
-		http.Handle("/ws", handler)
-		err := http.ListenAndServe(*addr, nil)
-		return err
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
