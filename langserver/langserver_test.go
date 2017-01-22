@@ -43,10 +43,10 @@ func TestServer(t *testing.T) {
 					"b.go:1:23": "func A()",
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:17": "/src/test/pkg/a.go:1:17",
-					"a.go:1:23": "/src/test/pkg/a.go:1:17",
-					"b.go:1:17": "/src/test/pkg/b.go:1:17",
-					"b.go:1:23": "/src/test/pkg/a.go:1:17",
+					"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
+					"a.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
+					"b.go:1:17": "/src/test/pkg/b.go:1:17-1:18",
+					"b.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:17": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
@@ -181,11 +181,11 @@ func TestServer(t *testing.T) {
 					"d2/b.go:1:52": "func B()",
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:17":    "/src/test/pkg/d/a.go:1:17",
-					"a.go:1:23":    "/src/test/pkg/d/a.go:1:17",
-					"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39",
-					"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17",
-					"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39",
+					"a.go:1:17":    "/src/test/pkg/d/a.go:1:17-1:18",
+					"a.go:1:23":    "/src/test/pkg/d/a.go:1:17-1:18",
+					"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39-1:40",
+					"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17-1:18",
+					"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39-1:40",
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:17":    "/src/test/pkg/d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
@@ -283,8 +283,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					// "main.go:3:52": "func B()", // B()
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:17": "/src/test/pkg/a.go:1:17",
-					"a.go:1:23": "/src/test/pkg/a.go:1:17",
+					"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
+					"a.go:1:23": "/src/test/pkg/a.go:1:17-1:18",
 					// Not parsing build-tag-ignored files:
 					//
 					// "main.go:3:39": "/src/test/pkg/main.go:3:39", // B() -> func B()
@@ -322,7 +322,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					// "a.go:1:53": "type int int",
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:40": "/goroot/src/fmt/print.go:1:19",
+					"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
 					// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
 				},
 				wantXDefinition: map[string]string{
@@ -364,9 +364,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"b/b.go:1:43": "func A()",
 				},
 				wantDefinition: map[string]string{
-					"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17",
+					"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17-1:18",
 					// "b/b.go:1:20": "/src/test/pkg/a", // TODO(sqs): make import paths hoverable
-					"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17",
+					"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17-1:18",
 				},
 				wantXDefinition: map[string]string{
 					"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
@@ -409,7 +409,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"a.go:1:61": "func V()",
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24",
+					"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24-1:25",
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24 id:test/pkg/vendor/github.com/v/vendored/-/V name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
@@ -492,7 +492,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"a.go:1:51": "func D()",
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:51": "/src/github.com/d/dep/d.go:1:19",
+					"a.go:1:51": "/src/github.com/d/dep/d.go:1:19-1:20",
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:51": "/src/github.com/d/dep/d.go:1:19 id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
@@ -528,7 +528,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			cases: lspTestCases{
 				wantDefinition: map[string]string{
-					"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32",
+					"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32-1:33",
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32 id:github.com/d/dep/vendor/vendp/-/V/F name:F package:github.com/d/dep/vendor/vendp packageName:vendp recv:V vendor:true",
@@ -557,7 +557,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"a.go:1:57": "func D()",
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20",
+					"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20-1:21",
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20 id:github.com/d/dep/subp/-/D name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
@@ -589,8 +589,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"a.go:1:59": "struct field D2 int",
 				},
 				wantDefinition: map[string]string{
-					"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48", // func D1
-					"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32", // field D2
+					"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48-1:50", // func D1
+					"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32-1:34", // field D2
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
@@ -1129,7 +1129,7 @@ func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, cha
 		if i != 0 {
 			str += ", "
 		}
-		str += fmt.Sprintf("%s:%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1)
+		str += fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1)
 	}
 	return str, nil
 }
