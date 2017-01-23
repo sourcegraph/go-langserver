@@ -249,26 +249,26 @@ func TestServer(t *testing.T) {
 
 					// Matching against a dirs hint with multiple dirs.
 					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d2", "file:///src/test/pkg/d/invalid"}}}: []string{
-						"/src/test/pkg/d/d2/b.go:1:20-1:20 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-						"/src/test/pkg/d/d2/b.go:1:47-1:47 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 					},
 
 					// Matching against a dirs hint.
 					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d2"}}}: []string{
-						"/src/test/pkg/d/d2/b.go:1:20-1:20 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-						"/src/test/pkg/d/d2/b.go:1:47-1:47 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 					},
 
 					// Matching against single field.
 					{Query: lspext.SymbolDescriptor{"package": "test/pkg/d"}}: []string{
-						"/src/test/pkg/d/d2/b.go:1:20-1:20 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-						"/src/test/pkg/d/d2/b.go:1:47-1:47 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 					},
 
 					// Matching against no fields.
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/d/d2/b.go:1:20-1:20 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-						"/src/test/pkg/d/d2/b.go:1:47-1:47 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
+						"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 					},
 					{
 						Query: lspext.SymbolDescriptor{
@@ -278,7 +278,7 @@ func TestServer(t *testing.T) {
 							"recv":        "",
 							"vendor":      false,
 						},
-					}: []string{"/src/test/pkg/d/d2/b.go:1:20-1:20 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false"},
+					}: []string{"/src/test/pkg/d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false"},
 					{
 						Query: lspext.SymbolDescriptor{
 							"name":        "A",
@@ -287,7 +287,7 @@ func TestServer(t *testing.T) {
 							"recv":        "",
 							"vendor":      false,
 						},
-					}: []string{"/src/test/pkg/d/d2/b.go:1:47-1:47 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false"},
+					}: []string{"/src/test/pkg/d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false"},
 				},
 			},
 		},
@@ -373,8 +373,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a.go:1:19-1:19 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-						"/src/test/pkg/a.go:1:38-1:38 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/a.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/a.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
 					},
 				},
 			},
@@ -424,8 +424,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/b/b.go:1:19-1:19 -> id:test/pkg/a name: package:test/pkg/a packageName:a recv: vendor:false",
-						"/src/test/pkg/b/b.go:1:43-1:43 -> id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
+						"/src/test/pkg/b/b.go:1:19-1:31 -> id:test/pkg/a name: package:test/pkg/a packageName:a recv: vendor:false",
+						"/src/test/pkg/b/b.go:1:43-1:44 -> id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
 					},
 				},
 			},
@@ -465,8 +465,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a.go:1:19-1:19 -> id:test/pkg/vendor/github.com/v/vendored name: package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
-						"/src/test/pkg/a.go:1:61-1:61 -> id:test/pkg/vendor/github.com/v/vendored/-/V name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
+						"/src/test/pkg/a.go:1:19-1:42 -> id:test/pkg/vendor/github.com/v/vendored name: package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
+						"/src/test/pkg/a.go:1:61-1:62 -> id:test/pkg/vendor/github.com/v/vendored/-/V name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
 					},
 				},
 			},
@@ -540,9 +540,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a.go:1:19-1:19 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
-						"/src/test/pkg/a.go:1:51-1:51 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
-						"/src/test/pkg/a.go:1:66-1:66 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
+						"/src/test/pkg/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
+						"/src/test/pkg/a.go:1:51-1:52 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
+						"/src/test/pkg/a.go:1:66-1:67 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
 					},
 				},
 			},
@@ -567,9 +567,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a.go:1:19-1:19 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
-						"/src/test/pkg/a.go:1:55-1:55 -> id:github.com/d/dep/vendor/vendp/-/V/F name:F package:github.com/d/dep/vendor/vendp packageName:vendp recv:V vendor:true",
-						"/src/test/pkg/a.go:1:51-1:51 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
+						"/src/test/pkg/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
+						"/src/test/pkg/a.go:1:55-1:56 -> id:github.com/d/dep/vendor/vendp/-/V/F name:F package:github.com/d/dep/vendor/vendp packageName:vendp recv:V vendor:true",
+						"/src/test/pkg/a.go:1:51-1:52 -> id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
 					},
 				},
 			},
@@ -596,8 +596,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a.go:1:19-1:19 -> id:github.com/d/dep/subp name: package:github.com/d/dep/subp packageName:subp recv: vendor:false",
-						"/src/test/pkg/a.go:1:57-1:57 -> id:github.com/d/dep/subp/-/D name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
+						"/src/test/pkg/a.go:1:19-1:42 -> id:github.com/d/dep/subp name: package:github.com/d/dep/subp packageName:subp recv: vendor:false",
+						"/src/test/pkg/a.go:1:57-1:58 -> id:github.com/d/dep/subp/-/D name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
 					},
 				},
 			},
@@ -630,9 +630,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a.go:1:19-1:19 -> id:github.com/d/dep1 name: package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
-						"/src/test/pkg/a.go:1:58-1:58 -> id:github.com/d/dep2/-/D2/D2 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
-						"/src/test/pkg/a.go:1:53-1:53 -> id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
+						"/src/test/pkg/a.go:1:19-1:38 -> id:github.com/d/dep1 name: package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
+						"/src/test/pkg/a.go:1:58-1:60 -> id:github.com/d/dep2/-/D2/D2 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
+						"/src/test/pkg/a.go:1:53-1:55 -> id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
 					},
 				},
 			},
@@ -752,12 +752,12 @@ type Header struct {
 			cases: lspTestCases{
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a.go:1:19-1:19 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-						"/src/test/pkg/a.go:1:38-1:38 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
-						"/src/test/pkg/b.go:1:19-1:19 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-						"/src/test/pkg/b.go:1:38-1:38 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
-						"/src/test/pkg/c.go:1:19-1:19 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
-						"/src/test/pkg/c.go:1:38-1:38 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/a.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/a.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/b.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/b.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/c.go:1:19-1:24 -> id:fmt name: package:fmt packageName:fmt recv: vendor:false",
+						"/src/test/pkg/c.go:1:38-1:45 -> id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
 					},
 				},
 			},
