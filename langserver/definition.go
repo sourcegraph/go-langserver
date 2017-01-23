@@ -32,7 +32,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
 		if _, ok := err.(*invalidNodeError); ok {
-			return nil, nil
+			return []symbolLocationInformation{}, nil
 		}
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 			//
 			// TODO(sqs): find a way to actually emit builtin locations
 			// (pointing to builtin/builtin.go).
-			return nil, nil
+			return []symbolLocationInformation{}, nil
 		}
 	}
 	if len(nodes) == 0 {
@@ -64,12 +64,8 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn JSONRPC2Conn, 
 		l := symbolLocationInformation{
 			Location: goRangeToLSPLocation(fset, node.Pos(), node.End()),
 		}
-		// LSP expects a range to be of the entire body, not just of the
-		// identifier, so we pretend its just a position and not a range.
-		l.Location.Range.End = l.Location.Range.Start
 
 		// Determine metadata information for the node.
-
 		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, node.Pos()); err == nil {
 			symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, *def, findPackage)
 			if err != nil {
