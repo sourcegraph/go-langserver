@@ -38,8 +38,20 @@ const (
 	TDSKIncremental                      = 2
 )
 
+type TextDocumentSyncOptions struct {
+	OpenClose         bool                 `json:"openClose,omitempty"`
+	Change            TextDocumentSyncKind `json:"change"`
+	WillSave          bool                 `json:"willSave,omitempty"`
+	WillSaveWaitUntil bool                 `json:"willSaveWaitUntil,omitempty"`
+	Save              *SaveOptions         `json:"save,omitempty"`
+}
+
+type SaveOptions struct {
+	IncludeText bool `json:"includeText"`
+}
+
 type ServerCapabilities struct {
-	TextDocumentSync                 int                              `json:"textDocumentSync,omitempty"`
+	TextDocumentSync                 TextDocumentSyncOptions          `json:"textDocumentSync,omitempty"`
 	HoverProvider                    bool                             `json:"hoverProvider,omitempty"`
 	CompletionProvider               *CompletionOptions               `json:"completionProvider,omitempty"`
 	SignatureHelpProvider            *SignatureHelpOptions            `json:"signatureHelpProvider,omitempty"`

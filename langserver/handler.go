@@ -179,7 +179,10 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
-				TextDocumentSync:             lsp.TDSKFull,
+				TextDocumentSync: lsp.TextDocumentSyncOptions{
+					OpenClose: true,
+					Change:    lsp.TDSKFull,
+				},
 				DefinitionProvider:           true,
 				DocumentFormattingProvider:   true,
 				DocumentSymbolProvider:       true,
