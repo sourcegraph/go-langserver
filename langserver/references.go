@@ -26,7 +26,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
 		if _, ok := err.(*invalidNodeError); ok {
-			return nil, nil
+			return []lsp.Location{}, nil
 		}
 		return nil, err
 	}
@@ -54,6 +54,11 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	}
 
 	if obj.Pkg() == nil {
+		if _, builtin := obj.(*types.Builtin); builtin {
+			// We don't support builtin references due to the massive number
+			// of references, so ignore the missing package error.
+			return []lsp.Location{}, nil
+		}
 		return nil, fmt.Errorf("no package found for object %s", obj)
 	}
 	defpkg := obj.Pkg().Path()
