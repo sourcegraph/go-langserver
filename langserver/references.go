@@ -164,6 +164,15 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 
 	locs := goRangesToLSPLocations(fset, refs)
 	sortBySharedDirWithURI(params.TextDocument.URI, locs)
+
+	// Technically we may be able to stop computing references sooner and
+	// save RAM/CPU, but currently that would have two drawbacks:
+	// * We can't stop the typechecking anyways
+	// * We may return results that are not as interesting since sortBySharedDirWithURI won't see everything.
+	if params.Context.XLimit > 0 && params.Context.XLimit < len(locs) {
+		locs = locs[:params.Context.XLimit]
+	}
+
 	return locs, nil
 }
 
