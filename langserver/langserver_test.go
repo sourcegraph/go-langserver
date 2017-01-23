@@ -166,6 +166,28 @@ func TestServer(t *testing.T) {
 				},
 			},
 		},
+		"go test": {
+			rootPath: "file:///src/test/pkg",
+			fs: map[string]string{
+				"a.go":      "package p; var A int",
+				"a_test.go": `package p; import "test/pkg/b"; var X = b.B`,
+				"b/b.go":    "package b; var B int; func C() int { return B };",
+			},
+			cases: lspTestCases{
+				wantHover: map[string]string{
+					"a_test.go:1:37": "var X int",
+					"a_test.go:1:43": "var B int",
+				},
+				wantReferences: map[string][]string{
+					"a_test.go:1:43": []string{
+						"/src/test/pkg/a_test.go:1:43",
+						"/src/test/pkg/b/b.go:1:16",
+						"/src/test/pkg/b/b.go:1:45",
+					},
+					// "a_test.go:1:41": []string{}, // currently failing to do references on the pkg. eg for `b.B`, we return an error for refs on `b`.
+				},
+			},
+		},
 		"go subdirectory in repo": {
 			rootPath: "file:///src/test/pkg/d",
 			fs: map[string]string{
@@ -380,6 +402,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"b/b.go:1:43": []string{ // calling "references" on call site should return same result as on decl
 						"/src/test/pkg/a/a.go:1:17",
 						"/src/test/pkg/b/b.go:1:43",
+					},
+					"b/b.go:1:41": []string{ // calling "references" on package
+						"/src/test/pkg/b/b.go:1:19",
+						"/src/test/pkg/b/b.go:1:41",
 					},
 				},
 				wantSymbols: map[string][]string{
