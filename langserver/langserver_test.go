@@ -170,7 +170,7 @@ func TestServer(t *testing.T) {
 			rootPath: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go":      "package p; var A int",
-				"a_test.go": `package p; import "test/pkg/b"; var X = b.B`,
+				"a_test.go": `package p; import "test/pkg/b"; var X = b.B; func TestB() {}`,
 				"b/b.go":    "package b; var B int; func C() int { return B };",
 			},
 			cases: lspTestCases{
@@ -184,7 +184,13 @@ func TestServer(t *testing.T) {
 						"/src/test/pkg/b/b.go:1:16",
 						"/src/test/pkg/b/b.go:1:45",
 					},
-					// "a_test.go:1:41": []string{}, // currently failing to do references on the pkg. eg for `b.B`, we return an error for refs on `b`.
+					"a_test.go:1:41": []string{
+						"/src/test/pkg/a_test.go:1:19",
+						"/src/test/pkg/a_test.go:1:41",
+					},
+					"a_test.go:1:51": []string{
+						"/src/test/pkg/a_test.go:1:51",
+					},
 				},
 			},
 		},
