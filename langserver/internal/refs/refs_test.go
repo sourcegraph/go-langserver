@@ -64,8 +64,8 @@ func TestParseFile(t *testing.T) {
 		}
 	}
 	type posRef struct {
-		Def      Def
-		Position token.Position
+		Def        Def
+		Start, End token.Position
 	}
 	cases := []struct {
 		Filename string
@@ -78,56 +78,56 @@ func TestParseFile(t *testing.T) {
 		{
 			Filename: "testdata/imports.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Position: pos("testdata/imports.go:3:8 (offset 21)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Start: pos("testdata/imports.go:3:8 (offset 21)"), End: pos("testdata/imports.go:3:18 (offset 31)")},
 			},
 		},
 		{
 			Filename: "testdata/unmatching-imports.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: ""}, Position: pos("testdata/unmatching-imports.go:3:8 (offset 21)")},
-				&posRef{Def: Def{ImportPath: "gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: "Crit"}, Position: pos("testdata/unmatching-imports.go:6:8 (offset 124)")},
+				&posRef{Def: Def{ImportPath: "gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: ""}, Start: pos("testdata/unmatching-imports.go:3:8 (offset 21)"), End: pos("testdata/unmatching-imports.go:3:49 (offset 62)")},
+				&posRef{Def: Def{ImportPath: "gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: "Crit"}, Start: pos("testdata/unmatching-imports.go:6:8 (offset 124)"), End: pos("testdata/unmatching-imports.go:6:12 (offset 128)")},
 			},
 		},
 		{
 			Filename: "testdata/http-request-headers.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Position: pos("testdata/http-request-headers.go:4:2 (offset 24)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Request"}, Position: pos("testdata/http-request-headers.go:8:13 (offset 78)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Request Header"}, Position: pos("testdata/http-request-headers.go:9:4 (offset 113)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Request Header"}, Position: pos("testdata/http-request-headers.go:11:4 (offset 172)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Start: pos("testdata/http-request-headers.go:4:2 (offset 24)"), End: pos("testdata/http-request-headers.go:4:12 (offset 34)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Request"}, Start: pos("testdata/http-request-headers.go:8:13 (offset 78)"), End: pos("testdata/http-request-headers.go:8:20 (offset 85)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Request Header"}, Start: pos("testdata/http-request-headers.go:9:4 (offset 113)"), End: pos("testdata/http-request-headers.go:9:10 (offset 119)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Request Header"}, Start: pos("testdata/http-request-headers.go:11:4 (offset 172)"), End: pos("testdata/http-request-headers.go:11:10 (offset 178)")},
 			},
 		},
 		{
 			Filename: "testdata/convoluted.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Position: pos("testdata/convoluted.go:3:8 (offset 21)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Position: pos("testdata/convoluted.go:6:10 (offset 84)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper RoundTrip"}, Position: pos("testdata/convoluted.go:15:14 (offset 188)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client Transport"}, Position: pos("testdata/convoluted.go:15:4 (offset 178)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper RoundTrip"}, Position: pos("testdata/convoluted.go:19:25 (offset 310)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client Transport"}, Position: pos("testdata/convoluted.go:19:15 (offset 300)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Start: pos("testdata/convoluted.go:3:8 (offset 21)"), End: pos("testdata/convoluted.go:3:25 (offset 38)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Start: pos("testdata/convoluted.go:6:10 (offset 84)"), End: pos("testdata/convoluted.go:6:16 (offset 90)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper RoundTrip"}, Start: pos("testdata/convoluted.go:15:14 (offset 188)"), End: pos("testdata/convoluted.go:15:23 (offset 197)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client Transport"}, Start: pos("testdata/convoluted.go:15:4 (offset 178)"), End: pos("testdata/convoluted.go:15:13 (offset 187)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper RoundTrip"}, Start: pos("testdata/convoluted.go:19:25 (offset 310)"), End: pos("testdata/convoluted.go:19:34 (offset 319)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client Transport"}, Start: pos("testdata/convoluted.go:19:15 (offset 300)"), End: pos("testdata/convoluted.go:19:24 (offset 309)")},
 			},
 		},
 		{
 			Filename: "testdata/defs.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Position: pos("testdata/defs.go:3:8 (offset 21)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Position: pos("testdata/defs.go:6:10 (offset 78)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper"}, Position: pos("testdata/defs.go:7:9 (offset 119)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Position: pos("testdata/defs.go:10:21 (offset 182)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Position: pos("testdata/defs.go:12:12 (offset 246)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper"}, Position: pos("testdata/defs.go:13:11 (offset 295)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Position: pos("testdata/defs.go:20:13 (offset 392)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Start: pos("testdata/defs.go:3:8 (offset 21)"), End: pos("testdata/defs.go:3:18 (offset 31)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Start: pos("testdata/defs.go:6:10 (offset 78)"), End: pos("testdata/defs.go:6:16 (offset 84)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper"}, Start: pos("testdata/defs.go:7:9 (offset 119)"), End: pos("testdata/defs.go:7:21 (offset 131)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Start: pos("testdata/defs.go:10:21 (offset 182)"), End: pos("testdata/defs.go:10:27 (offset 188)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Start: pos("testdata/defs.go:12:12 (offset 246)"), End: pos("testdata/defs.go:12:18 (offset 252)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper"}, Start: pos("testdata/defs.go:13:11 (offset 295)"), End: pos("testdata/defs.go:13:23 (offset 307)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Start: pos("testdata/defs.go:20:13 (offset 392)"), End: pos("testdata/defs.go:20:19 (offset 398)")},
 			},
 		},
 		{
 			Filename: "testdata/vars.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Position: pos("testdata/vars.go:3:8 (offset 21)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Position: pos("testdata/vars.go:6:14 (offset 74)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper"}, Position: pos("testdata/vars.go:8:12 (offset 124)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client Transport"}, Position: pos("testdata/vars.go:12:3 (offset 225)")},
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Position: pos("testdata/vars.go:11:12 (offset 194)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Start: pos("testdata/vars.go:3:8 (offset 21)"), End: pos("testdata/vars.go:3:18 (offset 31)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Start: pos("testdata/vars.go:6:14 (offset 74)"), End: pos("testdata/vars.go:6:20 (offset 80)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "RoundTripper"}, Start: pos("testdata/vars.go:8:12 (offset 124)"), End: pos("testdata/vars.go:8:24 (offset 136)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client Transport"}, Start: pos("testdata/vars.go:12:3 (offset 225)"), End: pos("testdata/vars.go:12:12 (offset 234)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: "Client"}, Start: pos("testdata/vars.go:11:12 (offset 194)"), End: pos("testdata/vars.go:11:18 (offset 200)")},
 			},
 		},
 	}
@@ -146,8 +146,9 @@ func TestParseFile(t *testing.T) {
 			var allRefs []*posRef
 			err = cfg.Refs(func(r *Ref) {
 				allRefs = append(allRefs, &posRef{
-					Def:      r.Def,
-					Position: fs.Position(r.Pos),
+					Def:   r.Def,
+					Start: fs.Position(r.Start),
+					End:   fs.Position(r.End),
 				})
 			})
 			if err != nil {
@@ -168,11 +169,11 @@ func TestParseFile(t *testing.T) {
 				if !reflect.DeepEqual(ref, c.Want[i]) {
 					t.Log("got", len(allRefs), "refs:")
 					for i, r := range allRefs {
-						t.Logf("    %d. %+v\n", i, r)
+						t.Logf("    %d. %+v (offset start=%d end=%d)\n", i, r, r.Start.Offset, r.End.Offset)
 					}
 					t.Log("want", len(c.Want), "refs:")
 					for i, r := range c.Want {
-						t.Logf("    %d. %+v\n", i, r)
+						t.Logf("    %d. %+v (offset start=%d end=%d)\n", i, r, r.Start.Offset, r.End.Offset)
 					}
 					t.FailNow()
 				}
