@@ -164,6 +164,19 @@ func TestServer(t *testing.T) {
 					"a_test.go:1:40": "var X int",
 					"a_test.go:1:46": "var A int",
 				},
+				wantReferences: map[string][]string{
+					"a.go:1:16": []string{
+						"/src/test/pkg/a.go:1:16",
+						// "/src/test/pkg/a_test.go:1:46", // we do not support xtest refs yet
+					},
+					"a_test.go:1:46": []string{
+						"/src/test/pkg/a.go:1:16",
+						// "/src/test/pkg/a_test.go:1:46", // we do not support xtest refs yet
+					},
+					"a_test.go:1:40": []string{
+						"/src/test/pkg/a_test.go:1:40",
+					},
+				},
 			},
 		},
 		"go test": {
