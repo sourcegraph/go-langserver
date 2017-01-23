@@ -2,15 +2,8 @@
 	"version": "0.1.0",
 	"command": "npm",
 	"isShellCommand": true,
-	"showOutput": "always",
+	"showOutput": "silent",
 	"args": ["run", "compile", "--loglevel", "silent"],
-
-	// "options": {
-	// 	"env": {
-	// 		"ELECTRON_ENABLE_LOGGING": "true",
-	// 		"NODE_DEBUG": "cluster,net,http,fs,tls,module,timers node"
-	// 	}
-	// },
-
-	"isWatching": false
+	"isWatching": true,
+	"problemMatcher": ["$tsc-watch", "$go"]
 }

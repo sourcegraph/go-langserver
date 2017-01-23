@@ -4,32 +4,43 @@
  * ------------------------------------------------------------------------------------------ */
 'use strict';
 
+import * as net from 'net';
+
 import { Disposable, ExtensionContext, Uri, workspace } from 'vscode';
-import { GoLanguageClient } from './go-language-client';
-import * as _ from 'lodash';
+import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, ErrorAction, ErrorHandler, CloseAction, TransportKind } from 'vscode-languageclient';
 
 export function activate(context: ExtensionContext) {
+	const c = new LanguageClient(
+		'langserver-go',
+		{
+			command: 'langserver-go',
+			args: [
+				'-mode=stdio',
+
+				// Uncomment for verbose logging to the vscode
+				// "Output" pane and to a temporary file:
+				//
+				// '-trace', '-logfile=/tmp/langserver-go.log',
+			],
+		},
+		{
+			documentSelector: ['go'],
+			uriConverters: {
+				// Apply file:/// scheme to all file paths.
+				code2Protocol: (uri: Uri): string => (uri.scheme ? uri : uri.with({scheme: 'file'})).toString(),
+				protocol2Code: (uri: string) => Uri.parse(uri),
+			},
+		}
+	);
+	context.subscriptions.push(c.start());
+
 	// Update GOPATH, GOROOT, etc., when config changes.
 	updateEnvFromConfig();
-	context.subscriptions.push(workspace.onDidChangeConfiguration(() => {
-		updateEnvFromConfig();
-	}));
-
-	let languageClient = new GoLanguageClient().start();
-	context.subscriptions.push(languageClient);
+	context.subscriptions.push(workspace.onDidChangeConfiguration(updateEnvFromConfig));
 }
 
 function updateEnvFromConfig() {
 	const conf = workspace.getConfiguration('go');
-
-	// // search for refreshTrace
-	// const langserverConf = workspace.getConfiguration('langserver-go');
-	// let keys = ['trace.server', 'transportKind.server'];
-	// _.each(keys, key => {
-	// 	let val = langserverConf.get(key);
-	// 	console.info('langserverConf - key: %s, value: %s', key, val);
-	// });
-
 	if (conf['goroot']) {
 		process.env.GOROOT = conf['goroot'];
 	}
@@ -37,15 +48,3 @@ function updateEnvFromConfig() {
 		process.env.GOPATH = conf['gopath'];
 	}
 }
-
-
-	// private refreshTrace(connection: IConnection, sendNotification: boolean = false): void {
-	// 	let config = Workspace.getConfiguration(this._id);
-	// 	let trace: Trace = Trace.Off;
-	// 	if (config) {
-	// 		trace = Trace.fromString(config.get('trace.server', 'off'));
-	// 	}
-	// 	this._trace = trace;
-	// 	connection.trace(this._trace, this._tracer, sendNotification);
-	// }
-

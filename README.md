@@ -7,9 +7,3 @@ The `./vscode` directory contains a [Visual Studio Code](https://code.visualstud
 **Status: experimental**
 
 [**Open in Sourcegraph**](https://sourcegraph.com/github.com/sourcegraph/go-langserver/-/tree/langserver)
-
-# WebSocket
-
-```sh
-npm run build
-```
