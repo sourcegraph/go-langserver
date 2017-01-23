@@ -147,13 +147,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	}
 
 	lconf.Load() // ignore error
-	if afterTypeCheckErr != nil {
-		// Only triggered by 1 specific error above (where we assign
-		// afterTypeCheckErr), not any general loader error.
-		return nil, afterTypeCheckErr
-	}
 
 	if qobj == nil {
+		if afterTypeCheckErr != nil {
+			// Only triggered by 1 specific error above (where we assign
+			// afterTypeCheckErr), not any general loader error.
+			return nil, afterTypeCheckErr
+		}
 		return nil, errors.New("query object not found during reloading")
 	}
 
