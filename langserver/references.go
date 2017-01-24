@@ -202,6 +202,9 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	}
 
 	if qobj == nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		if afterTypeCheckErr != nil {
 			// Only triggered by 1 specific error above (where we assign
 			// afterTypeCheckErr), not any general loader error.
