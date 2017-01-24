@@ -8,7 +8,9 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"log"
 	"path"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +23,14 @@ import (
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
+	// TODO: Add support for the cancelRequest LSP method instead of using
+	// hard-coded timeouts like this here.
+	//
+	// See: https://github.com/Microsoft/language-server-protocol/blob/master/protocol.md#cancelRequest
+	// We just use the same timeout as workspace/xreferences
+	ctx, cancel := context.WithTimeout(ctx, workspaceReferencesTimeout)
+	defer cancel()
+
 	fset, node, _, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
@@ -86,6 +96,10 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		Fset:  fset,
 		Build: bctx,
 		TypeCheckFuncBodies: func(path string) bool {
+			if ctx.Err() != nil {
+				return false
+			}
+
 			// Don't typecheck func bodies in dependency packages
 			// (except the package that defines the object), because
 			// we wouldn't return those refs anyway.
@@ -152,7 +166,33 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		clearInfoFields(info) // save memory
 	}
 
-	lconf.Load() // ignore error
+	done := make(chan struct{})
+	go func() {
+		// Prevent any uncaught panics from taking the entire server down.
+		defer func() {
+			close(done)
+			if r := recover(); r != nil {
+				// Same as net/http
+				const size = 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+				log.Printf("ignoring panic serving %v", req.Method)
+				return
+			}
+		}()
+
+		lconf.Load() // ignore error
+	}()
+
+	// Wait for timeout or completion
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
+
+	// We need to grab mu since it protects qobj
+	mu.Lock()
+	defer mu.Unlock()
 
 	if qobj == nil {
 		if afterTypeCheckErr != nil {
