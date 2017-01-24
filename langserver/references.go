@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/refactor/importgraph"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -194,6 +195,12 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	mu.Lock()
 	defer mu.Unlock()
 
+	// If a timeout does occur, we should know how effective the partial data is
+	if ctx.Err() != nil {
+		refTimeoutResults.Observe(float64(len(refs)))
+		log.Printf("info: timeout during references for %s, found %d refs", defpkg, len(refs))
+	}
+
 	if qobj == nil {
 		if afterTypeCheckErr != nil {
 			// Only triggered by 1 specific error above (where we assign
@@ -350,4 +357,17 @@ func (l locationList) Swap(a, b int) {
 }
 func (l locationList) Len() int {
 	return len(l.L)
+}
+
+var refTimeoutResults = prometheus.NewHistogram(prometheus.HistogramOpts{
+	Namespace: "golangserver",
+	Subsystem: "references",
+	Name:      "timeout_references",
+	Help:      "The number of references that were returned after a timeout.",
+	// 0.01 is to capture no results
+	Buckets: []float64{0.01, 1, 2, 32, 128, 1024},
+})
+
+func init() {
+	prometheus.MustRegister(refTimeoutResults)
 }
