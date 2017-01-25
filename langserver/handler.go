@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -102,15 +100,8 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("unexpected panic: %v", r)
-
-			// Same as net/http
-			const size = 64 << 10
-			buf := make([]byte, size)
-			buf = buf[:runtime.Stack(buf, false)]
-			log.Printf("panic serving %v: %v\n%s", req.Method, r, buf)
-			return
+		if perr := panicf(recover(), "%v", req.Method); perr != nil {
+			err = perr
 		}
 	}()
 
