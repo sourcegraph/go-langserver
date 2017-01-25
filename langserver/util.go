@@ -45,7 +45,7 @@ func pathToUri(path string) string {
 		// On Windows there should be triple slash
 		prefix += "/"
 	}
-	path = strings.Replace(path, "\\", "/", -1)
+	path = slashPath(path)
 	// encoding URI components
 	// TODO: wait for net/url: PathEscape, PathUnescape
 	// see https://github.com/golang/go/commit/7e2bf952a905f16a17099970392ea17545cdd193
@@ -72,4 +72,13 @@ func uriToPath(uri string) string {
 		return path
 	}
 	return uri
+}
+
+// slashPath converts path to use slashes as component separators. Doesn't affect Unix-style paths,
+// only Windows-style paths (rune ':' ...) being converted to use slashes
+func slashPath(p string) string {
+	if len(p) > 2 && p[1] == ':' {
+		return strings.Replace(p, "\\", "/", -1)
+	}
+	return p
 }
