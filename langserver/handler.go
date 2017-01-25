@@ -42,6 +42,8 @@ type LangHandler struct {
 	// cache the reverse import graph
 	importGraphOnce sync.Once
 	importGraph     importgraph.Graph
+
+	cancel *cancel
 }
 
 // reset clears all internal state in h.
@@ -59,6 +61,7 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 		}
 	}
 	h.init = init
+	h.cancel = &cancel{}
 	h.resetCaches(false)
 	return nil
 }
@@ -111,7 +114,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 	}()
 
+	var cancelManager *cancel
 	h.mu.Lock()
+	cancelManager = h.cancel
 	if req.Method != "initialize" && h.init == nil {
 		h.mu.Unlock()
 		return nil, errors.New("server must be initialized")
@@ -138,6 +143,13 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		}
 		span.Finish()
 	}()
+
+	// Notifications don't have an ID, so they can't be cancelled
+	if cancelManager != nil && !req.Notif {
+		var cancel func()
+		ctx, cancel = cancelManager.WithCancel(ctx, req.ID)
+		defer cancel()
+	}
 
 	switch req.Method {
 	case "initialize":
@@ -198,6 +210,25 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 		if c, ok := conn.(*jsonrpc2.Conn); ok {
 			c.Close()
 		}
+		return nil, nil
+
+	case "$/cancelRequest":
+		// notification, don't send back results/errors
+		if req.Params == nil {
+			return nil, nil
+		}
+		var params lsp.CancelParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, nil
+		}
+		if cancelManager == nil {
+			return nil, nil
+		}
+		cancelManager.Cancel(jsonrpc2.ID{
+			Num:      params.ID.Num,
+			Str:      params.ID.Str,
+			IsString: params.ID.IsString,
+		})
 		return nil, nil
 
 	case "textDocument/hover":
