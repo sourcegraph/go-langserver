@@ -267,7 +267,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 		SymbolInformation: lsp.SymbolInformation{
 			Name:          name,
 			Kind:          kind,
-			Location:      goRangeToLSPLocation(fs, pos, pos+token.Pos(len(name))-1),
+			Location:      goRangeToLSPLocation(fs, pos, pos+token.Pos(len(name))),
 			ContainerName: container,
 		},
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
