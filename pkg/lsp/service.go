@@ -370,3 +370,7 @@ type DocumentOnTypeFormattingParams struct {
 	Ch           string                 `json:"ch"`
 	Options      FormattingOptions      `json:"formattingOptions"`
 }
+
+type CancelParams struct {
+	ID ID `json:"id"`
+}
