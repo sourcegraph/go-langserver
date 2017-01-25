@@ -19,6 +19,8 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 
+	"strconv"
+
 	"github.com/neelance/parallel"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
@@ -28,10 +30,11 @@ import (
 // Query is a structured representation that is parsed from the user's
 // raw query string.
 type Query struct {
-	Kind      lsp.SymbolKind
-	Filter    FilterType
-	File, Dir string
-	Tokens    []string
+	Kind          lsp.SymbolKind
+	Filter        FilterType
+	File, Dir     string
+	Tokens        []string
+	CaseSensitive bool
 
 	Symbol lspext.SymbolDescriptor
 }
@@ -59,6 +62,7 @@ func (q Query) String() string {
 	for _, token := range q.Tokens {
 		s = queryJoin(s, token)
 	}
+	s = queryJoin(s, fmt.Sprintf("CaseSensitive:%v", q.CaseSensitive))
 	return s
 }
 
@@ -68,14 +72,40 @@ func queryJoin(s, e string) string {
 	return strings.TrimSpace(s + " " + e)
 }
 
+func parseCaseSensitive(q string) (qu Query, fields []string) {
+	FieldName := "CaseSensitive"
+	FieldNamePrefix := fmt.Sprintf("%s:", FieldName)
+
+	for _, field := range strings.Fields(q) {
+		// Check if the field is a filter like `CaseSensitive:true`.
+		if !strings.HasPrefix(field, FieldNamePrefix) {
+			fields = append(fields, field)
+			continue
+		}
+
+		fieldVal := strings.TrimPrefix(field, FieldNamePrefix)
+		if caseSensitive, err := strconv.ParseBool(fieldVal); err != nil {
+			log.Printf("ParseQuery:CaseSensitive - parse error: %v", err)
+		} else {
+			qu.CaseSensitive = caseSensitive
+		}
+	}
+
+	return qu, fields
+}
+
 // ParseQuery parses a user's raw query string and returns a
 // structured representation of the query.
 func ParseQuery(q string) (qu Query) {
-	// All queries are case insensitive.
-	q = strings.ToLower(q)
+	// All queries are case insensitive, unless otherwise
+	qu, fields := parseCaseSensitive(q)
 
 	// Split the query into space-delimited fields.
-	for _, field := range strings.Fields(q) {
+	for _, field := range fields {
+		if !qu.CaseSensitive {
+			field = strings.ToLower(field)
+		}
+
 		// Check if the field is a filter like `is:exported`.
 		if strings.HasPrefix(field, "dir:") {
 			qu.Filter = FilterDir
@@ -286,7 +316,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
 	f := strings.TrimPrefix(params.TextDocument.URI, "file://")
-	return h.handleSymbol(ctx, conn, req, Query{File: f}, 0)
+	return h.handleSymbol(ctx, conn, req, Query{File: f, CaseSensitive: true}, 0)
 }
 
 // handleSymbol handles `workspace/symbol` requests for the Go

@@ -130,21 +130,34 @@ func TestQueryString(t *testing.T) {
 	tests := []struct {
 		input, expect string
 	}{
+		// ---
+		// test case sensitive flag...
+		// check default value
+		// check each override
+		// check what we get back
+		// check CaseSensitive: true ensures file name case is preserved
+		{input: "bar baz", expect: "bar baz CaseSensitive:false"},
+		{input: "CaseSensitive:true bar baz", expect: "bar baz CaseSensitive:true"},
+		{input: "CaseSensitive:false bar baz", expect: "bar baz CaseSensitive:false"},
+		{input: "CaseSensitive:true bar baz Baz BAz file:fileCaseSensitive", expect: "bar baz Baz BAz file:fileCaseSensitive CaseSensitive:true"},
+		{input: "CaseSensitive:false bar baz Baz BAz file:fileCaseInsensitive", expect: "bar baz baz baz file:filecaseinsensitive CaseSensitive:false"},
+		// ---
+
 		// Basic queries.
-		{input: "foo bar", expect: "foo bar"},
-		{input: "func bar", expect: "func bar"},
-		{input: "is:exported", expect: "is:exported"},
-		{input: "dir:foo", expect: "dir:foo"},
-		{input: "is:exported bar", expect: "is:exported bar"},
-		{input: "dir:foo bar", expect: "dir:foo bar"},
-		{input: "is:exported bar baz", expect: "is:exported bar baz"},
-		{input: "dir:foo bar baz", expect: "dir:foo bar baz"},
+		{input: "foo bar", expect: "foo bar CaseSensitive:false"},
+		{input: "func bar", expect: "func bar CaseSensitive:false"},
+		{input: "is:exported", expect: "is:exported CaseSensitive:false"},
+		{input: "dir:foo", expect: "dir:foo CaseSensitive:false"},
+		{input: "is:exported bar", expect: "is:exported bar CaseSensitive:false"},
+		{input: "dir:foo bar", expect: "dir:foo bar CaseSensitive:false"},
+		{input: "is:exported bar baz", expect: "is:exported bar baz CaseSensitive:false"},
+		{input: "dir:foo bar baz", expect: "dir:foo bar baz CaseSensitive:false"},
 
 		// Test guarantee of byte-wise ordering (hint: we only guarantee logical
 		// equivalence, not byte-wise equality).
-		{input: "bar baz is:exported", expect: "is:exported bar baz"},
-		{input: "bar baz dir:foo", expect: "dir:foo bar baz"},
-		{input: "func baz dir:foo", expect: "dir:foo func baz"},
+		{input: "bar baz is:exported", expect: "is:exported bar baz CaseSensitive:false"},
+		{input: "bar baz dir:foo", expect: "dir:foo bar baz CaseSensitive:false"},
+		{input: "func baz dir:foo", expect: "dir:foo func baz CaseSensitive:false"},
 	}
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
