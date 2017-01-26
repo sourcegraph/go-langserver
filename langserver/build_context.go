@@ -13,6 +13,40 @@ import (
 	"golang.org/x/net/context"
 )
 
+// withCancelContext creates a build.Context which wraps the input
+// *build.Context and aborts pending operations after ctx.Done
+func (h *LangHandler) withCancelContext(ctx context.Context, w *build.Context) *build.Context {
+	// We're mutating the build context that we intend to wrap, so copy it.
+	copy := *w
+	bctx := &copy
+
+	bctx.OpenFile = func(path string) (io.ReadCloser, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return w.OpenFile(path)
+	}
+	bctx.IsDir = func(path string) bool {
+		if err := ctx.Err(); err != nil {
+			return false
+		}
+		return w.IsDir(path)
+	}
+	bctx.HasSubdir = func(root, dir string) (rel string, ok bool) {
+		if err := ctx.Err(); err != nil {
+			return "", false
+		}
+		return w.HasSubdir(root, dir)
+	}
+	bctx.ReadDir = func(dir string) ([]os.FileInfo, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return w.ReadDir(dir)
+	}
+	return bctx
+}
+
 // BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.
 func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	var bctx *build.Context
@@ -36,6 +70,8 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 		copy := build.Default
 		bctx = &copy
 	}
+
+	bctx = h.withCancelContext(ctx, bctx)
 
 	h.Mu.Lock()
 	fs := h.FS
