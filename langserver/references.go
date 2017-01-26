@@ -102,6 +102,9 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		Fset:  fset,
 		Build: bctx,
 		FindPackage: func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			// When importing a package, ignore any
 			// MultipleGoErrors. This occurs, e.g., when you have a
 			// main.go with "// +build ignore" that imports the

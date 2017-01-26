@@ -159,6 +159,9 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 		AllowErrors: true,
 		ParserMode:  parser.AllErrors | parser.ParseComments, // prevent parser from bailing out
 		FindPackage: func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			// When importing a package, ignore any
 			// MultipleGoErrors. This occurs, e.g., when you have a
 			// main.go with "// +build ignore" that imports the
