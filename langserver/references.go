@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -96,9 +97,21 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	} else {
 		users = h.importGraph.Search(defpkg)
 	}
+	findPackage := h.getFindPackageFunc()
 	lconf := loader.Config{
 		Fset:  fset,
 		Build: bctx,
+		FindPackage: func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+			// When importing a package, ignore any
+			// MultipleGoErrors. This occurs, e.g., when you have a
+			// main.go with "// +build ignore" that imports the
+			// non-main package in the same dir.
+			bpkg, err := findPackage(ctx, bctx, importPath, fromDir, mode)
+			if err != nil && !isMultiplePackageError(err) {
+				return bpkg, err
+			}
+			return bpkg, nil
+		},
 		TypeCheckFuncBodies: func(path string) bool {
 			if ctx.Err() != nil {
 				return false
