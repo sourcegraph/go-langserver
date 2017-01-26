@@ -177,11 +177,11 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 			}()
 		}
 
+		kind := lsp.TDSKFull
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
-				TextDocumentSync: lsp.TextDocumentSyncOptions{
-					OpenClose: true,
-					Change:    lsp.TDSKFull,
+				TextDocumentSync: lsp.TextDocumentSyncOptionsOrKind{
+					Kind: &kind,
 				},
 				DefinitionProvider:           true,
 				DocumentFormattingProvider:   true,
