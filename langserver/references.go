@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/slimsag/goloader"
 	"golang.org/x/tools/refactor/importgraph"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -96,7 +96,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	} else {
 		users = h.importGraph.Search(defpkg)
 	}
-	lconf := loader.Config{
+	lconf := goloader.Config{
 		Fset:  fset,
 		Build: bctx,
 		TypeCheckFuncBodies: func(path string) bool {
@@ -134,7 +134,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	// just after it has been type-checked. The loader calls
 	// AfterTypeCheck (concurrently), providing us with a stream of
 	// packages.
-	lconf.AfterTypeCheck = func(info *loader.PackageInfo, files []*ast.File) {
+	lconf.AfterTypeCheck = func(info *goloader.PackageInfo, files []*ast.File) {
 		// AfterTypeCheck may be called twice for the same package due
 		// to augmentation.
 
@@ -249,7 +249,7 @@ func classify(obj types.Object) (global, pkglevel bool) {
 // (Not suitable if SSA construction follows.)
 //
 // NOTICE: Adapted from golang.org/x/tools.
-func allowErrors(lconf *loader.Config) {
+func allowErrors(lconf *goloader.Config) {
 	ctxt := *lconf.Build // copy
 	ctxt.CgoEnabled = false
 	lconf.Build = &ctxt
@@ -282,7 +282,7 @@ func findObject(fset *token.FileSet, info *types.Info, objposn token.Position) t
 	return nil
 }
 
-func usesOf(queryObj types.Object, info *loader.PackageInfo) []*ast.Ident {
+func usesOf(queryObj types.Object, info *goloader.PackageInfo) []*ast.Ident {
 	var refs []*ast.Ident
 	for id, obj := range info.Uses {
 		if sameObj(queryObj, obj) {

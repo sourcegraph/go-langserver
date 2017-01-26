@@ -8,7 +8,7 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/slimsag/goloader"
 
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 )
@@ -33,7 +33,7 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn JSONRPC2Conn,
 	return nil
 }
 
-func errsToDiagnostics(typeErrs []error, prog *loader.Program) (diagnostics, error) {
+func errsToDiagnostics(typeErrs []error, prog *goloader.Program) (diagnostics, error) {
 	var diags diagnostics
 	for _, typeErr := range typeErrs {
 		var (

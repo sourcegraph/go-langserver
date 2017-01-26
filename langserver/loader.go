@@ -17,10 +17,10 @@ import (
 
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/slimsag/goloader"
 )
 
-func (h *LangHandler) typecheck(ctx context.Context, conn JSONRPC2Conn, fileURI string, position lsp.Position) (*token.FileSet, *ast.Ident, []ast.Node, *loader.Program, *loader.PackageInfo, error) {
+func (h *LangHandler) typecheck(ctx context.Context, conn JSONRPC2Conn, fileURI string, position lsp.Position) (*token.FileSet, *ast.Ident, []ast.Node, *goloader.Program, *goloader.PackageInfo, error) {
 	parentSpan := opentracing.SpanFromContext(ctx)
 	span := parentSpan.Tracer().StartSpan("langserver-go: load program",
 		opentracing.Tags{"fileURI": fileURI},
@@ -181,11 +181,11 @@ type typecheckKey struct {
 
 type typecheckResult struct {
 	fset *token.FileSet
-	prog *loader.Program
+	prog *goloader.Program
 	err  error
 }
 
-func (h *LangHandler) cachedTypecheck(ctx context.Context, bctx *build.Context, bpkg *build.Package) (*token.FileSet, *loader.Program, diagnostics, error) {
+func (h *LangHandler) cachedTypecheck(ctx context.Context, bctx *build.Context, bpkg *build.Package) (*token.FileSet, *goloader.Program, diagnostics, error) {
 	parentSpan := opentracing.SpanFromContext(ctx)
 	span := parentSpan.Tracer().StartSpan("langserver-go: typecheck",
 		opentracing.Tags{"pkg": bpkg.ImportPath},
@@ -211,9 +211,9 @@ func (h *LangHandler) cachedTypecheck(ctx context.Context, bctx *build.Context, 
 }
 
 // TODO(sqs): allow typechecking just a specific file not in a package, too
-func typecheck(ctx context.Context, fset *token.FileSet, bctx *build.Context, bpkg *build.Package, findPackage FindPackageFunc) (*loader.Program, diagnostics, error) {
+func typecheck(ctx context.Context, fset *token.FileSet, bctx *build.Context, bpkg *build.Package, findPackage FindPackageFunc) (*goloader.Program, diagnostics, error) {
 	var typeErrs []error
-	conf := loader.Config{
+	conf := goloader.Config{
 		Fset: fset,
 		TypeChecker: types.Config{
 			DisableUnusedImportCheck: true,
@@ -277,7 +277,7 @@ func typecheck(ctx context.Context, fset *token.FileSet, bctx *build.Context, bp
 	return prog, diags, nil
 }
 
-func clearInfoFields(info *loader.PackageInfo) {
+func clearInfoFields(info *goloader.PackageInfo) {
 	// TODO(adonovan): opt: save memory by eliminating unneeded scopes/objects.
 	// (Requires go/types change for Go 1.7.)
 	//   info.Pkg.Scope().ClearChildren()

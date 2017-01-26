@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/slimsag/goloader"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -83,7 +83,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		results = refResultSorter{results: make([]referenceInformation, 0)}
 		wg      sync.WaitGroup
 	)
-	afterTypeCheck := func(pkg *loader.PackageInfo, files []*ast.File) {
+	afterTypeCheck := func(pkg *goloader.PackageInfo, files []*ast.File) {
 		_, interested := unvendoredPackages[pkg.Pkg.Path()]
 		if !interested {
 			return
@@ -134,7 +134,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 	return results.results, nil
 }
 
-func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fset *token.FileSet, pkgs []string, afterTypeCheck func(info *loader.PackageInfo, files []*ast.File)) (prog *loader.Program, err error) {
+func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, fset *token.FileSet, pkgs []string, afterTypeCheck func(info *goloader.PackageInfo, files []*ast.File)) (prog *goloader.Program, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "workspaceRefsTypecheck")
 	defer func() {
 		if err != nil {
@@ -147,7 +147,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 	// Configure the loader.
 	findPackage := h.getFindPackageFunc()
 	var typeErrs []error
-	conf := loader.Config{
+	conf := goloader.Config{
 		Fset: fset,
 		TypeChecker: types.Config{
 			DisableUnusedImportCheck: true,
@@ -170,12 +170,13 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 			}
 			return bpkg, nil
 		},
-		AfterTypeCheck: func(pkg *loader.PackageInfo, files []*ast.File) {
+		AfterTypeCheck: func(pkg *goloader.PackageInfo, files []*ast.File) {
 			if err := ctx.Err(); err != nil {
 				return
 			}
 			afterTypeCheck(pkg, files)
 		},
+		Cancel: ctx.Done(),
 	}
 	// The importgraph doesn't treat external test packages
 	// as separate nodes, so we must use ImportWithTests.
@@ -210,7 +211,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 
 // workspaceRefsFromPkg collects all the references made to dependencies from
 // the specified package and returns the results.
-func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, params lspext.WorkspaceReferencesParams, fs *token.FileSet, pkg *loader.PackageInfo, files []*ast.File, rootPath string, results *refResultSorter) (err error) {
+func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, params lspext.WorkspaceReferencesParams, fs *token.FileSet, pkg *goloader.PackageInfo, files []*ast.File, rootPath string, results *refResultSorter) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
