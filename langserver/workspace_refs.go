@@ -23,16 +23,16 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// workspaceReferencesTimeout is the timeout used for workspace/xreferences
+// WorkspaceReferencesTimeout is the timeout used for workspace/xreferences
 // calls.
-const workspaceReferencesTimeout = 15 * time.Second
+const WorkspaceReferencesTimeout = 15 * time.Second
 
 func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]referenceInformation, error) {
 	// TODO: Add support for the cancelRequest LSP method instead of using
 	// hard-coded timeouts like this here.
 	//
 	// See: https://github.com/Microsoft/language-server-protocol/blob/master/protocol.md#cancelRequest
-	ctx, cancel := context.WithTimeout(ctx, workspaceReferencesTimeout)
+	ctx, cancel := context.WithTimeout(ctx, WorkspaceReferencesTimeout)
 	defer cancel()
 	rootPath := h.FilePath(h.init.RootPath)
 	bctx := h.BuildContext(ctx)

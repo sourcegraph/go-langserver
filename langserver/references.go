@@ -23,16 +23,16 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// documentReferencesTimeout is the timeout used for textDocument/references
+// DocumentReferencesTimeout is the timeout used for textDocument/references
 // calls.
-const documentReferencesTimeout = 15 * time.Second
+const DocumentReferencesTimeout = 15 * time.Second
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
 	// TODO: Add support for the cancelRequest LSP method instead of using
 	// hard-coded timeouts like this here.
 	//
 	// See: https://github.com/Microsoft/language-server-protocol/blob/master/protocol.md#cancelRequest
-	ctx, cancel := context.WithTimeout(ctx, documentReferencesTimeout)
+	ctx, cancel := context.WithTimeout(ctx, DocumentReferencesTimeout)
 	defer cancel()
 
 	fset, node, _, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
