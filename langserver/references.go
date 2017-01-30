@@ -2,6 +2,7 @@ package langserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -30,6 +31,17 @@ import (
 const documentReferencesTimeout = 15 * time.Second
 
 var streamExperiment = len(os.Getenv("STREAM_EXPERIMENT")) > 0
+
+// ReferenceAddOp is a JSON Patch operation used by
+// textDocument/References. It is exported so the build server can efficiently
+// interact with it. The only other patch operation is to create the empty
+// location list.
+type ReferenceAddOp struct {
+	// OP should always be "add"
+	OP    string       `json:"op"`
+	Path  string       `json:"path"`
+	Value lsp.Location `json:"value"`
+}
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
 	// TODO: Add support for the cancelRequest LSP method instead of using
@@ -188,17 +200,14 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	streamPos := 0
 	streamTick := make(<-chan time.Time, 1)
 	if streamExperiment {
+		initial := json.RawMessage(`[{"op":"add","path":"","value":[]}]`)
 		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
 			ID: lsp.ID{
 				Num:      req.ID.Num,
 				Str:      req.ID.Str,
 				IsString: req.ID.IsString,
 			},
-			Patch: map[string]interface{}{
-				"op":    "add",
-				"path":  "",
-				"value": []lsp.Location{},
-			},
+			Patch: &initial,
 		})
 		t := time.NewTicker(time.Second)
 		defer t.Stop()
@@ -222,14 +231,9 @@ Loop:
 			continue
 		}
 
-		type AddOp struct {
-			OP    string
-			Path  string
-			Value lsp.Location
-		}
-		patch := make([]AddOp, 0, len(partial)-streamPos)
+		patch := make([]ReferenceAddOp, 0, len(partial)-streamPos)
 		for ; streamPos < len(partial); streamPos++ {
-			patch = append(patch, AddOp{
+			patch = append(patch, ReferenceAddOp{
 				OP:    "add",
 				Path:  "/-",
 				Value: goRangeToLSPLocation(fset, partial[streamPos].Pos(), partial[streamPos].End()),
