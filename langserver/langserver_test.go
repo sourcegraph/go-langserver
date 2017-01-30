@@ -728,6 +728,8 @@ var Foo string
 //
 package pkg2
 
+// A comment that should be ignored
+
 // X does the unknown.
 func X() {
 	panic("zomg")
