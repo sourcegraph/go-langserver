@@ -197,7 +197,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		lconf.Load() // ignore error
 	}()
 
-	streamPos := 0
+	streamUpdate := func() {}
 	streamTick := make(<-chan time.Time, 1)
 	if streamExperiment {
 		initial := json.RawMessage(`[{"op":"add","path":"","value":[]}]`)
@@ -212,6 +212,32 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		t := time.NewTicker(time.Second)
 		defer t.Stop()
 		streamTick = t.C
+		streamPos := 0
+		streamUpdate = func() {
+			mu.Lock()
+			partial := refs
+			mu.Unlock()
+			if len(partial) == streamPos {
+				return
+			}
+
+			patch := make([]ReferenceAddOp, 0, len(partial)-streamPos)
+			for ; streamPos < len(partial); streamPos++ {
+				patch = append(patch, ReferenceAddOp{
+					OP:    "add",
+					Path:  "/-",
+					Value: goRangeToLSPLocation(fset, partial[streamPos].Pos(), partial[streamPos].End()),
+				})
+			}
+			conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+				ID: lsp.ID{
+					Num:      req.ID.Num,
+					Str:      req.ID.Str,
+					IsString: req.ID.IsString,
+				},
+				Patch: patch,
+			})
+		}
 	}
 Loop:
 	for {
@@ -221,33 +247,12 @@ Loop:
 		case <-ctx.Done():
 			break Loop
 		case <-streamTick:
+			streamUpdate()
 		}
-
-		// Send partial results
-		mu.Lock()
-		partial := refs
-		mu.Unlock()
-		if len(partial) == streamPos {
-			continue
-		}
-
-		patch := make([]ReferenceAddOp, 0, len(partial)-streamPos)
-		for ; streamPos < len(partial); streamPos++ {
-			patch = append(patch, ReferenceAddOp{
-				OP:    "add",
-				Path:  "/-",
-				Value: goRangeToLSPLocation(fset, partial[streamPos].Pos(), partial[streamPos].End()),
-			})
-		}
-		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
-			ID: lsp.ID{
-				Num:      req.ID.Num,
-				Str:      req.ID.Str,
-				IsString: req.ID.IsString,
-			},
-			Patch: patch,
-		})
 	}
+
+	// Send a final update
+	streamUpdate()
 
 	// We need to grab mu since it protects qobj
 	mu.Lock()
