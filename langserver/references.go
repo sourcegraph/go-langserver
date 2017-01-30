@@ -188,6 +188,18 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	streamPos := 0
 	streamTick := make(<-chan time.Time, 1)
 	if streamExperiment {
+		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+			ID: lsp.ID{
+				Num:      req.ID.Num,
+				Str:      req.ID.Str,
+				IsString: req.ID.IsString,
+			},
+			Patch: map[string]interface{}{
+				"op":    "add",
+				"path":  "",
+				"value": []lsp.Location{},
+			},
+		})
 		t := time.NewTicker(time.Second)
 		defer t.Stop()
 		streamTick = t.C
@@ -210,17 +222,18 @@ Loop:
 			continue
 		}
 
-		initial := streamPos == 0
-		patches := make([]lspext.JSONPatch, 0, len(partial)-streamPos)
+		type AddOp struct {
+			OP    string
+			Path  string
+			Value lsp.Location
+		}
+		patch := make([]AddOp, 0, len(partial)-streamPos)
 		for ; streamPos < len(partial); streamPos++ {
-			patches = append(patches, lspext.JSONPatch{
+			patch = append(patch, AddOp{
 				OP:    "add",
 				Path:  "/-",
 				Value: goRangeToLSPLocation(fset, partial[streamPos].Pos(), partial[streamPos].End()),
 			})
-		}
-		if initial {
-			patches[0].Path = ""
 		}
 		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
 			ID: lsp.ID{
@@ -228,7 +241,7 @@ Loop:
 				Str:      req.ID.Str,
 				IsString: req.ID.IsString,
 			},
-			Patches: patches,
+			Patch: patch,
 		})
 	}
 
