@@ -2,6 +2,7 @@ package langserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -9,6 +10,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -20,12 +22,26 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 // documentReferencesTimeout is the timeout used for textDocument/references
 // calls.
 const documentReferencesTimeout = 15 * time.Second
+
+var streamExperiment = len(os.Getenv("STREAM_EXPERIMENT")) > 0
+
+// ReferenceAddOp is a JSON Patch operation used by
+// textDocument/References. It is exported so the build server can efficiently
+// interact with it. The only other patch operation is to create the empty
+// location list.
+type ReferenceAddOp struct {
+	// OP should always be "add"
+	OP    string       `json:"op"`
+	Path  string       `json:"path"`
+	Value lsp.Location `json:"value"`
+}
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
 	// TODO: Add support for the cancelRequest LSP method instead of using
@@ -181,10 +197,56 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		lconf.Load() // ignore error
 	}()
 
-	// Wait for timeout or completion
-	select {
-	case <-done:
-	case <-ctx.Done():
+	streamPos := 0
+	streamTick := make(<-chan time.Time, 1)
+	if streamExperiment {
+		initial := json.RawMessage(`[{"op":"add","path":"","value":[]}]`)
+		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+			ID: lsp.ID{
+				Num:      req.ID.Num,
+				Str:      req.ID.Str,
+				IsString: req.ID.IsString,
+			},
+			Patch: &initial,
+		})
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		streamTick = t.C
+	}
+Loop:
+	for {
+		select {
+		case <-done:
+			break Loop
+		case <-ctx.Done():
+			break Loop
+		case <-streamTick:
+		}
+
+		// Send partial results
+		mu.Lock()
+		partial := refs
+		mu.Unlock()
+		if len(partial) == streamPos {
+			continue
+		}
+
+		patch := make([]ReferenceAddOp, 0, len(partial)-streamPos)
+		for ; streamPos < len(partial); streamPos++ {
+			patch = append(patch, ReferenceAddOp{
+				OP:    "add",
+				Path:  "/-",
+				Value: goRangeToLSPLocation(fset, partial[streamPos].Pos(), partial[streamPos].End()),
+			})
+		}
+		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+			ID: lsp.ID{
+				Num:      req.ID.Num,
+				Str:      req.ID.Str,
+				IsString: req.ID.IsString,
+			},
+			Patch: patch,
+		})
 	}
 
 	// We need to grab mu since it protects qobj
