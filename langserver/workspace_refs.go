@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"go/types"
 	"log"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -68,6 +67,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 			}
 		}
 		unvendoredPackages[bpkg.ImportPath] = struct{}{}
+		unvendoredPackages[bpkg.ImportPath+"_test"] = struct{}{}
 		pkgs = append(pkgs, pkg)
 	}
 	if len(pkgs) == 0 {
@@ -86,6 +86,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 	afterTypeCheck := func(pkg *loader.PackageInfo, files []*ast.File) {
 		_, interested := unvendoredPackages[pkg.Pkg.Path()]
 		if !interested {
+			clearInfoFields(pkg) // save memory
 			return
 		}
 
@@ -95,17 +96,10 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 			// Prevent any uncaught panics from taking the entire server down.
 			defer func() {
 				wg.Done()
-				if r := recover(); r != nil {
-					// Same as net/http
-					const size = 64 << 10
-					buf := make([]byte, size)
-					buf = buf[:runtime.Stack(buf, false)]
-					log.Printf("ignoring panic serving %v for pkg %v: %v\n%s", req.Method, pkg, r, buf)
-					return
-				}
+				_ = panicf(recover(), "%v for pkg %v", req.Method, pkg)
 			}()
 
-			err := h.workspaceRefsFromPkg(ctx, bctx, conn, params, fset, pkg, rootPath, &results)
+			err := h.workspaceRefsFromPkg(ctx, bctx, conn, params, fset, pkg, files, rootPath, &results)
 			if err != nil {
 				log.Printf("workspaceRefsFromPkg: %v: %v", pkg, err)
 			}
@@ -119,14 +113,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 	go func() {
 		// Prevent any uncaught panics from taking the entire server down.
 		defer func() {
-			if r := recover(); r != nil {
-				// Same as net/http
-				const size = 64 << 10
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
-				log.Printf("ignoring panic serving %v for pkgs %v: %v\n%s", req.Method, pkgs, r, buf)
-				return
-			}
+			_ = panicf(recover(), "%v for pkg %v", req.Method, pkgs)
 		}()
 
 		_, err = h.workspaceRefsTypecheck(ctx, bctx, conn, fset, pkgs, afterTypeCheck)
@@ -191,8 +178,10 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 			afterTypeCheck(pkg, files)
 		},
 	}
+	// The importgraph doesn't treat external test packages
+	// as separate nodes, so we must use ImportWithTests.
 	for _, path := range pkgs {
-		conf.Import(path)
+		conf.ImportWithTests(path)
 	}
 
 	// Load and typecheck the packages.
@@ -222,7 +211,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 
 // workspaceRefsFromPkg collects all the references made to dependencies from
 // the specified package and returns the results.
-func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, params lspext.WorkspaceReferencesParams, fs *token.FileSet, pkg *loader.PackageInfo, rootPath string, results *refResultSorter) (err error) {
+func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Context, conn JSONRPC2Conn, params lspext.WorkspaceReferencesParams, fs *token.FileSet, pkg *loader.PackageInfo, files []*ast.File, rootPath string, results *refResultSorter) (err error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -241,7 +230,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	cfg := &refs.Config{
 		FileSet:  fs,
 		Pkg:      pkg.Pkg,
-		PkgFiles: pkg.Files,
+		PkgFiles: files,
 		Info:     &pkg.Info,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {

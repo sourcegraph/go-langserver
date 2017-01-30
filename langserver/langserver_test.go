@@ -177,6 +177,12 @@ func TestServer(t *testing.T) {
 						"/src/test/pkg/a_test.go:1:40",
 					},
 				},
+				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
+					{Query: lspext.SymbolDescriptor{}}: []string{
+						"/src/test/pkg/a_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
+						"/src/test/pkg/a_test.go:1:46-1:47 -> id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
+					},
+				},
 			},
 		},
 		"go test": {

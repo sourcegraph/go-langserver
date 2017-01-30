@@ -12,7 +12,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -267,7 +266,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 		SymbolInformation: lsp.SymbolInformation{
 			Name:          name,
 			Kind:          kind,
-			Location:      goRangeToLSPLocation(fs, pos, pos+token.Pos(len(name))-1),
+			Location:      goRangeToLSPLocation(fs, pos, pos+token.Pos(len(name))),
 			ContainerName: container,
 		},
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
@@ -296,6 +295,17 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn JSONRPC2Co
 	q.Symbol = params.Symbol
 	if q.Filter == FilterDir {
 		q.Dir = path.Join(h.init.RootImportPath, q.Dir)
+	}
+	if id, ok := q.Symbol["id"]; ok {
+		// id implicitly contains a dir hint. We can use that to
+		// reduce the number of files we have to parse.
+		importPath := strings.SplitN(id.(string), "/-/", 2)[0]
+		if isStdLib := PathHasPrefix(h.BuildContext(ctx).GOROOT, h.init.RootPath); isStdLib {
+			q.Dir = path.Join("/src", importPath)
+		} else {
+			q.Dir = importPath
+		}
+		q.Filter = FilterDir
 	}
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
@@ -327,20 +337,22 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *
 			}
 
 			par.Acquire()
+
+			// If the context is cancelled, breaking the loop here
+			// will allow us to return partial results, and
+			// avoiding starting new computations.
+			if ctx.Err() != nil {
+				par.Release()
+				break
+			}
+
 			go func(pkg string) {
 				// Prevent any uncaught panics from taking the
 				// entire server down. For an example see
 				// https://github.com/golang/go/issues/17788
 				defer func() {
 					par.Release()
-					if r := recover(); r != nil {
-						// Same as net/http
-						const size = 64 << 10
-						buf := make([]byte, size)
-						buf = buf[:runtime.Stack(buf, false)]
-						log.Printf("ignoring panic serving %v for pkg %v: %v\n%s", req.Method, pkg, r, buf)
-						return
-					}
+					_ = panicf(recover(), "%v for pkg %v", req.Method, pkg)
 				}()
 				h.collectFromPkg(ctx, bctx, pkg, rootPath, &results)
 			}(pkg)
