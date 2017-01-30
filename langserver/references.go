@@ -218,6 +218,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 			partial := refs
 			mu.Unlock()
 			if len(partial) == streamPos {
+				// Everything currently in refs has already been sent.
 				return
 			}
 
