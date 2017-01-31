@@ -200,7 +200,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	streamUpdate := func() {}
 	streamTick := make(<-chan time.Time, 1)
 	if streamExperiment {
-		initial := json.RawMessage(`[{"op":"add","path":"","value":[]}]`)
+		initial := json.RawMessage(`[{"op":"replace","path":"","value":[]}]`)
 		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
 			ID: lsp.ID{
 				Num:      req.ID.Num,
