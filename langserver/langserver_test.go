@@ -1166,47 +1166,27 @@ func callHover(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int
 }
 
 func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
-	var res locations
+	var loc lsp.Location
 	err := c.Call(ctx, "textDocument/definition", lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
 		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
+	}, &loc)
 	if err != nil {
 		return "", err
 	}
-	var str string
-	for i, loc := range res {
-		if loc.URI == "" {
-			continue
-		}
-		if i != 0 {
-			str += ", "
-		}
-		str += fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1)
-	}
-	return str, nil
+	return fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1), nil
 }
 
 func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
-	var res []lspext.SymbolLocationInformation
+	var loc lspext.SymbolLocationInformation
 	err := c.Call(ctx, "textDocument/xdefinition", lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
 		Position:     lsp.Position{Line: line, Character: char},
-	}, &res)
+	}, &loc)
 	if err != nil {
 		return "", err
 	}
-	var str string
-	for i, loc := range res {
-		if loc.Location.URI == "" {
-			continue
-		}
-		if i != 0 {
-			str += ", "
-		}
-		str += fmt.Sprintf("%s:%d:%d %s", loc.Location.URI, loc.Location.Range.Start.Line+1, loc.Location.Range.Start.Character+1, loc.Symbol)
-	}
-	return str, nil
+	return fmt.Sprintf("%s:%d:%d %s", loc.Location.URI, loc.Location.Range.Start.Line+1, loc.Location.Range.Start.Character+1, loc.Symbol), nil
 }
 
 func callReferences(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) ([]string, error) {
