@@ -2,6 +2,7 @@ package langserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -19,6 +20,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
+	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -26,6 +28,17 @@ import (
 // workspaceReferencesTimeout is the timeout used for workspace/xreferences
 // calls.
 const workspaceReferencesTimeout = 15 * time.Second
+
+// XReferenceAddOp is a JSON Patch operation used by
+// workspace/xreferences. It is exported so the build server can efficiently
+// interact with it. The only other patch operation is to create the empty
+// location list.
+type XReferenceAddOp struct {
+	// OP should always be "add"
+	OP    string               `json:"op"`
+	Path  string               `json:"path"`
+	Value referenceInformation `json:"value"` // TODO(keegancsmith) needs to be exported type
+}
 
 func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]referenceInformation, error) {
 	// TODO: Add support for the cancelRequest LSP method instead of using
@@ -112,14 +125,68 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		_, err = h.workspaceRefsTypecheck(ctx, bctx, conn, fset, pkgs, afterTypeCheck)
 		close(done)
 	}()
-	select {
-	case <-done:
-		if err != nil {
-			return nil, err
+
+	streamUpdate := func() {}
+	streamTick := make(<-chan time.Time, 1)
+	if streamExperiment {
+		initial := json.RawMessage(`[{"op":"replace","path":"","value":[]}]`)
+		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+			ID: lsp.ID{
+				Num:      req.ID.Num,
+				Str:      req.ID.Str,
+				IsString: req.ID.IsString,
+			},
+			Patch: &initial,
+		})
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		streamTick = t.C
+		streamPos := 0
+		streamUpdate = func() {
+			results.resultsMu.Lock()
+			partial := results.results
+			results.resultsMu.Unlock()
+			if len(partial) == streamPos {
+				// Everything currently in refs has already been sent.
+				return
+			}
+
+			patch := make([]XReferenceAddOp, 0, len(partial)-streamPos)
+			for ; streamPos < len(partial); streamPos++ {
+				patch = append(patch, XReferenceAddOp{
+					OP:    "add",
+					Path:  "/-",
+					Value: partial[streamPos],
+				})
+			}
+			conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+				ID: lsp.ID{
+					Num:      req.ID.Num,
+					Str:      req.ID.Str,
+					IsString: req.ID.IsString,
+				},
+				Patch: patch,
+			})
 		}
-	case <-ctx.Done():
-		return nil, ctx.Err()
 	}
+
+Loop:
+	for {
+		select {
+		case <-done:
+			if err != nil {
+				return nil, err
+			}
+			break Loop
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-streamTick:
+			streamUpdate()
+		}
+	}
+
+	// Send a final update
+	streamUpdate()
 
 	sort.Sort(&results) // sort to provide consistent results
 	return results.results, nil
