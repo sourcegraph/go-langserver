@@ -130,6 +130,19 @@ func TestQueryString(t *testing.T) {
 	tests := []struct {
 		input, expect string
 	}{
+		// ---
+		// test case sensitive flag...
+		// check default value
+		// check each override
+		// check what we get back
+		// check casesensitive: true ensures file name case is preserved
+		{input: "bar baz", expect: "bar baz"},
+		{input: "casesensitive:true bar baz", expect: "casesensitive:true bar baz"},
+		{input: "casesensitive:false bar baz", expect: "bar baz"},
+		{input: "casesensitive:true bar baz Baz BAz file:fileCaseSensitive", expect: "casesensitive:true bar baz Baz BAz file:fileCaseSensitive"},
+		{input: "casesensitive:false bar baz Baz BAz file:fileCaseInsensitive", expect: "bar baz baz baz file:filecaseinsensitive"},
+		// ---
+
 		// Basic queries.
 		{input: "foo bar", expect: "foo bar"},
 		{input: "func bar", expect: "func bar"},
