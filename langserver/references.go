@@ -51,13 +51,14 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		return nil, err
 	}
 
+	rootPath := h.FilePath(h.init.RootPath)
 	bctx := h.BuildContext(ctx)
 	h.importGraphOnce.Do(func() {
 		findPackageWithCtx := h.getFindPackageFunc()
 		findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
 			return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
 		}
-		h.importGraph = tools.BuildReverseImportGraph(bctx, findPackage)
+		h.importGraph = tools.BuildReverseImportGraph(bctx, findPackage, rootPath)
 	})
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru

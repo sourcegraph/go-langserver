@@ -10,7 +10,6 @@ import (
 	"go/build"
 	"sync"
 
-	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/refactor/importgraph"
 )
 
@@ -21,9 +20,11 @@ type FindPackageFunc func(ctxt *build.Context, fromDir, importPath string, mode 
 // * it only returns the reverse graph
 // * it does not return errors
 // * it uses a custom FindPackageFunc
+// * it only searches pkgs under dir (but graph can contain pkgs outside of dir)
+// * it searches xtest pkgs as well
 //
 // The code is adapted from the original function.
-func BuildReverseImportGraph(ctxt *build.Context, findPackage FindPackageFunc) importgraph.Graph {
+func BuildReverseImportGraph(ctxt *build.Context, findPackage FindPackageFunc, dir string) importgraph.Graph {
 	type importEdge struct {
 		from, to string
 	}
@@ -33,13 +34,9 @@ func BuildReverseImportGraph(ctxt *build.Context, findPackage FindPackageFunc) i
 	go func() {
 		sema := make(chan int, 20) // I/O concurrency limiting semaphore
 		var wg sync.WaitGroup
-		buildutil.ForEachPackage(ctxt, func(path string, err error) {
-			if err != nil {
-				return
-			}
-
+		for _, path := range ListPkgsUnderDir(ctxt, dir) {
 			wg.Add(1)
-			go func() {
+			go func(path string) {
 				defer wg.Done()
 
 				sema <- 1
@@ -77,8 +74,8 @@ func BuildReverseImportGraph(ctxt *build.Context, findPackage FindPackageFunc) i
 					}
 				}
 
-			}()
-		})
+			}(path)
+		}
 		wg.Wait()
 		close(ch)
 	}()

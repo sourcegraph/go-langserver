@@ -167,11 +167,11 @@ func TestServer(t *testing.T) {
 				wantReferences: map[string][]string{
 					"a.go:1:16": []string{
 						"/src/test/pkg/a.go:1:16",
-						// "/src/test/pkg/a_test.go:1:46", // we do not support xtest refs yet
+						"/src/test/pkg/a_test.go:1:46",
 					},
 					"a_test.go:1:46": []string{
 						"/src/test/pkg/a.go:1:16",
-						// "/src/test/pkg/a_test.go:1:46", // we do not support xtest refs yet
+						"/src/test/pkg/a_test.go:1:46",
 					},
 					"a_test.go:1:40": []string{
 						"/src/test/pkg/a_test.go:1:40",
