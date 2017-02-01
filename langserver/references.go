@@ -52,9 +52,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 
 	bctx := h.BuildContext(ctx)
 	h.importGraphOnce.Do(func() {
-		// We ignore the errors since we are doing a best-effort analysis
-		_, rev, _ := tools.Build(bctx)
-		h.importGraph = rev
+		h.importGraph = tools.BuildReverseImportGraph(bctx)
 	})
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru

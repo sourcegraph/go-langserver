@@ -14,23 +14,23 @@ import (
 	"golang.org/x/tools/refactor/importgraph"
 )
 
-func Build(ctxt *build.Context) (forward, reverse importgraph.Graph, errors map[string]error) {
+// BuildReverseImportGraph is much like importgraph.Build, except:
+// * it only returns the reverse graph
+// * it does not return errors
+//
+// The code is adapted from the original function.
+func BuildReverseImportGraph(ctxt *build.Context) importgraph.Graph {
 	type importEdge struct {
 		from, to string
 	}
-	type pathError struct {
-		path string
-		err  error
-	}
 
-	ch := make(chan interface{})
+	ch := make(chan importEdge)
 
 	go func() {
 		sema := make(chan int, 20) // I/O concurrency limiting semaphore
 		var wg sync.WaitGroup
 		buildutil.ForEachPackage(ctxt, func(path string, err error) {
 			if err != nil {
-				ch <- pathError{path, err}
 				return
 			}
 
@@ -39,17 +39,9 @@ func Build(ctxt *build.Context) (forward, reverse importgraph.Graph, errors map[
 				defer wg.Done()
 
 				sema <- 1
-				bp, err := ctxt.Import(path, "", 0)
+				// Even in error cases, Import usually returns a package.
+				bp, _ := ctxt.Import(path, "", 0)
 				<-sema
-
-				if err != nil {
-					if _, ok := err.(*build.NoGoError); ok {
-						// empty directory is not an error
-					} else {
-						ch <- pathError{path, err}
-					}
-					// Even in error cases, Import usually returns a package.
-				}
 
 				// absolutize resolves an import path relative
 				// to the current package bp.
@@ -98,27 +90,16 @@ func Build(ctxt *build.Context) (forward, reverse importgraph.Graph, errors map[
 		close(ch)
 	}()
 
-	forward = make(importgraph.Graph)
-	reverse = make(importgraph.Graph)
+	reverse := make(importgraph.Graph)
 
 	for e := range ch {
-		switch e := e.(type) {
-		case pathError:
-			if errors == nil {
-				errors = make(map[string]error)
-			}
-			errors[e.path] = e.err
-
-		case importEdge:
-			if e.to == "C" {
-				continue // "C" is fake
-			}
-			addEdge(forward, e.from, e.to)
-			addEdge(reverse, e.to, e.from)
+		if e.to == "C" {
+			continue // "C" is fake
 		}
+		addEdge(reverse, e.to, e.from)
 	}
 
-	return forward, reverse, errors
+	return reverse
 }
 
 func addEdge(g importgraph.Graph, from, to string) {
