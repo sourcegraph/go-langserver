@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/refactor/importgraph"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -53,7 +53,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	bctx := h.BuildContext(ctx)
 	h.importGraphOnce.Do(func() {
 		// We ignore the errors since we are doing a best-effort analysis
-		_, rev, _ := importgraph.Build(bctx)
+		_, rev, _ := tools.Build(bctx)
 		h.importGraph = rev
 	})
 
