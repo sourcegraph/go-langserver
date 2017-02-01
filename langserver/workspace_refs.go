@@ -29,17 +29,6 @@ import (
 // calls.
 const workspaceReferencesTimeout = 15 * time.Second
 
-// XReferenceAddOp is a JSON Patch operation used by
-// workspace/xreferences. It is exported so the build server can efficiently
-// interact with it. The only other patch operation is to create the empty
-// location list.
-type XReferenceAddOp struct {
-	// OP should always be "add"
-	OP    string               `json:"op"`
-	Path  string               `json:"path"`
-	Value referenceInformation `json:"value"` // TODO(keegancsmith) needs to be exported type
-}
-
 func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceReferencesParams) ([]referenceInformation, error) {
 	// TODO: Add support for the cancelRequest LSP method instead of using
 	// hard-coded timeouts like this here.
@@ -151,9 +140,9 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 				return
 			}
 
-			patch := make([]XReferenceAddOp, 0, len(partial)-streamPos)
+			patch := make([]xreferenceAddOp, 0, len(partial)-streamPos)
 			for ; streamPos < len(partial); streamPos++ {
-				patch = append(patch, XReferenceAddOp{
+				patch = append(patch, xreferenceAddOp{
 					OP:    "add",
 					Path:  "/-",
 					Value: partial[streamPos],
@@ -165,7 +154,8 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 					Str:      req.ID.Str,
 					IsString: req.ID.IsString,
 				},
-				Patch: patch,
+				// We use xreferencePatch so the build server can rewrite URIs
+				Patch: xreferencePatch(patch),
 			})
 		}
 	}
