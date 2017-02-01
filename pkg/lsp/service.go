@@ -8,10 +8,10 @@ import (
 type None struct{}
 
 type InitializeParams struct {
-	ProcessID             int                `json:"processId,omitempty"`
-	RootPath              string             `json:"rootPath,omitempty"`
-	InitializationOptions interface{}        `json:"initializationOptions,omitempty"`
-	Capabilities          ClientCapabilities `json:"capabilities"`
+	ProcessID             int                    `json:"processId,omitempty"`
+	RootPath              string                 `json:"rootPath,omitempty"`
+	InitializationOptions *InitializationOptions `json:"initializationOptions,omitempty"`
+	Capabilities          ClientCapabilities     `json:"capabilities"`
 }
 
 type ClientCapabilities struct {
@@ -29,6 +29,12 @@ type ClientCapabilities struct {
 	// XCacheProvider indicates the client provides support for cache/get
 	// and cache/set.
 	XCacheProvider bool `json:"xcacheProvider,omitempty"`
+}
+
+type InitializationOptions struct {
+	RootImportPath string `json:"rootImportPath,omitempty"`
+	GOPATH         string `json:"GOPATH,omitempty"`
+	GOROOT         string `json:"GOROOT,omitempty"`
 }
 
 type InitializeResult struct {

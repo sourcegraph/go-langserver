@@ -10,12 +10,13 @@ import (
 	"os"
 
 	"github.com/sourcegraph/go-langserver/langserver"
+	"github.com/sourcegraph/go-langserver/langserver/modes"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 var (
-	mode    = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr    = flag.String("addr", ":4389", "server listen address (tcp)")
+	mode    = flag.String("mode", "ws", "communication mode (stdio|tcp|ws)")
+	addr    = flag.String("addr", ":4389", "server listen address (tcp|ws)")
 	trace   = flag.Bool("trace", false, "print all requests and responses")
 	logfile = flag.String("logfile", "", "also log to this file (in addition to stderr)")
 )
@@ -65,6 +66,9 @@ func run() error {
 			}
 			jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), langserver.NewHandler(), connOpt...)
 		}
+
+	case "ws":
+		return modes.WebSocket(*addr, connOpt)
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
