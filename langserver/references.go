@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -52,7 +53,11 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 
 	bctx := h.BuildContext(ctx)
 	h.importGraphOnce.Do(func() {
-		h.importGraph = tools.BuildReverseImportGraph(bctx)
+		findPackageWithCtx := h.getFindPackageFunc()
+		findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+			return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
+		}
+		h.importGraph = tools.BuildReverseImportGraph(bctx, findPackage)
 	})
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru

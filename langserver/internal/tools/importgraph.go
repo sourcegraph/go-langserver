@@ -14,12 +14,16 @@ import (
 	"golang.org/x/tools/refactor/importgraph"
 )
 
+// FindPackageFunc is the same type as loader.Config.FindPackage. Refer to its docstring.
+type FindPackageFunc func(ctxt *build.Context, fromDir, importPath string, mode build.ImportMode) (*build.Package, error)
+
 // BuildReverseImportGraph is much like importgraph.Build, except:
 // * it only returns the reverse graph
 // * it does not return errors
+// * it uses a custom FindPackageFunc
 //
 // The code is adapted from the original function.
-func BuildReverseImportGraph(ctxt *build.Context) importgraph.Graph {
+func BuildReverseImportGraph(ctxt *build.Context, findPackage FindPackageFunc) importgraph.Graph {
 	type importEdge struct {
 		from, to string
 	}
@@ -40,26 +44,15 @@ func BuildReverseImportGraph(ctxt *build.Context) importgraph.Graph {
 
 				sema <- 1
 				// Even in error cases, Import usually returns a package.
-				bp, _ := ctxt.Import(path, "", 0)
+				bp, _ := findPackage(ctxt, path, "", 0)
 				<-sema
 
-				// absolutize resolves an import path relative
-				// to the current package bp.
-				// The absolute form may contain "vendor".
-				//
-				// The vendoring feature slows down Build by 3×.
-				// Here are timings from a 1400 package workspace:
-				//    1100ms: current code (with vendor check)
-				//     880ms: with a nonblocking cache around ctxt.IsDir
-				//     840ms: nonblocking cache with duplicate suppression
-				//     340ms: original code (no vendor check)
-				// TODO(adonovan): optimize, somehow.
 				memo := make(map[string]string)
 				absolutize := func(path string) string {
 					canon, ok := memo[path]
 					if !ok {
 						sema <- 1
-						bp2, _ := ctxt.Import(path, bp.Dir, build.FindOnly)
+						bp2, _ := findPackage(ctxt, path, bp.Dir, build.FindOnly)
 						<-sema
 
 						if bp2 != nil {
