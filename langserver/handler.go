@@ -156,8 +156,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 
 		// HACK: RootPath is not a URI, but historically we treated it
 		// as such. Convert it to a file URI
-		if !isUri(params.RootPath) {
-			params.RootPath = pathToUri(params.RootPath)
+		if !isURI(params.RootPath) {
+			params.RootPath = pathToURI(params.RootPath)
 		}
 
 		if err := h.reset(&params); err != nil {

@@ -50,7 +50,7 @@ func (h *HandlerShared) Reset(overlayRootURI string, useOSFS bool) error {
 	h.overlayFS = map[string][]byte{}
 	h.FS = NewAtomicFS()
 
-	if !isUri(overlayRootURI) {
+	if !isURI(overlayRootURI) {
 		return fmt.Errorf("invalid overlay root URI %q: must be file:///", overlayRootURI)
 	}
 	h.OverlayMountPath = uriToPath(overlayRootURI)

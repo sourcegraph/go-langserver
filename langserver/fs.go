@@ -99,7 +99,10 @@ func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error
 }
 
 func uriToOverlayPath(uri string) string {
-	return strings.TrimPrefix(uriToPath(uri), "/")
+	if isURI(uri) {
+		return strings.TrimPrefix(uriToPath(uri), "/")
+	}
+	return uri
 }
 
 func (h *HandlerShared) addOverlayFile(uri string, contents []byte) {

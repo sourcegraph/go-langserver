@@ -57,7 +57,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		if ok {
 			found := false
 			for _, dir := range dirs.([]interface{}) {
-				if pathToUri(bpkg.Dir) == dir.(string) {
+				if pathToURI(bpkg.Dir) == dir.(string) {
 					found = true
 					break
 				}

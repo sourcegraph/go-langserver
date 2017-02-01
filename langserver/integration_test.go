@@ -77,7 +77,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 	// saved. It should re-typecheck using the unsaved file contents.
 	if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 		TextDocument: lsp.TextDocumentItem{
-			URI:  pathToUri(filepath.Join(rootPath, "a.go")),
+			URI:  pathToURI(filepath.Join(rootPath, "a.go")),
 			Text: "package p; func A() int { return 0 }",
 		},
 	}, nil); err != nil {

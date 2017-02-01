@@ -35,13 +35,13 @@ func IsVendorDir(dir string) bool {
 	return strings.HasPrefix(dir, "vendor/") || strings.Contains(dir, "/vendor/")
 }
 
-// isUri tells if s denotes an URI
-func isUri(s string) bool {
+// isURI tells if s denotes an URI
+func isURI(s string) bool {
 	return strings.HasPrefix(s, "file:///")
 }
 
-// pathToUri converts given path to file URI
-func pathToUri(path string) string {
+// pathToURI converts given absolute path to file URI
+func pathToURI(path string) string {
 	return "file://" + path
 }
 

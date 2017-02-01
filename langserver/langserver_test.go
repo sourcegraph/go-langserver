@@ -990,7 +990,7 @@ func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath str
 	if err != nil {
 		t.Fatal(err)
 	}
-	hover, err := callHover(ctx, c, pathToUri(path.Join(rootPath, file)), line, char)
+	hover, err := callHover(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1004,7 +1004,7 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition, err := callDefinition(ctx, c, pathToUri(path.Join(rootPath, file)), line, char)
+	definition, err := callDefinition(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1019,7 +1019,7 @@ func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPa
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition, err := callXDefinition(ctx, c, pathToUri(path.Join(rootPath, file)), line, char)
+	xdefinition, err := callXDefinition(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1034,7 +1034,7 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	if err != nil {
 		t.Fatal(err)
 	}
-	references, err := callReferences(ctx, c, pathToUri(path.Join(rootPath, file)), line, char)
+	references, err := callReferences(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1049,7 +1049,7 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 }
 
 func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want []string) {
-	symbols, err := callSymbols(ctx, c, pathToUri(path.Join(rootPath, file)))
+	symbols, err := callSymbols(ctx, c, pathToURI(path.Join(rootPath, file)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1079,7 +1079,7 @@ func signatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath
 	if err != nil {
 		t.Fatal(err)
 	}
-	signature, err := callSignature(ctx, c, pathToUri(path.Join(rootPath, file)), line, char)
+	signature, err := callSignature(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1099,7 +1099,7 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 }
 
 func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want string) {
-	edits, err := callFormatting(ctx, c, pathToUri(path.Join(rootPath, file)))
+	edits, err := callFormatting(ctx, c, pathToURI(path.Join(rootPath, file)))
 	if err != nil {
 		t.Fatal(err)
 	}
