@@ -170,14 +170,14 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn JSONRP
 		}
 	}
 
-Loop:
+loop:
 	for {
 		select {
 		case <-done:
 			if err != nil {
 				return nil, err
 			}
-			break Loop
+			break loop
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-streamTick:
