@@ -832,7 +832,7 @@ type Header struct {
 				}
 			}()
 
-			rootFSPath := strings.TrimPrefix(test.rootPath, "file://")
+			rootFSPath := uriToPath(test.rootPath)
 
 			// Prepare the connection.
 			ctx := context.Background()
@@ -992,7 +992,7 @@ func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath str
 	if err != nil {
 		t.Fatal(err)
 	}
-	hover, err := callHover(ctx, c, "file://"+path.Join(rootPath, file), line, char)
+	hover, err := callHover(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1006,11 +1006,11 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition, err := callDefinition(ctx, c, "file://"+path.Join(rootPath, file), line, char)
+	definition, err := callDefinition(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition = strings.TrimPrefix(definition, "file://")
+	definition = uriToPath(definition)
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
 	}
@@ -1021,11 +1021,11 @@ func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPa
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition, err := callXDefinition(ctx, c, "file://"+path.Join(rootPath, file), line, char)
+	xdefinition, err := callXDefinition(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition = strings.TrimPrefix(xdefinition, "file://")
+	xdefinition = uriToPath(xdefinition)
 	if xdefinition != want {
 		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
 	}
@@ -1036,12 +1036,12 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	if err != nil {
 		t.Fatal(err)
 	}
-	references, err := callReferences(ctx, c, "file://"+path.Join(rootPath, file), line, char)
+	references, err := callReferences(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range references {
-		references[i] = strings.TrimPrefix(references[i], "file://")
+		references[i] = uriToPath(references[i])
 	}
 	sort.Strings(references)
 	sort.Strings(want)
@@ -1051,12 +1051,12 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 }
 
 func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want []string) {
-	symbols, err := callSymbols(ctx, c, "file://"+path.Join(rootPath, file))
+	symbols, err := callSymbols(ctx, c, pathToURI(path.Join(rootPath, file)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = strings.TrimPrefix(symbols[i], "file://")
+		symbols[i] = uriToPath(symbols[i])
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %q, want %q", symbols, want)
@@ -1069,7 +1069,7 @@ func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = strings.TrimPrefix(symbols[i], "file://")
+		symbols[i] = uriToPath(symbols[i])
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %#v, want %q", symbols, want)
@@ -1081,7 +1081,7 @@ func signatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath
 	if err != nil {
 		t.Fatal(err)
 	}
-	signature, err := callSignature(ctx, c, "file://"+path.Join(rootPath, file), line, char)
+	signature, err := callSignature(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1101,7 +1101,7 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 }
 
 func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want string) {
-	edits, err := callFormatting(ctx, c, "file://"+path.Join(rootPath, file))
+	edits, err := callFormatting(ctx, c, pathToURI(path.Join(rootPath, file)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1264,7 +1264,7 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 	}
 	refs := make([]string, len(references))
 	for i, r := range references {
-		locationURI := strings.TrimPrefix(r.Reference.URI, "file://")
+		locationURI := uriToPath(r.Reference.URI)
 		start := r.Reference.Range.Start
 		end := r.Reference.Range.End
 		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)

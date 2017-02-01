@@ -29,7 +29,7 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn JSONRPC2Conn,
 
 	for filename, diags := range diags {
 		params := lsp.PublishDiagnosticsParams{
-			URI:         "file://" + filename,
+			URI:         pathToURI(filename),
 			Diagnostics: make([]lsp.Diagnostic, len(diags)),
 		}
 		for i, d := range diags {
