@@ -102,7 +102,7 @@ func (e *invalidNodeError) Error() string {
 func posForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {
 	var f *token.File
 	fset.Iterate(func(ff *token.File) bool {
-		if ff.Name() == filename {
+		if pathEqual(ff.Name(), filename) {
 			f = ff
 			return false // break out of loop
 		}

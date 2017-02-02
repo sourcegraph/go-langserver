@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -70,19 +69,8 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	bctx.IsAbsPath = func(path string) bool {
 		return strings.HasPrefix(virtualPath(path), "/")
 	}
-	bctx.JoinPath = func(elem ...string) string {
-		return path.Join(elem...)
-	}
+	bctx.JoinPath = path.Join
 	return bctx
-}
-
-// From: https://github.com/golang/tools/blob/b814a3b030588c115189743d7da79bce8b549ce1/go/buildutil/util.go#L84
-// dirHasPrefix tests whether the directory dir begins with prefix.
-func dirHasPrefix(dir, prefix string) bool {
-	if runtime.GOOS != "windows" {
-		return strings.HasPrefix(dir, prefix)
-	}
-	return len(dir) >= len(prefix) && strings.EqualFold(dir[:len(prefix)], prefix)
 }
 
 // ContainingPackage returns the package that contains the given
@@ -112,14 +100,14 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 	} else {
 		srcDir = "" // with no GOPATH, only stdlib will work
 		for _, gopath := range gopaths {
-			if dirHasPrefix(pkgDir, gopath) {
+			if PathHasPrefix(pkgDir, gopath) {
 				srcDir = gopath
 				break
 			}
 		}
 	}
-	srcDir = path.Join(srcDir, "src") + "/"
-	importPath := strings.TrimPrefix(pkgDir, srcDir)
+	srcDir = path.Join(srcDir, "src")
+	importPath := PathTrimPrefix(pkgDir, srcDir)
 	var xtest bool
 	pkg, err := bctx.Import(importPath, pkgDir, 0)
 	if pkg != nil {
