@@ -865,9 +865,11 @@ type Header struct {
 
 func startServer(t testing.TB, h jsonrpc2.Handler) (addr string, done func()) {
 	bindAddr := ":0"
-	if os.Getenv("CI") != "" {
+	if os.Getenv("CI") != "" || runtime.GOOS == "windows" {
 		// CircleCI has issues with IPv6 (e.g., "dial tcp [::]:39984:
 		// connect: network is unreachable").
+		// Similar error is happens on Windows:
+		// "dial tcp [::]:61898: connectex: The requested address is not valid in its context."
 		bindAddr = "127.0.0.1:0"
 	}
 	l, err := net.Listen("tcp", bindAddr)
