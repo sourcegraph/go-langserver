@@ -42,14 +42,20 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	fs := h.FS
 	h.Mu.Unlock()
 
+	// HACK: in the all Context's methods below we are trying to convert path to virtual one (/foo/bar/..)
+	// because some code may pass OS-specific arguments.
+	// See golang.org/x/tools/go/buildutil/allpackages.go which uses `filepath` for example
+
 	bctx.OpenFile = func(path string) (io.ReadCloser, error) {
-		return fs.Open(ctx, path)
+		return fs.Open(ctx, virtualPath(path))
 	}
 	bctx.IsDir = func(path string) bool {
-		fi, err := fs.Stat(ctx, path)
+		fi, err := fs.Stat(ctx, virtualPath(path))
 		return err == nil && fi.Mode().IsDir()
 	}
 	bctx.HasSubdir = func(root, dir string) (rel string, ok bool) {
+		root = virtualPath(root)
+		dir = virtualPath(dir)
 		if !bctx.IsDir(dir) {
 			return "", false
 		}
@@ -59,10 +65,10 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 		return PathTrimPrefix(dir, root), true
 	}
 	bctx.ReadDir = func(path string) ([]os.FileInfo, error) {
-		return fs.ReadDir(ctx, path)
+		return fs.ReadDir(ctx, virtualPath(path))
 	}
 	bctx.IsAbsPath = func(path string) bool {
-		return strings.HasPrefix(path, "/")
+		return strings.HasPrefix(virtualPath(path), "/")
 	}
 	bctx.JoinPath = func(elem ...string) string {
 		return path.Join(elem...)

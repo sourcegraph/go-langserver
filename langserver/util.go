@@ -3,15 +3,14 @@ package langserver
 import (
 	"fmt"
 	"log"
-	"os"
 	"runtime"
 	"strings"
 )
 
 func PathHasPrefix(s, prefix string) bool {
 	var prefixSlash string
-	if prefix != "" && !strings.HasSuffix(prefix, string(os.PathSeparator)) {
-		prefixSlash = prefix + string(os.PathSeparator)
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefixSlash = prefix + "/"
 	}
 	return s == prefix || strings.HasPrefix(s, prefixSlash)
 }
@@ -20,8 +19,8 @@ func PathTrimPrefix(s, prefix string) string {
 	if s == prefix {
 		return ""
 	}
-	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
-		prefix += string(os.PathSeparator)
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
 	}
 	return strings.TrimPrefix(s, prefix)
 }
