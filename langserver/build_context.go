@@ -6,11 +6,12 @@ import (
 	"io"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 	"strings"
 
 	"golang.org/x/net/context"
+
+	"golang.org/x/tools/go/buildutil"
 )
 
 // BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.
@@ -52,14 +53,19 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 		if !bctx.IsDir(dir) {
 			return "", false
 		}
-		rel, err := filepath.Rel(root, dir)
-		if err != nil {
+		if !PathHasPrefix(dir, root) {
 			return "", false
 		}
-		return rel, true
+		return PathTrimPrefix(dir, root), true
 	}
 	bctx.ReadDir = func(path string) ([]os.FileInfo, error) {
 		return fs.ReadDir(ctx, path)
+	}
+	bctx.IsAbsPath = func(path string) bool {
+		return strings.HasPrefix(path, "/")
+	}
+	bctx.JoinPath = func(elem ...string) string {
+		return path.Join(elem...)
 	}
 	return bctx
 }
@@ -83,9 +89,9 @@ func dirHasPrefix(dir, prefix string) bool {
 // * if the file is in the xtest package (package p_test not package p),
 //   it returns build.Package only representing that xtest package
 func ContainingPackage(bctx *build.Context, filename string) (*build.Package, error) {
-	gopaths := filepath.SplitList(bctx.GOPATH) // list will be empty with no GOPATH
+	gopaths := buildutil.SplitPathList(bctx, bctx.GOPATH) // list will be empty with no GOPATH
 	for _, gopath := range gopaths {
-		if !isAbsPath(bctx, gopath) {
+		if !buildutil.IsAbsPath(bctx, gopath) {
 			return nil, fmt.Errorf("build context GOPATH must be an absolute path (GOPATH=%q)", gopath)
 		}
 	}
@@ -131,11 +137,4 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 	}
 
 	return pkg, err
-}
-
-func isAbsPath(bctx *build.Context, filename string) bool {
-	if bctx.IsAbsPath != nil {
-		return bctx.IsAbsPath(filename)
-	}
-	return filepath.IsAbs(filename)
 }

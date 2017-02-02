@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -222,7 +221,7 @@ func score(q Query, s symbolPair) (scor int) {
 		if strings.Contains(filename, tok) && len(tok) >= 3 {
 			scor++
 		}
-		if strings.HasPrefix(filepath.Base(filename), tok) && len(tok) >= 3 {
+		if strings.HasPrefix(path.Base(filename), tok) && len(tok) >= 3 {
 			scor += 2
 		}
 		if tok == name {
@@ -252,7 +251,7 @@ func score(q Query, s symbolPair) (scor int) {
 func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, fs *token.FileSet, pos token.Pos) symbolPair {
 	container := recv
 	if container == "" {
-		container = filepath.Base(bpkg.ImportPath)
+		container = path.Base(bpkg.ImportPath)
 	}
 
 	var id string
@@ -466,8 +465,8 @@ func parseDir(fset *token.FileSet, bctx *build.Context, path string, filter func
 	pkgs = map[string]*ast.Package{}
 	for _, d := range list {
 		if strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
-			filename := filepath.Join(path, d.Name())
-			if src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Join(path, d.Name()), filename, mode); err == nil {
+			filename := buildutil.JoinPath(bctx, path, d.Name())
+			if src, err := buildutil.ParseFile(fset, bctx, nil, buildutil.JoinPath(bctx, path, d.Name()), filename, mode); err == nil {
 				name := src.Name.Name
 				pkg, found := pkgs[name]
 				if !found {
@@ -533,17 +532,17 @@ var ioLimit = make(chan bool, 20)
 // since it doesn't allow searching from a directory. We need from a specific
 // directory for performance on large GOPATHs.
 func allPackages(ctxt *build.Context, root, start string, ch chan<- string) {
-	root = filepath.Clean(root) + string(os.PathSeparator)
-	start = filepath.Clean(start) + string(os.PathSeparator)
+	root = path.Clean(root)
+	start = path.Clean(start)
 
-	if strings.HasPrefix(root, start) {
+	if PathHasPrefix(root, start) {
 		// If we are a child of start, we can just start at the
 		// root. A concrete example of this happening is when
 		// root=/goroot/src and start=/goroot
 		start = root
 	}
 
-	if !strings.HasPrefix(start, root) {
+	if !PathHasPrefix(start, root) {
 		return
 	}
 
@@ -552,12 +551,12 @@ func allPackages(ctxt *build.Context, root, start string, ch chan<- string) {
 	var walkDir func(dir string)
 	walkDir = func(dir string) {
 		// Avoid .foo, _foo, and testdata directory trees.
-		base := filepath.Base(dir)
+		base := path.Base(dir)
 		if base == "" || base[0] == '.' || base[0] == '_' || base == "testdata" {
 			return
 		}
 
-		pkg := filepath.ToSlash(strings.TrimPrefix(dir, root))
+		pkg := PathTrimPrefix(dir, root)
 
 		// Prune search if we encounter any of these import paths.
 		switch pkg {
@@ -577,7 +576,7 @@ func allPackages(ctxt *build.Context, root, start string, ch chan<- string) {
 			if fi.IsDir() {
 				wg.Add(1)
 				go func() {
-					walkDir(filepath.Join(dir, fi.Name()))
+					walkDir(buildutil.JoinPath(ctxt, dir, fi.Name()))
 					wg.Done()
 				}()
 			}

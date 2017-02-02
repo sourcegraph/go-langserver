@@ -9,7 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
-	"path/filepath"
+	"path"
 	"reflect"
 	"strings"
 
@@ -17,6 +17,7 @@ import (
 
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -44,7 +45,7 @@ func (h *LangHandler) typecheck(ctx context.Context, conn JSONRPC2Conn, fileURI 
 
 	bpkg, err := ContainingPackage(bctx, filename)
 	if mpErr, ok := err.(*build.MultiplePackageError); ok {
-		bpkg, err = buildPackageForNamedFileInMultiPackageDir(bpkg, mpErr, filepath.Base(filename))
+		bpkg, err = buildPackageForNamedFileInMultiPackageDir(bpkg, mpErr, path.Base(filename))
 		if err != nil {
 			return nil, nil, nil, nil, nil, err
 		}
@@ -263,7 +264,7 @@ func typecheck(ctx context.Context, fset *token.FileSet, bctx *build.Context, bp
 		goFiles = append(goFiles, bpkg.XTestGoFiles...)
 	}
 	for i, filename := range goFiles {
-		goFiles[i] = filepath.Join(bpkg.Dir, filename)
+		goFiles[i] = buildutil.JoinPath(bctx, bpkg.Dir, filename)
 	}
 	conf.CreateFromFilenames(bpkg.ImportPath, goFiles...)
 	prog, err := conf.Load()
