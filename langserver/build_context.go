@@ -53,8 +53,6 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 		return err == nil && fi.Mode().IsDir()
 	}
 	bctx.HasSubdir = func(root, dir string) (rel string, ok bool) {
-		root = virtualPath(root)
-		dir = virtualPath(dir)
 		if !bctx.IsDir(dir) {
 			return "", false
 		}
