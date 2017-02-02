@@ -67,7 +67,7 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 		return fs.ReadDir(ctx, virtualPath(path))
 	}
 	bctx.IsAbsPath = func(path string) bool {
-		return strings.HasPrefix(virtualPath(path), "/")
+		return isAbs(path)
 	}
 	bctx.JoinPath = path.Join
 	return bctx
