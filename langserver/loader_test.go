@@ -44,11 +44,9 @@ func TestLoader(t *testing.T) {
 			p, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc)
 			if err != nil {
 				t.Error(err)
-			}
-			if len(p.Created) == 0 {
+			} else if len(p.Created) == 0 {
 				t.Error("Expected to loader to create a package")
-			}
-			if len(p.Created[0].Files) == 0 {
+			} else if len(p.Created[0].Files) == 0 {
 				t.Error("did not load any files")
 			}
 		})
