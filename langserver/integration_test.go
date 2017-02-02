@@ -59,7 +59,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	if err := conn.Call(ctx, "initialize", lsp.InitializeParams{RootPath: rootPath}, nil); err != nil {
+	if err := conn.Call(ctx, "initialize", lsp.InitializeParams{RootPath: virtualPath(rootPath)}, nil); err != nil {
 		t.Fatal("initialize:", err)
 	}
 
@@ -71,13 +71,13 @@ func TestIntegration_FileSystem(t *testing.T) {
 			"p2/c.go:1:40": "func A()",
 		},
 	}
-	lspTests(t, ctx, conn, rootPath, cases)
+	lspTests(t, ctx, conn, virtualPath(rootPath), cases)
 
 	// Now mimic what happens when a file is edited but not yet
 	// saved. It should re-typecheck using the unsaved file contents.
 	if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 		TextDocument: lsp.TextDocumentItem{
-			URI:  pathToURI(filepath.Join(rootPath, "a.go")),
+			URI:  pathToURI(virtualPath(filepath.Join(rootPath, "a.go"))),
 			Text: "package p; func A() int { return 0 }",
 		},
 	}, nil); err != nil {
@@ -90,5 +90,5 @@ func TestIntegration_FileSystem(t *testing.T) {
 			"p2/c.go:1:40": "func A() int",
 		},
 	}
-	lspTests(t, ctx, conn, rootPath, cases)
+	lspTests(t, ctx, conn, virtualPath(rootPath), cases)
 }
