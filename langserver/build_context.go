@@ -85,7 +85,7 @@ func dirHasPrefix(dir, prefix string) bool {
 func ContainingPackage(bctx *build.Context, filename string) (*build.Package, error) {
 	gopaths := filepath.SplitList(bctx.GOPATH) // list will be empty with no GOPATH
 	for _, gopath := range gopaths {
-		if !filepath.IsAbs(gopath) {
+		if !isAbsPath(bctx, gopath) {
 			return nil, fmt.Errorf("build context GOPATH must be an absolute path (GOPATH=%q)", gopath)
 		}
 	}
@@ -131,4 +131,11 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 	}
 
 	return pkg, err
+}
+
+func isAbsPath(bctx *build.Context, filename string) bool {
+	if bctx.IsAbsPath != nil {
+		return bctx.IsAbsPath(filename)
+	}
+	return filepath.IsAbs(filename)
 }
