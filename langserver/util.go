@@ -8,14 +8,18 @@ import (
 )
 
 func PathHasPrefix(s, prefix string) bool {
+	prefix = virtualPath(prefix)
 	var prefixSlash string
 	if prefix != "" && !strings.HasSuffix(prefix, "/") {
 		prefixSlash = prefix + "/"
 	}
+	s = virtualPath(s)
 	return s == prefix || strings.HasPrefix(s, prefixSlash)
 }
 
 func PathTrimPrefix(s, prefix string) string {
+	s = virtualPath(s)
+	prefix = virtualPath(prefix)
 	if s == prefix {
 		return ""
 	}
@@ -41,6 +45,9 @@ func isURI(s string) bool {
 
 // pathToURI converts given absolute path to file URI
 func pathToURI(path string) string {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
 	return "file://" + path
 }
 

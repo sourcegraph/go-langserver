@@ -4,8 +4,13 @@ package langserver
 
 import (
 	"path/filepath"
+	"strings"
 )
 
 func virtualPath(path string) string {
-	return filepath.ToSlash(path)
+	path = filepath.ToSlash(path)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
 }
