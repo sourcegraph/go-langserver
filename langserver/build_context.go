@@ -13,7 +13,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-// BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.
+// BuildContext creates a build.Context which uses the overlay FS and the
+// InitializeParams.BuildContext overrides. If the given context.Context is
+// canceled, file-system operations are failed in order to prevent pending
+// type-checking operations from succeeding.
 func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	var bctx *build.Context
 	if override := h.init.BuildContext; override != nil {
@@ -42,13 +45,22 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	h.Mu.Unlock()
 
 	bctx.OpenFile = func(path string) (io.ReadCloser, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		return fs.Open(ctx, path)
 	}
 	bctx.IsDir = func(path string) bool {
+		if err := ctx.Err(); err != nil {
+			return false
+		}
 		fi, err := fs.Stat(ctx, path)
 		return err == nil && fi.Mode().IsDir()
 	}
 	bctx.HasSubdir = func(root, dir string) (rel string, ok bool) {
+		if err := ctx.Err(); err != nil {
+			return "", false
+		}
 		if !bctx.IsDir(dir) {
 			return "", false
 		}
@@ -59,6 +71,9 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 		return rel, true
 	}
 	bctx.ReadDir = func(path string) ([]os.FileInfo, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		return fs.ReadDir(ctx, path)
 	}
 	return bctx
