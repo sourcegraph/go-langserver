@@ -122,17 +122,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		lconf := loader.Config{
 			Fset:  fset,
 			Build: bctx,
-			TypeCheckFuncBodies: func(path string) bool {
-				if ctx.Err() != nil {
-					return false
-				}
-
-				// Don't typecheck func bodies in dependency packages
-				// (except the package that defines the object), because
-				// we wouldn't return those refs anyway.
-				path = strings.TrimSuffix(path, "_test")
-				return users[path] && (pkgInWorkspace(path) || path == defpkg)
-			},
 		}
 
 		// The importgraph doesn't treat external test packages
@@ -273,9 +262,9 @@ func refStreamAndCollect(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.R
 	}
 }
 
-// findReferences will find all references to obj. It will only return objects
-// where collectPkg is true and the loader can typecheck.
-func findReferences(ctx context.Context, lconf loader.Config, collectPkg func(string) bool, obj types.Object, refs chan<- *ast.Ident) error {
+// findReferences will find all references to obj. It will only return
+// references from packages in lconf.ImportPkgs.
+func findReferences(ctx context.Context, lconf loader.Config, pkgInWorkspace func(string) bool, obj types.Object, refs chan<- *ast.Ident) error {
 	allowErrors(&lconf)
 
 	defpkg := obj.Pkg().Path()
@@ -292,6 +281,28 @@ func findReferences(ctx context.Context, lconf loader.Config, collectPkg func(st
 		afterTypeCheckErr error
 	)
 
+	collectPkg := pkgInWorkspace
+	if _, ok := lconf.ImportPkgs[defpkg]; !ok {
+		// We have to typecheck defpkg, so just avoid references being collected.
+		collectPkg = func(path string) bool {
+			path = strings.TrimSuffix(path, "_test")
+			return pkgInWorkspace(path) && path != defpkg
+		}
+		lconf.ImportWithTests(defpkg)
+	}
+
+	// Only typecheck pkgs which we can collect refs in, or the pkg our
+	// object is defined in.
+	lconf.TypeCheckFuncBodies = func(path string) bool {
+		if ctx.Err() != nil {
+			return false
+		}
+
+		path = strings.TrimSuffix(path, "_test")
+		_, imported := lconf.ImportPkgs[path]
+		return imported && (pkgInWorkspace(path) || path == defpkg)
+	}
+
 	// For efficiency, we scan each package for references
 	// just after it has been type-checked. The loader calls
 	// AfterTypeCheck (concurrently), providing us with a stream of
@@ -304,15 +315,6 @@ func findReferences(ctx context.Context, lconf loader.Config, collectPkg func(st
 
 		wg.Add(1)
 		defer wg.Done()
-
-		if ctx.Err() != nil {
-			// work has been cancelled. We need to check this
-			// after wg.Add since below we do a wg.Wait after
-			// finding out the context is cancelled. Otherway
-			// around could lead to us sending down a closed refs
-			// channel.
-			return
-		}
 
 		// Only inspect packages that depend on the declaring package
 		// (and thus were type-checked).
