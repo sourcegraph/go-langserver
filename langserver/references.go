@@ -112,9 +112,9 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		// type-checking.
 		var users map[string]bool
 		if pkgLevel {
-			users = reverseImportGraph[defpkg]
-			if users == nil {
-				users = map[string]bool{}
+			users = map[string]bool{}
+			for pkg := range reverseImportGraph[defpkg] {
+				users[pkg] = true
 			}
 			users[defpkg] = true
 		} else {
