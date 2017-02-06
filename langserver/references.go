@@ -205,9 +205,15 @@ func (h *LangHandler) reverseImportGraph() <-chan importgraph.Graph {
 			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
 				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
 			}
+			h.mu.Lock()
 			h.importGraph = tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.RootPath))
+			h.mu.Unlock()
 		})
-		c <- h.importGraph
+		h.mu.Lock()
+		// TODO(keegancsmith) h.importGraph may have been reset after once
+		importGraph := h.importGraph
+		h.mu.Unlock()
+		c <- importGraph
 
 		close(c)
 	}()
