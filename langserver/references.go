@@ -42,6 +42,8 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	ctx, cancel := context.WithTimeout(ctx, documentReferencesTimeout)
 	defer cancel()
 
+	// Begin computing the reverse import graph immediately, as this
+	// occurs in the background and is IO-bound.
 	reverseImportGraphC := h.reverseImportGraph()
 
 	fset, node, _, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
