@@ -102,10 +102,11 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		close(locsC)
 	}()
 
+	// seen keeps track of already findReferenced packages. This allows us
+	// to avoid doing extra work when we receive a successive import
+	// graph.
+	seen := make(map[string]bool)
 	for reverseImportGraph := range reverseImportGraphC {
-		// TODO if we get more than one graph, we report results more
-		// than once. Update to handle successive import graphs
-
 		// Find the set of packages in this workspace that depend on
 		// defpkg. Only function bodies in those packages need
 		// type-checking.
@@ -119,6 +120,20 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		} else {
 			users = reverseImportGraph.Search(defpkg)
 		}
+
+		// Anything in seen we have already collected references on,
+		// so we only need to collect (users - seen).
+		unseen := make(map[string]bool)
+		for pkg := range users {
+			if !seen[pkg] {
+				unseen[pkg] = true
+				seen[pkg] = true // need to mark for next loop
+			}
+		}
+		if len(unseen) == 0 { // nothing to do
+			continue
+		}
+
 		lconf := loader.Config{
 			Fset:  fset,
 			Build: bctx,
@@ -126,7 +141,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 
 		// The importgraph doesn't treat external test packages
 		// as separate nodes, so we must use ImportWithTests.
-		for path := range users {
+		for path := range unseen {
 			lconf.ImportWithTests(path)
 		}
 
@@ -142,7 +157,10 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		log.Printf("info: timeout during references for %s, found %d refs", defpkg, len(locs))
 	}
 
-	if findRefErr != nil {
+	// If we find references then we can ignore findRefErr. It should only
+	// be non-nil due to timeouts or our last findReferences doesn't find
+	// the def.
+	if len(locs) == 0 && findRefErr != nil {
 		return nil, findRefErr
 	}
 
