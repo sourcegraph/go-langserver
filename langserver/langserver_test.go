@@ -191,6 +191,7 @@ func TestServer(t *testing.T) {
 				"a.go":      "package p; var A int",
 				"a_test.go": `package p; import "test/pkg/b"; var X = b.B; func TestB() {}`,
 				"b/b.go":    "package b; var B int; func C() int { return B };",
+				"c/c.go":    `package c; import "test/pkg/b"; var X = b.B;`,
 			},
 			cases: lspTestCases{
 				wantHover: map[string]string{
@@ -202,6 +203,7 @@ func TestServer(t *testing.T) {
 						"/src/test/pkg/a_test.go:1:43",
 						"/src/test/pkg/b/b.go:1:16",
 						"/src/test/pkg/b/b.go:1:45",
+						"/src/test/pkg/c/c.go:1:43",
 					},
 					"a_test.go:1:41": []string{
 						"/src/test/pkg/a_test.go:1:19",
