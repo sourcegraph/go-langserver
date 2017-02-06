@@ -85,6 +85,23 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		return PathHasPrefix(path, h.init.RootImportPath)
 	}
 
+	var (
+		// locsC receives the final collected references via
+		// refStreamAndCollect.
+		locsC = make(chan []lsp.Location)
+
+		// refs is a stream of raw references found findReferences.
+		refs = make(chan *ast.Ident)
+
+		// findRefErr is non-nil if findReferences fails.
+		findRefErr error
+	)
+
+	go func() {
+		locsC <- refStreamAndCollect(ctx, conn, req, fset, refs)
+		close(locsC)
+	}()
+
 	// TODO use successive import graphs. For now we just use the last and
 	// most accurate import graph.
 	var reverseImportGraph importgraph.Graph
@@ -127,16 +144,10 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		lconf.ImportWithTests(path)
 	}
 
-	var (
-		refs       = make(chan *ast.Ident)
-		findRefErr error
-	)
-	go func() {
-		findRefErr = findReferences(ctx, lconf, pkgInWorkspace, obj, refs)
-		close(refs)
-	}()
+	findRefErr = findReferences(ctx, lconf, pkgInWorkspace, obj, refs)
+	close(refs)
 
-	locs := refStreamAndCollect(ctx, conn, req, fset, refs)
+	locs := <-locsC
 
 	// If a timeout does occur, we should know how effective the partial data is
 	if ctx.Err() != nil {
