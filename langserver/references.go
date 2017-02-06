@@ -229,9 +229,7 @@ func (h *LangHandler) reverseImportGraph(conn jsonrpc2.JSONRPC2) <-chan importgr
 			h.mu.Unlock()
 
 			// Update cache in background
-			go func() {
-				h.cacheSet(ctx, conn, cacheKey, g)
-			}()
+			go h.cacheSet(ctx, conn, cacheKey, g)
 		})
 		h.mu.Lock()
 		// TODO(keegancsmith) h.importGraph may have been reset after once
