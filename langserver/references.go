@@ -34,7 +34,7 @@ const documentReferencesTimeout = 15 * time.Second
 
 var streamExperiment = len(os.Getenv("STREAM_EXPERIMENT")) > 0
 
-func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
+func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
 	// TODO: Add support for the cancelRequest LSP method instead of using
 	// hard-coded timeouts like this here.
 	//
@@ -227,7 +227,7 @@ func (h *LangHandler) reverseImportGraph() <-chan importgraph.Graph {
 // refStreamAndCollect returns all refs read in from chan until it is
 // closed. While it is reading, it will also occasionaly stream out updates of
 // the refs received so far.
-func refStreamAndCollect(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident) []lsp.Location {
+func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident) []lsp.Location {
 	if !streamExperiment {
 		var locs []lsp.Location
 		for n := range refs {
