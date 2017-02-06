@@ -85,7 +85,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		return nil, fmt.Errorf("no package found for object %s", obj)
 	}
 	defpkg := obj.Pkg().Path()
-	objposn := fset.Position(obj.Pos())
 	_, pkgLevel := classify(obj)
 
 	pkgInWorkspace := func(path string) bool {
@@ -120,7 +119,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 			return users[path] && (pkgInWorkspace(path) || path == defpkg)
 		},
 	}
-	allowErrors(&lconf)
 
 	// The importgraph doesn't treat external test packages
 	// as separate nodes, so we must use ImportWithTests.
@@ -128,13 +126,126 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		lconf.ImportWithTests(path)
 	}
 
+	var (
+		refs       = make(chan *ast.Ident)
+		findRefErr error
+	)
+	go func() {
+		findRefErr = findReferences(ctx, lconf, pkgInWorkspace, obj, refs)
+		close(refs)
+	}()
+
+	locs := refStreamAndCollect(ctx, conn, req, fset, refs)
+
+	// If a timeout does occur, we should know how effective the partial data is
+	if ctx.Err() != nil {
+		refTimeoutResults.Observe(float64(len(locs)))
+		log.Printf("info: timeout during references for %s, found %d refs", defpkg, len(locs))
+	}
+
+	if findRefErr != nil {
+		return nil, findRefErr
+	}
+
+	// Don't include decl if it is outside of workspace.
+	if params.Context.IncludeDeclaration && PathHasPrefix(defpkg, h.init.RootImportPath) {
+		n := &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()}
+		locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+	}
+
+	sortBySharedDirWithURI(params.TextDocument.URI, locs)
+
+	// Technically we may be able to stop computing references sooner and
+	// save RAM/CPU, but currently that would have two drawbacks:
+	// * We can't stop the typechecking anyways
+	// * We may return results that are not as interesting since sortBySharedDirWithURI won't see everything.
+	if params.Context.XLimit > 0 && params.Context.XLimit < len(locs) {
+		locs = locs[:params.Context.XLimit]
+	}
+
+	return locs, nil
+}
+
+// refStreamAndCollect returns all refs read in from chan until it is
+// closed. While it is reading, it will also occasionaly stream out updates of
+// the refs received so far.
+func refStreamAndCollect(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident) []lsp.Location {
+	if !streamExperiment {
+		var locs []lsp.Location
+		for n := range refs {
+			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+		}
+		return locs
+	}
+
+	id := lsp.ID{
+		Num:      req.ID.Num,
+		Str:      req.ID.Str,
+		IsString: req.ID.IsString,
+	}
+	initial := json.RawMessage(`[{"op":"replace","path":"","value":[]}]`)
+	_ = conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+		ID:    id,
+		Patch: &initial,
+	})
+
+	var (
+		locs []lsp.Location
+		pos  int
+	)
+	send := func() {
+		if pos >= len(locs) {
+			return
+		}
+		patch := make([]referenceAddOp, 0, len(locs)-pos)
+		for _, l := range locs[pos:] {
+			patch = append(patch, referenceAddOp{
+				OP:    "add",
+				Path:  "/-",
+				Value: l,
+			})
+		}
+		pos = len(locs)
+		_ = conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
+			ID: id,
+			// We use referencePatch so the build server can rewrite URIs
+			Patch: referencePatch(patch),
+		})
+	}
+
+	tick := time.NewTicker(time.Second)
+	defer tick.Stop()
+
+	for {
+		select {
+		case n, ok := <-refs:
+			if !ok {
+				// send a final update
+				send()
+				return locs
+			}
+			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+		case <-tick.C:
+			send()
+		}
+	}
+}
+
+// findReferences will find all references to obj. It will only return objects
+// where collectPkg is true and the loader can typecheck.
+func findReferences(ctx context.Context, lconf loader.Config, collectPkg func(string) bool, obj types.Object, refs chan<- *ast.Ident) error {
+	allowErrors(&lconf)
+
+	defpkg := obj.Pkg().Path()
+	objposn := lconf.Fset.Position(obj.Pos())
+
 	// The remainder of this function is somewhat tricky because it
 	// operates on the concurrent stream of packages observed by the
 	// loader's AfterTypeCheck hook.
 
 	var (
+		wg                sync.WaitGroup
 		mu                sync.Mutex
-		refs              []*ast.Ident
 		qobj              types.Object
 		afterTypeCheckErr error
 	)
@@ -147,147 +258,91 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		// AfterTypeCheck may be called twice for the same package due
 		// to augmentation.
 
-		// Only inspect packages that depend on the declaring package
-		// (and thus were type-checked).
-		if lconf.TypeCheckFuncBodies(info.Pkg.Path()) {
-			mu.Lock()
-			defer mu.Unlock()
+		defer clearInfoFields(info) // save memory
 
-			// Record the query object and its package when we see
-			// it. We can't reuse obj from the initial typecheck
-			// because each go/loader Load invocation creates new
-			// objects, and we need to test for equality later when we
-			// look up refs.
-			if qobj == nil && strings.TrimSuffix(info.Pkg.Path(), "_test") == defpkg {
-				// Find the object by its position (slightly ugly).
-				qobj = findObject(fset, &info.Info, objposn)
-				if qobj == nil {
-					// It really ought to be there; we found it once
-					// already.
-					afterTypeCheckErr = fmt.Errorf("object at %s not found in package %s", objposn, defpkg)
-				}
-			}
-			obj := qobj
+		wg.Add(1)
+		defer wg.Done()
 
-			// Look for references to the query object. Only collect
-			// those that are in this workspace.
-			if pkgInWorkspace(info.Pkg.Path()) {
-				refs = append(refs, usesOf(obj, info)...)
-			}
+		if ctx.Err() != nil {
+			// work has been cancelled. We need to check this
+			// after wg.Add since below we do a wg.Wait after
+			// finding out the context is cancelled. Otherway
+			// around could lead to us sending down a closed refs
+			// channel.
+			return
 		}
 
-		clearInfoFields(info) // save memory
+		// Only inspect packages that depend on the declaring package
+		// (and thus were type-checked).
+		if !lconf.TypeCheckFuncBodies(info.Pkg.Path()) {
+			return
+		}
+
+		// Record the query object and its package when we see
+		// it. We can't reuse obj from the initial typecheck
+		// because each go/loader Load invocation creates new
+		// objects, and we need to test for equality later when we
+		// look up refs.
+		mu.Lock()
+		if qobj == nil && strings.TrimSuffix(info.Pkg.Path(), "_test") == defpkg {
+			// Find the object by its position (slightly ugly).
+			qobj = findObject(lconf.Fset, &info.Info, objposn)
+			if qobj == nil {
+				// It really ought to be there; we found it once
+				// already.
+				afterTypeCheckErr = fmt.Errorf("object at %s not found in package %s", objposn, defpkg)
+			}
+		}
+		queryObj := qobj
+		mu.Unlock()
+
+		// Look for references to the query object. Only collect
+		// those that are in this workspace.
+		if queryObj != nil && collectPkg(info.Pkg.Path()) {
+			for id, obj := range info.Uses {
+				if sameObj(queryObj, obj) {
+					refs <- id
+				}
+			}
+		}
 	}
 
+	// We don't use workgroup on this goroutine, since we want to return
+	// early on context cancellation.
 	done := make(chan struct{})
 	go func() {
 		// Prevent any uncaught panics from taking the entire server down.
 		defer func() {
 			close(done)
-			_ = panicf(recover(), "%v", req.Method)
+			_ = panicf(recover(), "findReferences")
 		}()
 
 		lconf.Load() // ignore error
 	}()
 
-	streamUpdate := func() {}
-	streamTick := make(<-chan time.Time, 1)
-	if streamExperiment {
-		initial := json.RawMessage(`[{"op":"replace","path":"","value":[]}]`)
-		conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
-			ID: lsp.ID{
-				Num:      req.ID.Num,
-				Str:      req.ID.Str,
-				IsString: req.ID.IsString,
-			},
-			Patch: &initial,
-		})
-		t := time.NewTicker(time.Second)
-		defer t.Stop()
-		streamTick = t.C
-		streamPos := 0
-		streamUpdate = func() {
-			mu.Lock()
-			partial := refs
-			mu.Unlock()
-			if len(partial) == streamPos {
-				// Everything currently in refs has already been sent.
-				return
-			}
-
-			patch := make([]referenceAddOp, 0, len(partial)-streamPos)
-			for ; streamPos < len(partial); streamPos++ {
-				patch = append(patch, referenceAddOp{
-					OP:    "add",
-					Path:  "/-",
-					Value: goRangeToLSPLocation(fset, partial[streamPos].Pos(), partial[streamPos].End()),
-				})
-			}
-			conn.Notify(ctx, "$/partialResult", &lspext.PartialResultParams{
-				ID: lsp.ID{
-					Num:      req.ID.Num,
-					Str:      req.ID.Str,
-					IsString: req.ID.IsString,
-				},
-				// We use referencePatch so the build server can rewrite URIs
-				Patch: referencePatch(patch),
-			})
-		}
-	}
-Loop:
-	for {
-		select {
-		case <-done:
-			break Loop
-		case <-ctx.Done():
-			break Loop
-		case <-streamTick:
-			streamUpdate()
-		}
+	select {
+	case <-done:
+	case <-ctx.Done():
 	}
 
-	// Send a final update
-	streamUpdate()
-
-	// We need to grab mu since it protects qobj
-	mu.Lock()
-	defer mu.Unlock()
-
-	// If a timeout does occur, we should know how effective the partial data is
-	if ctx.Err() != nil {
-		refTimeoutResults.Observe(float64(len(refs)))
-		log.Printf("info: timeout during references for %s, found %d refs", defpkg, len(refs))
-	}
+	// This should only wait in the case of the context being done. In
+	// that case we are waiting for the currently running AfterTypeCheck
+	// functions to finish.
+	wg.Wait()
 
 	if qobj == nil {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return ctx.Err()
 		}
 		if afterTypeCheckErr != nil {
 			// Only triggered by 1 specific error above (where we assign
 			// afterTypeCheckErr), not any general loader error.
-			return nil, afterTypeCheckErr
+			return afterTypeCheckErr
 		}
-		return nil, errors.New("query object not found during reloading")
+		return errors.New("query object not found during reloading")
 	}
 
-	// Don't include decl if it is outside of workspace.
-	if params.Context.IncludeDeclaration && PathHasPrefix(defpkg, h.init.RootImportPath) {
-		refs = append(refs, &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()})
-	}
-
-	locs := goRangesToLSPLocations(fset, refs)
-	sortBySharedDirWithURI(params.TextDocument.URI, locs)
-
-	// Technically we may be able to stop computing references sooner and
-	// save RAM/CPU, but currently that would have two drawbacks:
-	// * We can't stop the typechecking anyways
-	// * We may return results that are not as interesting since sortBySharedDirWithURI won't see everything.
-	if params.Context.XLimit > 0 && params.Context.XLimit < len(locs) {
-		locs = locs[:params.Context.XLimit]
-	}
-
-	return locs, nil
+	return nil
 }
 
 // classify classifies objects by how far
