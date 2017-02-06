@@ -102,49 +102,47 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		close(locsC)
 	}()
 
-	// TODO use successive import graphs. For now we just use the last and
-	// most accurate import graph.
-	var reverseImportGraph importgraph.Graph
-	for g := range reverseImportGraphC {
-		reverseImportGraph = g
-	}
+	for reverseImportGraph := range reverseImportGraphC {
+		// TODO if we get more than one graph, we report results more
+		// than once. Update to handle successive import graphs
 
-	// Find the set of packages in this workspace that depend on
-	// defpkg. Only function bodies in those packages need
-	// type-checking.
-	var users map[string]bool
-	if pkgLevel {
-		users = reverseImportGraph[defpkg]
-		if users == nil {
-			users = map[string]bool{}
-		}
-		users[defpkg] = true
-	} else {
-		users = reverseImportGraph.Search(defpkg)
-	}
-	lconf := loader.Config{
-		Fset:  fset,
-		Build: bctx,
-		TypeCheckFuncBodies: func(path string) bool {
-			if ctx.Err() != nil {
-				return false
+		// Find the set of packages in this workspace that depend on
+		// defpkg. Only function bodies in those packages need
+		// type-checking.
+		var users map[string]bool
+		if pkgLevel {
+			users = reverseImportGraph[defpkg]
+			if users == nil {
+				users = map[string]bool{}
 			}
+			users[defpkg] = true
+		} else {
+			users = reverseImportGraph.Search(defpkg)
+		}
+		lconf := loader.Config{
+			Fset:  fset,
+			Build: bctx,
+			TypeCheckFuncBodies: func(path string) bool {
+				if ctx.Err() != nil {
+					return false
+				}
 
-			// Don't typecheck func bodies in dependency packages
-			// (except the package that defines the object), because
-			// we wouldn't return those refs anyway.
-			path = strings.TrimSuffix(path, "_test")
-			return users[path] && (pkgInWorkspace(path) || path == defpkg)
-		},
+				// Don't typecheck func bodies in dependency packages
+				// (except the package that defines the object), because
+				// we wouldn't return those refs anyway.
+				path = strings.TrimSuffix(path, "_test")
+				return users[path] && (pkgInWorkspace(path) || path == defpkg)
+			},
+		}
+
+		// The importgraph doesn't treat external test packages
+		// as separate nodes, so we must use ImportWithTests.
+		for path := range users {
+			lconf.ImportWithTests(path)
+		}
+
+		findRefErr = findReferences(ctx, lconf, pkgInWorkspace, obj, refs)
 	}
-
-	// The importgraph doesn't treat external test packages
-	// as separate nodes, so we must use ImportWithTests.
-	for path := range users {
-		lconf.ImportWithTests(path)
-	}
-
-	findRefErr = findReferences(ctx, lconf, pkgInWorkspace, obj, refs)
 	close(refs)
 
 	locs := <-locsC
