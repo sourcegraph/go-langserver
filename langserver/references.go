@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/refactor/importgraph"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
@@ -51,15 +52,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 		return nil, err
 	}
 
-	rootPath := h.FilePath(h.init.RootPath)
-	bctx := h.BuildContext(ctx)
-	h.importGraphOnce.Do(func() {
-		findPackageWithCtx := h.getFindPackageFunc()
-		findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
-			return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
-		}
-		h.importGraph = tools.BuildReverseImportGraph(bctx, findPackage, rootPath)
-	})
+	// TODO use successive import graphs. For now we just use the last and
+	// most accurate import graph.
+	reverseImportGraphC := h.reverseImportGraph()
+	var reverseImportGraph importgraph.Graph
+	for g := range reverseImportGraphC {
+		reverseImportGraph = g
+	}
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru
 	// referrers.go.
@@ -87,6 +86,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	defpkg := obj.Pkg().Path()
 	_, pkgLevel := classify(obj)
 
+	bctx := h.BuildContext(ctx)
 	pkgInWorkspace := func(path string) bool {
 		return PathHasPrefix(path, h.init.RootImportPath)
 	}
@@ -96,13 +96,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	// type-checking.
 	var users map[string]bool
 	if pkgLevel {
-		users = h.importGraph[defpkg]
+		users = reverseImportGraph[defpkg]
 		if users == nil {
 			users = map[string]bool{}
 		}
 		users[defpkg] = true
 	} else {
-		users = h.importGraph.Search(defpkg)
+		users = reverseImportGraph.Search(defpkg)
 	}
 	lconf := loader.Config{
 		Fset:  fset,
@@ -164,6 +164,38 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	}
 
 	return locs, nil
+}
+
+// reverseImportGraph returns the reversed import graph for the workspace
+// under the RootPath. Computing the reverse import graph is IO intensive, as
+// such we may send down more than one import graph. The later a graph is
+// sent, the more accurate it is. The channel will be closed, and the last
+// graph sent is accurate. The reader does not have to read all the values.
+func (h *LangHandler) reverseImportGraph() <-chan importgraph.Graph {
+	// Ensure our buffer is big enough to prevent deadlock
+	c := make(chan importgraph.Graph, 1)
+
+	// Note: We use a background context since this operation should not
+	// be linked to an individual request.
+	ctx := context.Background()
+
+	go func() {
+		// TODO fetch from cache an inaccurate import graph
+
+		bctx := h.BuildContext(ctx)
+		h.importGraphOnce.Do(func() {
+			findPackageWithCtx := h.getFindPackageFunc()
+			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
+			}
+			h.importGraph = tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.RootPath))
+		})
+		c <- h.importGraph
+
+		close(c)
+	}()
+
+	return c
 }
 
 // refStreamAndCollect returns all refs read in from chan until it is
