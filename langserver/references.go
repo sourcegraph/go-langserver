@@ -42,6 +42,8 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	ctx, cancel := context.WithTimeout(ctx, documentReferencesTimeout)
 	defer cancel()
 
+	reverseImportGraphC := h.reverseImportGraph()
+
 	fset, node, _, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
@@ -50,14 +52,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 			return []lsp.Location{}, nil
 		}
 		return nil, err
-	}
-
-	// TODO use successive import graphs. For now we just use the last and
-	// most accurate import graph.
-	reverseImportGraphC := h.reverseImportGraph()
-	var reverseImportGraph importgraph.Graph
-	for g := range reverseImportGraphC {
-		reverseImportGraph = g
 	}
 
 	// NOTICE: Code adapted from golang.org/x/tools/cmd/guru
@@ -89,6 +83,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn JSO
 	bctx := h.BuildContext(ctx)
 	pkgInWorkspace := func(path string) bool {
 		return PathHasPrefix(path, h.init.RootImportPath)
+	}
+
+	// TODO use successive import graphs. For now we just use the last and
+	// most accurate import graph.
+	var reverseImportGraph importgraph.Graph
+	for g := range reverseImportGraphC {
+		reverseImportGraph = g
 	}
 
 	// Find the set of packages in this workspace that depend on
