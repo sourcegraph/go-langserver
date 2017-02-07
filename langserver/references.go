@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/refactor/importgraph"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
@@ -44,7 +45,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 
 	// Begin computing the reverse import graph immediately, as this
 	// occurs in the background and is IO-bound.
-	reverseImportGraphC := h.reverseImportGraph(conn)
+	reverseImportGraphC := h.reverseImportGraph(ctx, conn)
 
 	fset, node, _, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
@@ -190,13 +191,9 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 // such we may send down more than one import graph. The later a graph is
 // sent, the more accurate it is. The channel will be closed, and the last
 // graph sent is accurate. The reader does not have to read all the values.
-func (h *LangHandler) reverseImportGraph(conn jsonrpc2.JSONRPC2) <-chan importgraph.Graph {
+func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSONRPC2) <-chan importgraph.Graph {
 	// Ensure our buffer is big enough to prevent deadlock
 	c := make(chan importgraph.Graph, 2)
-
-	// Note: We use a background context since this operation should not
-	// be linked to an individual request.
-	ctx := context.Background()
 
 	go func() {
 		// This should always be related to the go import path for
@@ -217,8 +214,16 @@ func (h *LangHandler) reverseImportGraph(conn jsonrpc2.JSONRPC2) <-chan importgr
 			}
 		}
 
-		bctx := h.BuildContext(ctx)
+		parentCtx := ctx
 		h.importGraphOnce.Do(func() {
+			// Note: We use a background context since this
+			// operation should not be cancelled due to an
+			// individual request.
+			span := startSpanFollowsFromContext(parentCtx, "BuildReverseImportGraph")
+			ctx := opentracing.ContextWithSpan(context.Background(), span)
+			defer span.Finish()
+
+			bctx := h.BuildContext(ctx)
 			findPackageWithCtx := h.getFindPackageFunc()
 			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
 				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
