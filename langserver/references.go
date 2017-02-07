@@ -44,7 +44,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 
 	// Begin computing the reverse import graph immediately, as this
 	// occurs in the background and is IO-bound.
-	reverseImportGraphC := h.reverseImportGraph()
+	reverseImportGraphC := h.reverseImportGraph(conn)
 
 	fset, node, _, _, pkg, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
@@ -190,16 +190,32 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 // such we may send down more than one import graph. The later a graph is
 // sent, the more accurate it is. The channel will be closed, and the last
 // graph sent is accurate. The reader does not have to read all the values.
-func (h *LangHandler) reverseImportGraph() <-chan importgraph.Graph {
+func (h *LangHandler) reverseImportGraph(conn jsonrpc2.JSONRPC2) <-chan importgraph.Graph {
 	// Ensure our buffer is big enough to prevent deadlock
-	c := make(chan importgraph.Graph, 1)
+	c := make(chan importgraph.Graph, 2)
 
 	// Note: We use a background context since this operation should not
 	// be linked to an individual request.
 	ctx := context.Background()
 
 	go func() {
-		// TODO fetch from cache an inaccurate import graph
+		// This should always be related to the go import path for
+		// this repo. For sourcegraph.com this means we share the
+		// import graph across commits. We want this behaviour since
+		// we assume that they don't change drastically across
+		// commits.
+		cacheKey := "importgraph:" + h.init.RootPath
+
+		h.mu.Lock()
+		tryCache := h.importGraph == nil
+		h.mu.Unlock()
+		if tryCache {
+			g := make(importgraph.Graph)
+			if hit := h.cacheGet(ctx, conn, cacheKey, g); hit {
+				// \o/
+				c <- g
+			}
+		}
 
 		bctx := h.BuildContext(ctx)
 		h.importGraphOnce.Do(func() {
@@ -211,6 +227,9 @@ func (h *LangHandler) reverseImportGraph() <-chan importgraph.Graph {
 			h.mu.Lock()
 			h.importGraph = g
 			h.mu.Unlock()
+
+			// Update cache in background
+			go h.cacheSet(ctx, conn, cacheKey, g)
 		})
 		h.mu.Lock()
 		// TODO(keegancsmith) h.importGraph may have been reset after once
