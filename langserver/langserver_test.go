@@ -157,6 +157,7 @@ func TestServer(t *testing.T) {
 			fs: map[string]string{
 				"a.go":      "package p; var A int",
 				"a_test.go": `package p_test; import "test/pkg"; var X = p.A`,
+				"b_test.go": "package p_test; func Y() int { return X }",
 			},
 			cases: lspTestCases{
 				wantHover: map[string]string{
@@ -175,6 +176,7 @@ func TestServer(t *testing.T) {
 					},
 					"a_test.go:1:40": []string{
 						"/src/test/pkg/a_test.go:1:40",
+						"/src/test/pkg/b_test.go:1:39",
 					},
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
