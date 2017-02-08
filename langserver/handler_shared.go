@@ -20,8 +20,7 @@ type HandlerShared struct {
 	// fetch dependencies + cache lookups.
 	FindPackage FindPackageFunc
 
-	overlayFSMu sync.Mutex        // guards overlayFS map
-	overlayFS   map[string][]byte // files to overlay
+	overlay *overlay // files to overlay
 }
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
@@ -43,9 +42,7 @@ func (h *HandlerShared) getFindPackageFunc() FindPackageFunc {
 func (h *HandlerShared) Reset(useOSFS bool) error {
 	h.Mu.Lock()
 	defer h.Mu.Unlock()
-	h.overlayFSMu.Lock()
-	defer h.overlayFSMu.Unlock()
-	h.overlayFS = map[string][]byte{}
+	h.overlay = newOverlay()
 	h.FS = NewAtomicFS()
 
 	if useOSFS {
@@ -53,6 +50,6 @@ func (h *HandlerShared) Reset(useOSFS bool) error {
 		// file system.
 		h.FS.Bind("/", ctxvfs.OS("/"), "/", ctxvfs.BindAfter)
 	}
-	h.FS.Bind("/", ctxvfs.Sync(&h.overlayFSMu, ctxvfs.Map(h.overlayFS)), "/", ctxvfs.BindBefore)
+	h.FS.Bind("/", h.overlay.FS(), "/", ctxvfs.BindBefore)
 	return nil
 }
