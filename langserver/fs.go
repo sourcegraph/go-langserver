@@ -26,9 +26,9 @@ func IsFileSystemRequest(method string) bool {
 		method == "textDocument/didSave"
 }
 
-// HandleFileSystemRequest handles textDocument/did* requests. true is
-// returned if a file was modified.
-func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (bool, error) {
+// HandleFileSystemRequest handles textDocument/did* requests. The path the
+// request is for is returned. true is returned if a file was modified.
+func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (string, bool, error) {
 	span := opentracing.SpanFromContext(ctx)
 	h.Mu.Lock()
 	overlay := h.overlay
@@ -46,39 +46,39 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 	case "textDocument/didOpen":
 		var params lsp.DidOpenTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return false, err
+			return "", false, err
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
 		before, _ = h.readFile(ctx, uri)
 		overlay.didOpen(&params)
-		return checkChanged(uri), nil
+		return uri, checkChanged(uri), nil
 
 	case "textDocument/didChange":
 		var params lsp.DidChangeTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return false, err
+			return "", false, err
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
 		before, _ = h.readFile(ctx, uri)
 		err := overlay.didChange(&params)
-		return checkChanged(uri), err
+		return uri, checkChanged(uri), err
 
 	case "textDocument/didClose":
 		var params lsp.DidCloseTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return false, err
+			return "", false, err
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
 		before, _ = h.readFile(ctx, uri)
 		overlay.didClose(&params)
-		return checkChanged(uri), nil
+		return uri, checkChanged(uri), nil
 
 	case "textDocument/didSave":
 		// no-op
-		return false, nil
+		return "", false, nil
 
 	default:
 		panic("unexpected file system request method: " + req.Method)

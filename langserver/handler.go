@@ -316,10 +316,14 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 	default:
 		if IsFileSystemRequest(req.Method) {
-			fileChanged, err := h.HandleFileSystemRequest(ctx, req)
+			uri, fileChanged, err := h.HandleFileSystemRequest(ctx, req)
 			if fileChanged {
 				// a file changed, so we must re-typecheck and re-enumerate symbols
 				h.resetCaches(true)
+			}
+			if uri != "" {
+				// a user is viewing this path, hint to add it to the cache
+				go h.typecheck(ctx, conn, uri, lsp.Position{})
 			}
 			return nil, err
 		}
