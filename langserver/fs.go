@@ -34,6 +34,14 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 	overlay := h.overlay
 	h.Mu.Unlock()
 
+	var before []byte
+	checkChanged := func(uri string) bool {
+		// We ignore readFile errors, since the []byte being nil gives
+		// us the same comparison.
+		b, _ := h.readFile(ctx, uri)
+		return !bytes.Equal(before, b)
+	}
+
 	switch req.Method {
 	case "textDocument/didOpen":
 		var params lsp.DidOpenTextDocumentParams
@@ -42,8 +50,9 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
+		before, _ = h.readFile(ctx, uri)
 		overlay.didOpen(&params)
-		return true, nil
+		return checkChanged(uri), nil
 
 	case "textDocument/didChange":
 		var params lsp.DidChangeTextDocumentParams
@@ -52,8 +61,9 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
+		before, _ = h.readFile(ctx, uri)
 		err := overlay.didChange(&params)
-		return true, err
+		return checkChanged(uri), err
 
 	case "textDocument/didClose":
 		var params lsp.DidCloseTextDocumentParams
@@ -62,8 +72,9 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
+		before, _ = h.readFile(ctx, uri)
 		overlay.didClose(&params)
-		return true, nil
+		return checkChanged(uri), nil
 
 	case "textDocument/didSave":
 		// no-op
