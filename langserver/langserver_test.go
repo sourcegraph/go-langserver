@@ -742,6 +742,14 @@ type T struct {
 
 // Foo is the best string.
 var Foo string
+
+var (
+	// I1 is an int
+	I1 = 1
+
+	// I2 is an int
+	I2 = 3
+)
 `,
 				"vendor/github.com/a/pkg2/x.go": `// Package pkg2 shows dependencies.
 //
@@ -777,6 +785,7 @@ type Header struct {
 					"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
 					"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
 					"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
+					"a.go:31:2":  "var I2 int; I2 is an int \n\n",
 				},
 			},
 		},
