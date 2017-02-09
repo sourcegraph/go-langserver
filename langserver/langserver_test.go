@@ -156,33 +156,33 @@ func TestServer(t *testing.T) {
 			rootPath: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go":      "package p; var A int",
-				"a_test.go": `package p_test; import "test/pkg"; var X = p.A`,
-				"b_test.go": "package p_test; func Y() int { return X }",
+				"x_test.go": `package p_test; import "test/pkg"; var X = p.A`,
+				"y_test.go": "package p_test; func Y() int { return X }",
 			},
 			cases: lspTestCases{
 				wantHover: map[string]string{
 					"a.go:1:16":      "var A int",
-					"a_test.go:1:40": "var X int",
-					"a_test.go:1:46": "var A int",
+					"x_test.go:1:40": "var X int",
+					"x_test.go:1:46": "var A int",
 				},
 				wantReferences: map[string][]string{
 					"a.go:1:16": []string{
 						"/src/test/pkg/a.go:1:16",
-						"/src/test/pkg/a_test.go:1:46",
+						"/src/test/pkg/x_test.go:1:46",
 					},
-					"a_test.go:1:46": []string{
+					"x_test.go:1:46": []string{
 						"/src/test/pkg/a.go:1:16",
-						"/src/test/pkg/a_test.go:1:46",
+						"/src/test/pkg/x_test.go:1:46",
 					},
-					"a_test.go:1:40": []string{
-						"/src/test/pkg/a_test.go:1:40",
-						"/src/test/pkg/b_test.go:1:39",
+					"x_test.go:1:40": []string{
+						"/src/test/pkg/x_test.go:1:40",
+						"/src/test/pkg/y_test.go:1:39",
 					},
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
-						"/src/test/pkg/a_test.go:1:46-1:47 -> id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
+						"/src/test/pkg/x_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
+						"/src/test/pkg/x_test.go:1:46-1:47 -> id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
 					},
 				},
 			},
