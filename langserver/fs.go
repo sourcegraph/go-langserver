@@ -26,7 +26,9 @@ func IsFileSystemRequest(method string) bool {
 		method == "textDocument/didSave"
 }
 
-func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) error {
+// HandleFileSystemRequest handles textDocument/did* requests. true is
+// returned if a file was modified.
+func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (bool, error) {
 	span := opentracing.SpanFromContext(ctx)
 	h.Mu.Lock()
 	overlay := h.overlay
@@ -36,32 +38,36 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 	case "textDocument/didOpen":
 		var params lsp.DidOpenTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return err
+			return false, err
 		}
-		span.SetTag("uri", params.TextDocument.URI)
+		uri := params.TextDocument.URI
+		span.SetTag("uri", uri)
 		overlay.didOpen(&params)
-		return nil
+		return true, nil
 
 	case "textDocument/didChange":
 		var params lsp.DidChangeTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return err
+			return false, err
 		}
-		span.SetTag("uri", params.TextDocument.URI)
-		return overlay.didChange(&params)
+		uri := params.TextDocument.URI
+		span.SetTag("uri", uri)
+		err := overlay.didChange(&params)
+		return true, err
 
 	case "textDocument/didClose":
 		var params lsp.DidCloseTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return err
+			return false, err
 		}
-		span.SetTag("uri", params.TextDocument.URI)
+		uri := params.TextDocument.URI
+		span.SetTag("uri", uri)
 		overlay.didClose(&params)
-		return nil
+		return true, nil
 
 	case "textDocument/didSave":
 		// no-op
-		return nil
+		return false, nil
 
 	default:
 		panic("unexpected file system request method: " + req.Method)

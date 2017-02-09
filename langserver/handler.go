@@ -316,8 +316,11 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 	default:
 		if IsFileSystemRequest(req.Method) {
-			err := h.HandleFileSystemRequest(ctx, req)
-			h.resetCaches(true) // a file changed, so we must re-typecheck and re-enumerate symbols
+			fileChanged, err := h.HandleFileSystemRequest(ctx, req)
+			if fileChanged {
+				// a file changed, so we must re-typecheck and re-enumerate symbols
+				h.resetCaches(true)
+			}
 			return nil, err
 		}
 
