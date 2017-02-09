@@ -158,6 +158,10 @@ func TestServer(t *testing.T) {
 				"a.go":      "package p; var A int",
 				"x_test.go": `package p_test; import "test/pkg"; var X = p.A`,
 				"y_test.go": "package p_test; func Y() int { return X }",
+
+				// non xtest to ensure we don't mix up xtest and test.
+				"a_test.go": `package p; var X = A`,
+				"b_test.go": "package p; func Y() int { return X }",
 			},
 			cases: lspTestCases{
 				wantHover: map[string]string{
@@ -168,10 +172,12 @@ func TestServer(t *testing.T) {
 				wantReferences: map[string][]string{
 					"a.go:1:16": []string{
 						"/src/test/pkg/a.go:1:16",
+						"/src/test/pkg/a_test.go:1:20",
 						"/src/test/pkg/x_test.go:1:46",
 					},
 					"x_test.go:1:46": []string{
 						"/src/test/pkg/a.go:1:16",
+						"/src/test/pkg/a_test.go:1:20",
 						"/src/test/pkg/x_test.go:1:46",
 					},
 					"x_test.go:1:40": []string{
