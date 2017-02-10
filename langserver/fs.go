@@ -35,10 +35,18 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 	h.Mu.Unlock()
 
 	var before []byte
+	var beforeErr error
 	checkChanged := func(uri string) bool {
 		// We ignore readFile errors, since the []byte being nil gives
 		// us the same comparison.
-		b, _ := h.readFile(ctx, uri)
+		b, err := h.readFile(ctx, uri)
+		if os.IsNotExist(beforeErr) && os.IsNotExist(err) {
+			// Other error conditions we are conservative and
+			// assume something changed.
+			return false
+		} else if err != nil || beforeErr != nil {
+			return true
+		}
 		return !bytes.Equal(before, b)
 	}
 
@@ -50,7 +58,7 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
-		before, _ = h.readFile(ctx, uri)
+		before, beforeErr = h.readFile(ctx, uri)
 		overlay.didOpen(&params)
 		return uri, checkChanged(uri), nil
 
@@ -61,7 +69,7 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
-		before, _ = h.readFile(ctx, uri)
+		before, beforeErr = h.readFile(ctx, uri)
 		err := overlay.didChange(&params)
 		return uri, checkChanged(uri), err
 
@@ -72,7 +80,7 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		}
 		uri := params.TextDocument.URI
 		span.SetTag("uri", uri)
-		before, _ = h.readFile(ctx, uri)
+		before, beforeErr = h.readFile(ctx, uri)
 		overlay.didClose(&params)
 		return uri, checkChanged(uri), nil
 
