@@ -10,7 +10,9 @@ import (
 	"reflect"
 	"testing"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 var loaderCases = map[string]struct {
@@ -133,8 +135,17 @@ func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context, *bui
 	}); err != nil {
 		panic(err)
 	}
+	_, ctx := opentracing.StartSpanFromContext(context.Background(), "loadertest")
 	for filename, contents := range fs {
-		h.addOverlayFile(pathToURI(filename), []byte(contents))
+		r := &jsonrpc2.Request{Method: "textDocument/didOpen"}
+		r.SetParams(&lsp.DidOpenTextDocumentParams{TextDocument: lsp.TextDocumentItem{
+			URI:  pathToURI(filename),
+			Text: contents,
+		}})
+		err := h.HandleFileSystemRequest(ctx, r)
+		if err != nil {
+			panic(err)
+		}
 	}
 	bctx := h.BuildContext(context.Background())
 	bctx.GOPATH = "/"

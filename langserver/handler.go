@@ -53,7 +53,7 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 	if !h.HandlerShared.Shared {
 		// Only reset the shared data if this lang server is running
 		// by itself.
-		if err := h.HandlerShared.Reset(init.RootPath, !init.NoOSFileSystemAccess); err != nil {
+		if err := h.HandlerShared.Reset(!init.NoOSFileSystemAccess); err != nil {
 			return err
 		}
 	}
