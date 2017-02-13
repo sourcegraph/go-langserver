@@ -1,4 +1,4 @@
-package main
+package main // import "github.com/sourcegraph/go-langserver/langserver/cmd/langserver-go"
 
 import (
 	"context"
