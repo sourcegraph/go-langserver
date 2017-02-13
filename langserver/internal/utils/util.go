@@ -1,4 +1,4 @@
-package langserver
+package utils
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ func PathTrimPrefix(s, prefix string) string {
 	return strings.TrimPrefix(s, prefix)
 }
 
-func pathEqual(a, b string) bool {
+func PathEqual(a, b string) bool {
 	return PathTrimPrefix(a, b) == ""
 }
 
@@ -38,29 +38,30 @@ func IsVendorDir(dir string) bool {
 	return strings.HasPrefix(dir, "vendor/") || strings.Contains(dir, "/vendor/")
 }
 
-// isURI tells if s denotes an URI
-func isURI(s string) bool {
+// IsURI tells if s denotes an URI
+func IsURI(s string) bool {
 	return strings.HasPrefix(s, "file:///")
 }
 
-// pathToURI converts given absolute path to file URI
-func pathToURI(path string) string {
+// PathToURI converts given absolute path to file URI
+func PathToURI(path string) string {
+	path = virtualPath(path)
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
 	return "file://" + path
 }
 
-// uriToPath converts given file URI to path
-func uriToPath(uri string) string {
+// UriToPath converts given file URI to path
+func UriToPath(uri string) string {
 	return strings.TrimPrefix(uri, "file://")
 }
 
-// panicf takes the return value of recover() and outputs data to the log with
+// Panicf takes the return value of recover() and outputs data to the log with
 // the stack trace appended. Arguments are handled in the manner of
 // fmt.Printf. Arguments should format to a string which identifies what the
 // panic code was doing. Returns a non-nil error if it recovered from a panic.
-func panicf(r interface{}, format string, v ...interface{}) error {
+func Panicf(r interface{}, format string, v ...interface{}) error {
 	if r != nil {
 		// Same as net/http
 		const size = 64 << 10

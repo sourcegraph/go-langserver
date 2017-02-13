@@ -15,6 +15,8 @@ import (
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 )
 
 // IsFileSystemRequest returns if this is an LSP method whose sole
@@ -133,8 +135,8 @@ func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
 }
 
 func uriToOverlayPath(uri string) string {
-	if isURI(uri) {
-		return strings.TrimPrefix(uriToPath(uri), "/")
+	if utils.IsURI(uri) {
+		return strings.TrimPrefix(utils.UriToPath(uri), "/")
 	}
 	return uri
 }
@@ -162,7 +164,7 @@ func (h *overlay) del(uri string) {
 }
 
 func (h *HandlerShared) FilePath(uri string) string {
-	path := uriToPath(uri)
+	path := utils.UriToPath(uri)
 	if !strings.HasPrefix(path, "/") {
 		panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
 	}

@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	opentracing "github.com/opentracing/opentracing-go"
+
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 )
 
 // HandlerCommon contains functionality that both the build and lang
@@ -26,10 +28,10 @@ func (h *HandlerCommon) Reset(rootURI string) error {
 	if h.shutdown {
 		return errors.New("unable to reset a server that is shutting down")
 	}
-	if !isURI(rootURI) {
+	if !utils.IsURI(rootURI) {
 		return fmt.Errorf("invalid root path %q: must be file:/// URI", rootURI)
 	}
-	h.RootFSPath = uriToPath(rootURI) // retain leading slash
+	h.RootFSPath = utils.UriToPath(rootURI) // retain leading slash
 	return nil
 }
 

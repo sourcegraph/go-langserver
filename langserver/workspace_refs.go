@@ -21,6 +21,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -60,7 +61,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		if ok {
 			found := false
 			for _, dir := range dirs.([]interface{}) {
-				if pathToURI(bpkg.Dir) == dir.(string) {
+				if utils.PathToURI(bpkg.Dir) == dir.(string) {
 					found = true
 					break
 				}
@@ -93,7 +94,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		// Prevent any uncaught panics from taking the entire server down.
 		defer func() {
 			clearInfoFields(pkg) // save memory
-			_ = panicf(recover(), "%v for pkg %v", req.Method, pkg)
+			_ = utils.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
 		}()
 
 		err := h.workspaceRefsFromPkg(ctx, bctx, conn, params, fset, pkg, files, rootPath, &results)
@@ -109,7 +110,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 	go func() {
 		// Prevent any uncaught panics from taking the entire server down.
 		defer func() {
-			_ = panicf(recover(), "%v for pkg %v", req.Method, pkgs)
+			_ = utils.Panicf(recover(), "%v for pkg %v", req.Method, pkgs)
 		}()
 
 		_, err = h.workspaceRefsTypecheck(ctx, bctx, conn, fset, pkgs, afterTypeCheck)
@@ -321,7 +322,7 @@ func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath stri
 
 	// NOTE: fields must be kept in sync with symbol.go:symbolEqual
 	desc := &symbolDescriptor{
-		Vendor:      IsVendorDir(defPkg.Dir),
+		Vendor:      utils.IsVendorDir(defPkg.Dir),
 		Package:     defPkg.ImportPath,
 		PackageName: def.PackageName,
 		Recv:        "",

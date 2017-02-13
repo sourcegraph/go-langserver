@@ -1,6 +1,6 @@
 // +build windows
 
-package langserver
+package utils
 
 import (
 	"path/filepath"
@@ -16,7 +16,7 @@ func virtualPath(path string) string {
 	return path
 }
 
-func isAbs(path string) bool {
+func IsAbs(path string) bool {
 	// Windows implementation accepts path-like and filepath-like arguments
 	return strings.HasPrefix(path, "/") || filepath.IsAbs(path)
 }

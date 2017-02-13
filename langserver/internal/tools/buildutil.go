@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/buildutil"
+
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 )
 
 // ListPkgsUnderDir is buildutil.ExpandPattern(ctxt, []string{dir +
@@ -51,14 +53,14 @@ func allPackages(ctxt *build.Context, root, start string, ch chan<- string) {
 	root = path.Clean(root)
 	start = path.Clean(start)
 
-	if PathHasPrefix(root, start) {
+	if utils.PathHasPrefix(root, start) {
 		// If we are a child of start, we can just start at the
 		// root. A concrete example of this happening is when
 		// root=/goroot/src and start=/goroot
 		start = root
 	}
 
-	if !PathHasPrefix(start, root) {
+	if !utils.PathHasPrefix(start, root) {
 		return
 	}
 
@@ -72,7 +74,7 @@ func allPackages(ctxt *build.Context, root, start string, ch chan<- string) {
 			return
 		}
 
-		pkg := PathTrimPrefix(dir, root)
+		pkg := utils.PathTrimPrefix(dir, root)
 
 		// Prune search if we encounter any of these import paths.
 		switch pkg {

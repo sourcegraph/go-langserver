@@ -24,6 +24,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -85,7 +86,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 
 	bctx := h.BuildContext(ctx)
 	pkgInWorkspace := func(path string) bool {
-		return PathHasPrefix(path, h.init.RootImportPath)
+		return utils.PathHasPrefix(path, h.init.RootImportPath)
 	}
 
 	var (
@@ -168,7 +169,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	}
 
 	// Don't include decl if it is outside of workspace.
-	if params.Context.IncludeDeclaration && PathHasPrefix(defpkg, h.init.RootImportPath) {
+	if params.Context.IncludeDeclaration && utils.PathHasPrefix(defpkg, h.init.RootImportPath) {
 		n := &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()}
 		locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
 	}
@@ -411,7 +412,7 @@ func findReferences(ctx context.Context, lconf loader.Config, pkgInWorkspace fun
 		// Prevent any uncaught panics from taking the entire server down.
 		defer func() {
 			close(done)
-			_ = panicf(recover(), "findReferences")
+			_ = utils.Panicf(recover(), "findReferences")
 		}()
 
 		lconf.Load() // ignore error

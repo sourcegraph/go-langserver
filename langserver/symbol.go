@@ -19,6 +19,7 @@ import (
 
 	"github.com/neelance/parallel"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -194,7 +195,7 @@ func score(q Query, s symbolPair) (scor int) {
 		return -1
 	}
 	name, container := strings.ToLower(s.Name), strings.ToLower(s.ContainerName)
-	filename := uriToPath(s.Location.URI)
+	filename := utils.UriToPath(s.Location.URI)
 	isVendor := strings.HasPrefix(filename, "vendor/") || strings.Contains(filename, "/vendor/")
 	if q.Filter == FilterExported && isVendor {
 		// is:exported excludes vendor symbols always.
@@ -271,7 +272,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 		},
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
 		desc: symbolDescriptor{
-			Vendor:      IsVendorDir(bpkg.Dir),
+			Vendor:      utils.IsVendorDir(bpkg.Dir),
 			Package:     path.Clean(bpkg.ImportPath),
 			PackageName: bpkg.Name,
 			Recv:        recv,
@@ -284,7 +285,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	f := uriToPath(params.TextDocument.URI)
+	f := utils.UriToPath(params.TextDocument.URI)
 	return h.handleSymbol(ctx, conn, req, Query{File: f}, 0)
 }
 
@@ -300,7 +301,7 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 		// id implicitly contains a dir hint. We can use that to
 		// reduce the number of files we have to parse.
 		importPath := strings.SplitN(id.(string), "/-/", 2)[0]
-		if isStdLib := PathHasPrefix(h.BuildContext(ctx).GOROOT, h.init.RootPath); isStdLib {
+		if isStdLib := utils.PathHasPrefix(h.BuildContext(ctx).GOROOT, h.init.RootPath); isStdLib {
 			q.Dir = path.Join("/src", importPath)
 		} else {
 			q.Dir = importPath
@@ -322,17 +323,17 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
 				filePkgPath := path.Dir(results.Query.File)
-				if PathHasPrefix(filePkgPath, bctx.GOROOT) {
-					filePkgPath = PathTrimPrefix(filePkgPath, bctx.GOROOT)
+				if utils.PathHasPrefix(filePkgPath, bctx.GOROOT) {
+					filePkgPath = utils.PathTrimPrefix(filePkgPath, bctx.GOROOT)
 				} else {
-					filePkgPath = PathTrimPrefix(filePkgPath, bctx.GOPATH)
+					filePkgPath = utils.PathTrimPrefix(filePkgPath, bctx.GOPATH)
 				}
-				filePkgPath = PathTrimPrefix(filePkgPath, "src")
-				if !pathEqual(pkg, filePkgPath) {
+				filePkgPath = utils.PathTrimPrefix(filePkgPath, "src")
+				if !utils.PathEqual(pkg, filePkgPath) {
 					continue
 				}
 			}
-			if results.Query.Filter == FilterDir && !pathEqual(pkg, results.Query.Dir) {
+			if results.Query.Filter == FilterDir && !utils.PathEqual(pkg, results.Query.Dir) {
 				continue
 			}
 
@@ -352,7 +353,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 				// https://github.com/golang/go/issues/17788
 				defer func() {
 					par.Release()
-					_ = panicf(recover(), "%v for pkg %v", req.Method, pkg)
+					_ = utils.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
 				}()
 				h.collectFromPkg(ctx, bctx, pkg, rootPath, &results)
 			}(pkg)

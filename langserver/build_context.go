@@ -3,14 +3,14 @@ package langserver
 import (
 	"fmt"
 	"go/build"
-	"io"
-	"os"
 	"path"
 	"strings"
 
 	"golang.org/x/net/context"
 
 	"golang.org/x/tools/go/buildutil"
+
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 )
 
 // BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.
@@ -41,33 +41,7 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	fs := h.FS
 	h.Mu.Unlock()
 
-	// HACK: in the all Context's methods below we are trying to convert path to virtual one (/foo/bar/..)
-	// because some code may pass OS-specific arguments.
-	// See golang.org/x/tools/go/buildutil/allpackages.go which uses `filepath` for example
-
-	bctx.OpenFile = func(path string) (io.ReadCloser, error) {
-		return fs.Open(ctx, virtualPath(path))
-	}
-	bctx.IsDir = func(path string) bool {
-		fi, err := fs.Stat(ctx, virtualPath(path))
-		return err == nil && fi.Mode().IsDir()
-	}
-	bctx.HasSubdir = func(root, dir string) (rel string, ok bool) {
-		if !bctx.IsDir(dir) {
-			return "", false
-		}
-		if !PathHasPrefix(dir, root) {
-			return "", false
-		}
-		return PathTrimPrefix(dir, root), true
-	}
-	bctx.ReadDir = func(path string) ([]os.FileInfo, error) {
-		return fs.ReadDir(ctx, virtualPath(path))
-	}
-	bctx.IsAbsPath = func(path string) bool {
-		return isAbs(path)
-	}
-	bctx.JoinPath = path.Join
+	utils.PrepareContext(bctx, ctx, fs)
 	return bctx
 }
 
@@ -93,19 +67,19 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 		pkgDir = path.Dir(filename)
 	}
 	var srcDir string
-	if PathHasPrefix(filename, bctx.GOROOT) {
+	if utils.PathHasPrefix(filename, bctx.GOROOT) {
 		srcDir = bctx.GOROOT // if workspace is Go stdlib
 	} else {
 		srcDir = "" // with no GOPATH, only stdlib will work
 		for _, gopath := range gopaths {
-			if PathHasPrefix(pkgDir, gopath) {
+			if utils.PathHasPrefix(pkgDir, gopath) {
 				srcDir = gopath
 				break
 			}
 		}
 	}
 	srcDir = path.Join(srcDir, "src")
-	importPath := PathTrimPrefix(pkgDir, srcDir)
+	importPath := utils.PathTrimPrefix(pkgDir, srcDir)
 	var xtest bool
 	pkg, err := bctx.Import(importPath, pkgDir, 0)
 	if pkg != nil {

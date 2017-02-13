@@ -17,6 +17,8 @@ import (
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 )
 
 // NewHandler creates a Go language server handler.
@@ -99,7 +101,7 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
 	defer func() {
-		if perr := panicf(recover(), "%v", req.Method); perr != nil {
+		if perr := utils.Panicf(recover(), "%v", req.Method); perr != nil {
 			err = perr
 		}
 	}()
@@ -156,8 +158,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		// HACK: RootPath is not a URI, but historically we treated it
 		// as such. Convert it to a file URI
-		if !isURI(params.RootPath) {
-			params.RootPath = pathToURI(params.RootPath)
+		if !utils.IsURI(params.RootPath) {
+			params.RootPath = utils.PathToURI(params.RootPath)
 		}
 
 		if err := h.reset(&params); err != nil {
