@@ -195,6 +195,10 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			},
 		}, nil
 
+	case "initialized":
+		// A notification that the client is ready to receive requests. Ignore
+		return nil, nil
+
 	case "shutdown":
 		h.ShutDown()
 		return nil, nil
