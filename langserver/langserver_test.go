@@ -156,31 +156,52 @@ func TestServer(t *testing.T) {
 			rootPath: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go":      "package p; var A int",
-				"a_test.go": `package p_test; import "test/pkg"; var X = p.A`,
+				"x_test.go": `package p_test; import "test/pkg"; var X = p.A`,
+				"y_test.go": "package p_test; func Y() int { return X }",
+
+				// non xtest to ensure we don't mix up xtest and test.
+				"a_test.go": `package p; var X = A`,
+				"b_test.go": "package p; func Y() int { return X }",
 			},
 			cases: lspTestCases{
 				wantHover: map[string]string{
 					"a.go:1:16":      "var A int",
-					"a_test.go:1:40": "var X int",
-					"a_test.go:1:46": "var A int",
+					"x_test.go:1:40": "var X int",
+					"x_test.go:1:46": "var A int",
+					"a_test.go:1:16": "var X int",
+					"a_test.go:1:20": "var A int",
 				},
 				wantReferences: map[string][]string{
 					"a.go:1:16": []string{
 						"/src/test/pkg/a.go:1:16",
-						// "/src/test/pkg/a_test.go:1:46", // we do not support xtest refs yet
+						"/src/test/pkg/a_test.go:1:20",
+						"/src/test/pkg/x_test.go:1:46",
 					},
-					"a_test.go:1:46": []string{
+					"x_test.go:1:46": []string{
 						"/src/test/pkg/a.go:1:16",
-						// "/src/test/pkg/a_test.go:1:46", // we do not support xtest refs yet
+						"/src/test/pkg/a_test.go:1:20",
+						"/src/test/pkg/x_test.go:1:46",
 					},
-					"a_test.go:1:40": []string{
-						"/src/test/pkg/a_test.go:1:40",
+					"x_test.go:1:40": []string{
+						"/src/test/pkg/x_test.go:1:40",
+						"/src/test/pkg/y_test.go:1:39",
+					},
+
+					// The same as the xtest references above, but in the normal test pkg.
+					"a_test.go:1:20": []string{
+						"/src/test/pkg/a.go:1:16",
+						"/src/test/pkg/a_test.go:1:20",
+						"/src/test/pkg/x_test.go:1:46",
+					},
+					"a_test.go:1:16": []string{
+						"/src/test/pkg/a_test.go:1:16",
+						"/src/test/pkg/b_test.go:1:34",
 					},
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
-						"/src/test/pkg/a_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
-						"/src/test/pkg/a_test.go:1:46-1:47 -> id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
+						"/src/test/pkg/x_test.go:1:24-1:34 -> id:test/pkg name: package:test/pkg packageName:p recv: vendor:false",
+						"/src/test/pkg/x_test.go:1:46-1:47 -> id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
 					},
 				},
 			},
@@ -191,6 +212,7 @@ func TestServer(t *testing.T) {
 				"a.go":      "package p; var A int",
 				"a_test.go": `package p; import "test/pkg/b"; var X = b.B; func TestB() {}`,
 				"b/b.go":    "package b; var B int; func C() int { return B };",
+				"c/c.go":    `package c; import "test/pkg/b"; var X = b.B;`,
 			},
 			cases: lspTestCases{
 				wantHover: map[string]string{
@@ -202,6 +224,7 @@ func TestServer(t *testing.T) {
 						"/src/test/pkg/a_test.go:1:43",
 						"/src/test/pkg/b/b.go:1:16",
 						"/src/test/pkg/b/b.go:1:45",
+						"/src/test/pkg/c/c.go:1:43",
 					},
 					"a_test.go:1:41": []string{
 						"/src/test/pkg/a_test.go:1:19",
@@ -719,6 +742,14 @@ type T struct {
 
 // Foo is the best string.
 var Foo string
+
+var (
+	// I1 is an int
+	I1 = 1
+
+	// I2 is an int
+	I2 = 3
+)
 `,
 				"vendor/github.com/a/pkg2/x.go": `// Package pkg2 shows dependencies.
 //
@@ -754,6 +785,7 @@ type Header struct {
 					"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
 					"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
 					"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
+					"a.go:31:2":  "var I2 int; I2 is an int \n\n",
 				},
 			},
 		},

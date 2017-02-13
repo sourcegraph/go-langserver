@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/go/buildutil"
 
 	"github.com/neelance/parallel"
+	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -282,14 +283,14 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
-func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
+func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
 	f := uriToPath(params.TextDocument.URI)
 	return h.handleSymbol(ctx, conn, req, Query{File: f}, 0)
 }
 
 // handleSymbol handles `workspace/symbol` requests for the Go
 // language server.
-func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, params lspext.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
+func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lspext.WorkspaceSymbolParams) ([]lsp.SymbolInformation, error) {
 	q := ParseQuery(params.Query)
 	q.Symbol = params.Symbol
 	if q.Filter == FilterDir {
@@ -309,14 +310,14 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn JSONRPC2Co
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
 
-func (h *LangHandler) handleSymbol(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
+func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
 	{
 		rootPath := h.FilePath(h.init.RootPath)
 		bctx := h.BuildContext(ctx)
 
 		par := parallel.NewRun(8)
-		for _, pkg := range listPkgsUnderDir(bctx, rootPath) {
+		for _, pkg := range tools.ListPkgsUnderDir(bctx, rootPath) {
 			// If we're restricting results to a single file or dir, ensure the
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
@@ -491,98 +492,4 @@ func maybeLogImportError(pkg string, err error) {
 	if !(isNoGoError || !isMultiplePackageError(err) || strings.HasPrefix(pkg, "github.com/golang/go/test/")) {
 		log.Printf("skipping possible package %s: %s", pkg, err)
 	}
-}
-
-// listPkgsUnderDir is buildutil.ExpandPattern(ctxt, []string{dir +
-// "/..."}). The implementation is modified from the upstream
-// buildutil.ExpandPattern so we can be much faster. buildutil.ExpandPattern
-// looks at all directories under GOPATH if there is a `...` pattern. This
-// instead only explores the directories under dir. In future
-// buildutil.ExpandPattern may be more performant (there are TODOs for it).
-func listPkgsUnderDir(ctxt *build.Context, dir string) []string {
-	ch := make(chan string)
-
-	var wg sync.WaitGroup
-	for _, root := range ctxt.SrcDirs() {
-		root := root
-		wg.Add(1)
-		go func() {
-			allPackages(ctxt, root, dir, ch)
-			wg.Done()
-		}()
-	}
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
-
-	var pkgs []string
-	for p := range ch {
-		pkgs = append(pkgs, p)
-	}
-	sort.Strings(pkgs)
-	return pkgs
-}
-
-// We use a process-wide counting semaphore to limit
-// the number of parallel calls to ReadDir.
-var ioLimit = make(chan bool, 20)
-
-// allPackages is from tools/go/buildutil. We don't use the exported method
-// since it doesn't allow searching from a directory. We need from a specific
-// directory for performance on large GOPATHs.
-func allPackages(ctxt *build.Context, root, start string, ch chan<- string) {
-	root = path.Clean(root)
-	start = path.Clean(start)
-
-	if PathHasPrefix(root, start) {
-		// If we are a child of start, we can just start at the
-		// root. A concrete example of this happening is when
-		// root=/goroot/src and start=/goroot
-		start = root
-	}
-
-	if !PathHasPrefix(start, root) {
-		return
-	}
-
-	var wg sync.WaitGroup
-
-	var walkDir func(dir string)
-	walkDir = func(dir string) {
-		// Avoid .foo, _foo, and testdata directory trees.
-		base := path.Base(dir)
-		if base == "" || base[0] == '.' || base[0] == '_' || base == "testdata" {
-			return
-		}
-
-		pkg := PathTrimPrefix(dir, root)
-
-		// Prune search if we encounter any of these import paths.
-		switch pkg {
-		case "builtin":
-			return
-		}
-
-		if pkg != "" {
-			ch <- pkg
-		}
-
-		ioLimit <- true
-		files, _ := buildutil.ReadDir(ctxt, dir)
-		<-ioLimit
-		for _, fi := range files {
-			fi := fi
-			if fi.IsDir() {
-				wg.Add(1)
-				go func() {
-					walkDir(buildutil.JoinPath(ctxt, dir, fi.Name()))
-					wg.Done()
-				}()
-			}
-		}
-	}
-
-	walkDir(start)
-	wg.Wait()
 }

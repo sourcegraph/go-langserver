@@ -53,7 +53,7 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 	if !h.HandlerShared.Shared {
 		// Only reset the shared data if this lang server is running
 		// by itself.
-		if err := h.HandlerShared.Reset(init.RootPath, !init.NoOSFileSystemAccess); err != nil {
+		if err := h.HandlerShared.Reset(!init.NoOSFileSystemAccess); err != nil {
 			return err
 		}
 	}
@@ -96,7 +96,7 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 // Handle implements jsonrpc2.Handler, except conn is an interface
 // type for testability. The handle method implements jsonrpc2.Handler
 // exactly.
-func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrpc2.Request) (result interface{}, err error) {
+func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
 	defer func() {
 		if perr := panicf(recover(), "%v", req.Method); perr != nil {
@@ -194,6 +194,10 @@ func (h *LangHandler) Handle(ctx context.Context, conn JSONRPC2Conn, req *jsonrp
 				SignatureHelpProvider:        &lsp.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}},
 			},
 		}, nil
+
+	case "initialized":
+		// A notification that the client is ready to receive requests. Ignore
+		return nil, nil
 
 	case "shutdown":
 		h.ShutDown()
