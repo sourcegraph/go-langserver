@@ -37,7 +37,7 @@ type LangHandler struct {
 	symbolCache    cache
 
 	// cache the reverse import graph
-	importGraphOnce sync.Once
+	importGraphOnce *sync.Once
 	importGraph     importgraph.Graph
 
 	cancel *cancel
@@ -68,7 +68,7 @@ func (h *LangHandler) resetCaches(lock bool) {
 		h.mu.Lock()
 	}
 
-	h.importGraphOnce = sync.Once{}
+	h.importGraphOnce = &sync.Once{}
 	h.importGraph = nil
 
 	if h.typecheckCache == nil {
