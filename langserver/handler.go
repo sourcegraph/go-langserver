@@ -36,7 +36,9 @@ type LangHandler struct {
 	typecheckCache cache
 	symbolCache    cache
 
-	// cache the reverse import graph
+	// cache the reverse import graph. The sync.Once is a pointer since it
+	// is reset when we reset caches. If it was a value we would racily
+	// updated the internal mutex when assigning a new sync.Once.
 	importGraphOnce *sync.Once
 	importGraph     importgraph.Graph
 
