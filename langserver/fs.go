@@ -37,8 +37,6 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 	var before []byte
 	var beforeErr error
 	checkChanged := func(uri string) bool {
-		// We ignore readFile errors, since the []byte being nil gives
-		// us the same comparison.
 		b, err := h.readFile(ctx, uri)
 		if os.IsNotExist(beforeErr) && os.IsNotExist(err) {
 			// Other error conditions we are conservative and
