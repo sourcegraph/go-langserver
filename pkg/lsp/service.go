@@ -18,15 +18,15 @@ type ClientCapabilities struct {
 	// Below are Sourcegraph extensions. They do not live in lspext since
 	// they are extending the field InitializeParams.Capabilities
 
-	// Streaming indicates the client supports receiving the result solely
-	// through $/partialResult notifications for requests from the client
-	// to the server.
+	// XStreaming indicates the client supports receiving the result
+	// solely through $/partialResult notifications for requests from the
+	// client to the server.
 	//
 	// If true, the server is allowed to let the result in the final
 	// response be null.
 	//
-	// Currently a soon to be proposed extension https://github.com/sourcegraph/language-server-protocol/pull/19
-	Streaming bool `json:"streaming,omitempty"`
+	// This is a Sourcegraph extension.
+	XStreaming bool `json:"xstreaming,omitempty"`
 
 	// XFilesProvider indicates the client provides support for
 	// workspace/xfiles. This is a Sourcegraph extension.
@@ -133,15 +133,15 @@ type ServerCapabilities struct {
 	DocumentOnTypeFormattingProvider *DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
 	RenameProvider                   bool                             `json:"renameProvider,omitempty"`
 
-	// Streaming indicates the server supports receiving the result solely
-	// through $/partialResult notifications for requests from the server
-	// to the client.
+	// XStreaming indicates the server supports receiving the result
+	// solely through $/partialResult notifications for requests from the
+	// server to the client.
 	//
 	// If true, the client is allowed to let the result in the final
 	// response be null.
 	//
-	// Note: A proposed extension https://github.com/sourcegraph/language-server-protocol/pull/19
-	Streaming bool `json:"streaming,omitempty"`
+	// This is a Sourcegraph extension.
+	XStreaming bool `json:"xstreaming,omitempty"`
 
 	// XWorkspaceReferencesProvider indicates the server provides support for
 	// xworkspace/references. This is a Sourcegraph extension.

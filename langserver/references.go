@@ -102,7 +102,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 
 	go func() {
 		var locs []lsp.Location
-		if h.init.Capabilities.Streaming || streamExperiment {
+		if h.init.Capabilities.XStreaming || streamExperiment {
 			locs = refStreamAndCollect(ctx, conn, req, fset, refs)
 		} else {
 			for n := range refs {
