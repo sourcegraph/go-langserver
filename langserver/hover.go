@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/token"
 	"go/types"
 	"strings"
@@ -20,6 +21,13 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no information.
 		if _, ok := err.(*invalidNodeError); ok {
+			return nil, nil
+		}
+		// This is a common error we get in production when a user is
+		// browsing a go pkg which only contains files we can't
+		// analyse (usually due to build tags). To reduce signal of
+		// actual bad errors, we return no error in this case.
+		if _, ok := err.(*build.NoGoError); ok {
 			return nil, nil
 		}
 		return nil, err
