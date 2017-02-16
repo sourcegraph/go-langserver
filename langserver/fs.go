@@ -34,18 +34,19 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 	overlay := h.overlay
 	h.Mu.Unlock()
 
-	var before []byte
-	var beforeErr error
-	checkChanged := func(uri string) bool {
-		b, err := h.readFile(ctx, uri)
-		if os.IsNotExist(beforeErr) && os.IsNotExist(err) {
+	do := func(uri string, op func() error) (string, bool, error) {
+		span.SetTag("uri", uri)
+		before, beforeErr := h.readFile(ctx, uri)
+		err := op()
+		after, afterErr := h.readFile(ctx, uri)
+		if os.IsNotExist(beforeErr) && os.IsNotExist(afterErr) {
 			// Other error conditions we are conservative and
 			// assume something changed.
-			return false
-		} else if err != nil || beforeErr != nil {
-			return true
+			return uri, false, err
+		} else if afterErr != nil || beforeErr != nil {
+			return uri, true, err
 		}
-		return !bytes.Equal(before, b)
+		return uri, !bytes.Equal(before, after), err
 	}
 
 	switch req.Method {
@@ -54,33 +55,29 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return "", false, err
 		}
-		uri := params.TextDocument.URI
-		span.SetTag("uri", uri)
-		before, beforeErr = h.readFile(ctx, uri)
-		overlay.didOpen(&params)
-		return uri, checkChanged(uri), nil
+		return do(params.TextDocument.URI, func() error {
+			overlay.didOpen(&params)
+			return nil
+		})
 
 	case "textDocument/didChange":
 		var params lsp.DidChangeTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return "", false, err
 		}
-		uri := params.TextDocument.URI
-		span.SetTag("uri", uri)
-		before, beforeErr = h.readFile(ctx, uri)
-		err := overlay.didChange(&params)
-		return uri, checkChanged(uri), err
+		return do(params.TextDocument.URI, func() error {
+			return overlay.didChange(&params)
+		})
 
 	case "textDocument/didClose":
 		var params lsp.DidCloseTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return "", false, err
 		}
-		uri := params.TextDocument.URI
-		span.SetTag("uri", uri)
-		before, beforeErr = h.readFile(ctx, uri)
-		overlay.didClose(&params)
-		return uri, checkChanged(uri), nil
+		return do(params.TextDocument.URI, func() error {
+			overlay.didClose(&params)
+			return nil
+		})
 
 	case "textDocument/didSave":
 		// no-op
