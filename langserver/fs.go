@@ -40,10 +40,12 @@ func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrp
 		err := op()
 		after, afterErr := h.readFile(ctx, uri)
 		if os.IsNotExist(beforeErr) && os.IsNotExist(afterErr) {
-			// Other error conditions we are conservative and
-			// assume something changed.
+			// File did not exist before or after so nothing has changed.
 			return uri, false, err
 		} else if afterErr != nil || beforeErr != nil {
+			// If an error prevented us from reading the file
+			// before or after then we assume the file changed to
+			// be conservative.
 			return uri, true, err
 		}
 		return uri, !bytes.Equal(before, after), err
