@@ -26,42 +26,64 @@ func IsFileSystemRequest(method string) bool {
 		method == "textDocument/didSave"
 }
 
-func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) error {
+// HandleFileSystemRequest handles textDocument/did* requests. The path the
+// request is for is returned. true is returned if a file was modified.
+func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (string, bool, error) {
 	span := opentracing.SpanFromContext(ctx)
 	h.Mu.Lock()
 	overlay := h.overlay
 	h.Mu.Unlock()
 
+	do := func(uri string, op func() error) (string, bool, error) {
+		span.SetTag("uri", uri)
+		before, beforeErr := h.readFile(ctx, uri)
+		err := op()
+		after, afterErr := h.readFile(ctx, uri)
+		if os.IsNotExist(beforeErr) && os.IsNotExist(afterErr) {
+			// File did not exist before or after so nothing has changed.
+			return uri, false, err
+		} else if afterErr != nil || beforeErr != nil {
+			// If an error prevented us from reading the file
+			// before or after then we assume the file changed to
+			// be conservative.
+			return uri, true, err
+		}
+		return uri, !bytes.Equal(before, after), err
+	}
+
 	switch req.Method {
 	case "textDocument/didOpen":
 		var params lsp.DidOpenTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return err
+			return "", false, err
 		}
-		span.SetTag("uri", params.TextDocument.URI)
-		overlay.didOpen(&params)
-		return nil
+		return do(params.TextDocument.URI, func() error {
+			overlay.didOpen(&params)
+			return nil
+		})
 
 	case "textDocument/didChange":
 		var params lsp.DidChangeTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return err
+			return "", false, err
 		}
-		span.SetTag("uri", params.TextDocument.URI)
-		return overlay.didChange(&params)
+		return do(params.TextDocument.URI, func() error {
+			return overlay.didChange(&params)
+		})
 
 	case "textDocument/didClose":
 		var params lsp.DidCloseTextDocumentParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return err
+			return "", false, err
 		}
-		span.SetTag("uri", params.TextDocument.URI)
-		overlay.didClose(&params)
-		return nil
+		return do(params.TextDocument.URI, func() error {
+			overlay.didClose(&params)
+			return nil
+		})
 
 	case "textDocument/didSave":
 		// no-op
-		return nil
+		return "", false, nil
 
 	default:
 		panic("unexpected file system request method: " + req.Method)
