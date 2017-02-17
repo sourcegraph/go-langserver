@@ -101,7 +101,15 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	)
 
 	go func() {
-		locsC <- refStreamAndCollect(ctx, conn, req, fset, refs)
+		var locs []lsp.Location
+		if h.init.Capabilities.XStreaming || streamExperiment {
+			locs = refStreamAndCollect(ctx, conn, req, fset, refs)
+		} else {
+			for n := range refs {
+				locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+			}
+		}
+		locsC <- locs
 		close(locsC)
 	}()
 
@@ -173,6 +181,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
 	}
 
+	// TODO(keegancsmith) Remove sorting once streaming is in production at Sourcegraph.
 	sortBySharedDirWithURI(params.TextDocument.URI, locs)
 
 	// Technically we may be able to stop computing references sooner and
@@ -253,14 +262,6 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 // closed. While it is reading, it will also occasionaly stream out updates of
 // the refs received so far.
 func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident) []lsp.Location {
-	if !streamExperiment {
-		var locs []lsp.Location
-		for n := range refs {
-			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
-		}
-		return locs
-	}
-
 	id := lsp.ID{
 		Num:      req.ID.Num,
 		Str:      req.ID.Str,
