@@ -818,14 +818,31 @@ type Header struct {
 		"signatures": {
 			rootPath: "file:///src/test/pkg",
 			fs: map[string]string{
-				"a.go": "package p; func A(foo int, bar func(baz int) int) int { return bar(foo) }; func B() {}",
-				"b.go": "package p; func main() { B(); A(); A(0,) }",
+				"a.go": `package p
+
+				// Comments for A
+				func A(foo int, bar func(baz int) int) int { 
+					return bar(foo) 
+				}
+
+				
+				func B() {}
+
+				// Comments for C
+				func C(x int, y int) int { 
+					return x+y 
+				}`,
+				"b.go": "package p; func main() { B(); A(); A(0,); A(0); C(1,2) }",
 			},
 			cases: lspTestCases{
 				wantSignatures: map[string]string{
-					"b.go:1:27": "func() 0",
-					"b.go:1:32": "func(foo int, bar func(baz int) int) int 0",
-					"b.go:1:39": "func(foo int, bar func(baz int) int) int 1",
+					"b.go:1:28": "func() 0",
+					"b.go:1:33": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
+					"b.go:1:40": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
+					"b.go:1:46": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
+					"b.go:1:51": "func(x int, y int) int Comments for C\n 1",
+					"b.go:1:53": "func(x int, y int) int Comments for C\n 1",
+					"b.go:1:54": "func(x int, y int) int Comments for C\n 1",
 				},
 			},
 		},
@@ -1319,6 +1336,9 @@ func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char
 			str += "; "
 		}
 		str += si.Label
+		if si.Documentation != "" {
+			str += " " + si.Documentation
+		}
 	}
 	str += fmt.Sprintf(" %d", res.ActiveParameter)
 	return str, nil
