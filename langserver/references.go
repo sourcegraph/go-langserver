@@ -105,6 +105,11 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		close(locsC)
 	}()
 
+	// Don't include decl if it is outside of workspace.
+	if params.Context.IncludeDeclaration && PathHasPrefix(defpkg, h.init.RootImportPath) {
+		refs <- &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()}
+	}
+
 	// seen keeps track of already findReferenced packages. This allows us
 	// to avoid doing extra work when we receive a successive import
 	// graph.
@@ -165,12 +170,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	// the def.
 	if len(locs) == 0 && findRefErr != nil {
 		return nil, findRefErr
-	}
-
-	// Don't include decl if it is outside of workspace.
-	if params.Context.IncludeDeclaration && PathHasPrefix(defpkg, h.init.RootImportPath) {
-		n := &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()}
-		locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
 	}
 
 	sortBySharedDirWithURI(params.TextDocument.URI, locs)
