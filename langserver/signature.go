@@ -33,21 +33,12 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 	for i := 0; i < sParams.Len(); i++ {
 		info.Parameters[i] = lsp.ParameterInformation{Label: shortParam(sParams.At(i))}
 	}
-	activeParameter := len(info.Parameters)
-	if activeParameter > 0 {
-		activeParameter = activeParameter - 1
-	}
-
+	activeParameter := len(call.Args)
 	for index, arg := range call.Args {
 		if arg.End() >= *start {
 			activeParameter = index
 			break
 		}
-	}
-
-	numArguments := len(call.Args)
-	if activeParameter > numArguments {
-		activeParameter = numArguments
 	}
 
 	funcIdent, funcOk := call.Fun.(*ast.Ident)
