@@ -42,9 +42,16 @@ func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn 
 		activeParameter = numArguments
 	}
 
-	funcUsed, funcOk := call.Fun.(*ast.Ident)
-	if funcUsed != nil && funcOk {
-		funcObj := pkg.ObjectOf(funcUsed)
+	funcIdent, funcOk := call.Fun.(*ast.Ident)
+	if !funcOk {
+		selExpr, selOk := call.Fun.(*ast.SelectorExpr)
+		if selOk {
+			funcIdent = selExpr.Sel
+			funcOk = true
+		}
+	}
+	if funcIdent != nil && funcOk {
+		funcObj := pkg.ObjectOf(funcIdent)
 		_, path, _ := prog.PathEnclosingInterval(funcObj.Pos(), funcObj.Pos())
 		for i := 0; i < len(path); i++ {
 			a, b := path[i].(*ast.FuncDecl)
