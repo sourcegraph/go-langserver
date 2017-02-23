@@ -17,18 +17,18 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// IsFileSystemRequest returns if this is an LSP method whose sole
+// isFileSystemRequest returns if this is an LSP method whose sole
 // purpose is modifying the contents of the overlay file system.
-func IsFileSystemRequest(method string) bool {
+func isFileSystemRequest(method string) bool {
 	return method == "textDocument/didOpen" ||
 		method == "textDocument/didChange" ||
 		method == "textDocument/didClose" ||
 		method == "textDocument/didSave"
 }
 
-// HandleFileSystemRequest handles textDocument/did* requests. The path the
+// handleFileSystemRequest handles textDocument/did* requests. The path the
 // request is for is returned. true is returned if a file was modified.
-func (h *HandlerShared) HandleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (string, bool, error) {
+func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (string, bool, error) {
 	span := opentracing.SpanFromContext(ctx)
 	h.Mu.Lock()
 	overlay := h.overlay
