@@ -10,7 +10,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"log"
 	"math"
 	"os"
 	"strings"
@@ -21,7 +20,6 @@ import (
 	"golang.org/x/tools/refactor/importgraph"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
@@ -158,12 +156,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	// will then send the all the collected references to locsC.
 	close(refs)
 	locs := <-locsC
-
-	// If a timeout does occur, we should know how effective the partial data is
-	if ctx.Err() != nil {
-		refTimeoutResults.Observe(float64(len(locs)))
-		log.Printf("info: timeout during references for %s, found %d refs", defpkg, len(locs))
-	}
 
 	// If we find references then we can ignore findRefErr. It should only
 	// be non-nil due to timeouts or our last findReferences doesn't find
@@ -525,17 +517,4 @@ func sameObj(x, y types.Object) bool {
 		}
 	}
 	return false
-}
-
-var refTimeoutResults = prometheus.NewHistogram(prometheus.HistogramOpts{
-	Namespace: "golangserver",
-	Subsystem: "references",
-	Name:      "timeout_references",
-	Help:      "The number of references that were returned after a timeout.",
-	// 0.01 is to capture no results
-	Buckets: []float64{0.01, 1, 2, 32, 128, 1024},
-})
-
-func init() {
-	prometheus.MustRegister(refTimeoutResults)
 }
