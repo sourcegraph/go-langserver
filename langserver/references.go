@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"math"
 	"os"
 	"strings"
 	"sync"
@@ -92,7 +93,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	// references back to the client, as well as build up the final slice
 	// which we return as the response.
 	go func() {
-		locsC <- refStreamAndCollect(ctx, conn, req, fset, refs)
+		locsC <- refStreamAndCollect(ctx, conn, req, fset, refs, params.Context.XLimit)
 		close(locsC)
 	}()
 
@@ -165,13 +166,6 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, findRefErr
 	}
 
-	// Technically we may be able to stop computing references sooner and
-	// save RAM/CPU, but currently that would have two drawbacks:
-	// * We can't stop the typechecking anyways
-	if params.Context.XLimit > 0 && params.Context.XLimit < len(locs) {
-		locs = locs[:params.Context.XLimit]
-	}
-
 	return locs, nil
 }
 
@@ -241,11 +235,19 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 // refStreamAndCollect returns all refs read in from chan until it is
 // closed. While it is reading, it will also occasionaly stream out updates of
 // the refs received so far.
-func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident) []lsp.Location {
+func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident, limit int) []lsp.Location {
+	if limit == 0 {
+		// If we don't have a limit, just set it to a value we should never exceed
+		limit = math.MaxInt32
+	}
+
 	if !streamExperiment {
 		var locs []lsp.Location
 		for n := range refs {
 			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+		}
+		if len(locs) > limit {
+			locs = locs[:limit]
 		}
 		return locs
 	}
@@ -296,7 +298,9 @@ func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonr
 				send()
 				return locs
 			}
-			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+			if len(locs) < limit {
+				locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+			}
 		case <-tick.C:
 			send()
 		}
