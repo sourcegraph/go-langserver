@@ -76,6 +76,12 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return PathHasPrefix(path, h.init.RootImportPath)
 	}
 
+	// findRefCtx is used in the findReferences function. It has its own
+	// context so we can stop finding references once we have reached our
+	// limit.
+	findRefCtx, stop := context.WithCancel(ctx)
+	defer stop()
+
 	var (
 		// locsC receives the final collected references via
 		// refStreamAndCollect.
@@ -93,7 +99,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	// references back to the client, as well as build up the final slice
 	// which we return as the response.
 	go func() {
-		locsC <- refStreamAndCollect(ctx, conn, req, fset, refs, params.Context.XLimit)
+		locsC <- refStreamAndCollect(ctx, conn, req, fset, refs, params.Context.XLimit, stop)
 		close(locsC)
 	}()
 
@@ -145,7 +151,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 			lconf.ImportWithTests(path)
 		}
 
-		findRefErr = findReferences(ctx, lconf, pkgInWorkspace, obj, refs)
+		findRefErr = findReferences(findRefCtx, lconf, pkgInWorkspace, obj, refs)
 	}
 
 	// Tell refStreamAndCollect that we are done finding references. It
@@ -235,7 +241,7 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 // refStreamAndCollect returns all refs read in from chan until it is
 // closed. While it is reading, it will also occasionaly stream out updates of
 // the refs received so far.
-func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident, limit int) []lsp.Location {
+func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident, limit int, stop func()) []lsp.Location {
 	if limit == 0 {
 		// If we don't have a limit, just set it to a value we should never exceed
 		limit = math.MaxInt32
@@ -298,9 +304,11 @@ func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonr
 				send()
 				return locs
 			}
-			if len(locs) < limit {
-				locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
+			if len(locs) >= limit {
+				stop()
+				continue
 			}
+			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
 		case <-tick.C:
 			send()
 		}
@@ -310,6 +318,11 @@ func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonr
 // findReferences will find all references to obj. It will only return
 // references from packages in lconf.ImportPkgs.
 func findReferences(ctx context.Context, lconf loader.Config, pkgInWorkspace func(string) bool, obj types.Object, refs chan<- *ast.Ident) error {
+	// Bail out early if the context is canceled
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	allowErrors(&lconf)
 
 	defpkg := strings.TrimSuffix(obj.Pkg().Path(), "_test")
