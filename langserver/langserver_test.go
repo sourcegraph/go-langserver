@@ -125,7 +125,9 @@ func TestServer(t *testing.T) {
 				wantHover: map[string]string{
 					// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
 					"a.go:1:28": "struct field F string",
-					"a.go:1:17": "type T struct",
+					"a.go:1:17": `type T struct; struct {
+    F string
+}`,
 				},
 				wantSymbols: map[string][]string{
 					"a.go": []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
@@ -780,7 +782,7 @@ type Header struct {
 					"a.go:12:5":  "var logit func(); logit is pkg2.X \n\n",
 					"a.go:12:13": "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
 					"a.go:12:18": "func X(); X does the unknown. \n\n",
-					"a.go:15:6":  "type T struct; T is a struct. \n\n",
+					"a.go:15:6":  "type T struct; T is a struct. \n\n; struct {\n    F string\n    H Header\n}",
 					"a.go:17:2":  "struct field F string; F is a string field. \n\n",
 					"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
 					"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
