@@ -150,6 +150,11 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		}
 
 		findRefErr = findReferences(findRefCtx, lconf, pkgInWorkspace, obj, refs)
+
+		if findRefCtx.Err() != nil {
+			// If we are canceled, cancel loop early
+			break
+		}
 	}
 
 	// Tell refStreamAndCollect that we are done finding references. It
