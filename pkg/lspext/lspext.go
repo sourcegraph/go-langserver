@@ -29,7 +29,7 @@ type WorkspaceReferencesParams struct {
 	Hints map[string]interface{} `json:"hints,omitempty"`
 
 	// Limit if positive will limit the number of results returned.
-	Limit int `json:"xlimit,omitempty"`
+	Limit int `json:"limit,omitempty"`
 }
 
 // ReferenceInformation represents information about a reference to programming
