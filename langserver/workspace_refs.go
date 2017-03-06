@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -115,6 +116,12 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		close(done)
 	}()
 
+	limit := params.Limit
+	if limit <= 0 {
+		// If we don't have a limit, just set it to a value we should never exceed
+		limit = math.MaxInt32
+	}
+
 	streamUpdate := func() {}
 	streamTick := make(<-chan time.Time, 1)
 	if streamExperiment {
@@ -135,9 +142,12 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 			results.resultsMu.Lock()
 			partial := results.results
 			results.resultsMu.Unlock()
-			if len(partial) == streamPos {
+			if len(partial) == streamPos || streamPos > limit {
 				// Everything currently in refs has already been sent.
 				return
+			}
+			if len(partial) > limit {
+				partial = partial[:limit]
 			}
 
 			patch := make([]xreferenceAddOp, 0, len(partial)-streamPos)
@@ -178,7 +188,12 @@ loop:
 	// Send a final update
 	streamUpdate()
 
-	return results.results, nil
+	r := results.results
+	if len(r) > limit {
+		r = r[:limit]
+	}
+
+	return r, nil
 }
 
 func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, fset *token.FileSet, pkgs []string, afterTypeCheck func(info *loader.PackageInfo, files []*ast.File)) (prog *loader.Program, err error) {
