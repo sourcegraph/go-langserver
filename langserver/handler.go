@@ -132,13 +132,10 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 	}()
 
 	var cancelManager *cancel
-	h.mu.Lock()
 	cancelManager = h.cancel
 	if req.Method != "initialize" && h.init == nil {
-		h.mu.Unlock()
 		return nil, errors.New("server must be initialized")
 	}
-	h.mu.Unlock()
 	if err := h.CheckReady(); err != nil {
 		if req.Method == "exit" {
 			err = nil
