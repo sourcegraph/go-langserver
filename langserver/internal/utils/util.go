@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"runtime"
 	"strings"
 )
@@ -54,7 +55,12 @@ func PathToURI(path string) string {
 
 // UriToPath converts given file URI to path
 func UriToPath(uri string) string {
-	return strings.TrimPrefix(uri, "file://")
+	u, err := url.Parse(uri)
+	if err != nil {
+		return strings.TrimPrefix(uri, "file://")
+	} else {
+		return u.Path
+	}
 }
 
 // Panicf takes the return value of recover() and outputs data to the log with

@@ -13,7 +13,8 @@ func virtualPath(path string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	return path
+	// Also, on Windows paths are case-insensitive
+	return strings.ToLower(path)
 }
 
 func IsAbs(path string) bool {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/build"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -78,7 +79,7 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 			}
 		}
 	}
-	srcDir = path.Join(srcDir, "src")
+	srcDir = path.Join(filepath.ToSlash(srcDir), "src")
 	importPath := utils.PathTrimPrefix(pkgDir, srcDir)
 	var xtest bool
 	pkg, err := bctx.Import(importPath, pkgDir, 0)
