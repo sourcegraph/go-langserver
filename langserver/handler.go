@@ -23,9 +23,33 @@ import (
 
 // NewHandler creates a Go language server handler.
 func NewHandler() jsonrpc2.Handler {
-	return jsonrpc2.HandlerWithError((&LangHandler{
+	return lspHandler{jsonrpc2.HandlerWithError((&LangHandler{
 		HandlerShared: &HandlerShared{},
-	}).handle)
+	}).handle)}
+}
+
+// lspHandler wraps LangHandler to correctly handle requests in the correct
+// order.
+//
+// The LSP spec dictates a strict ordering that requests should only be
+// processed serially in the order they are received. However, implementations
+// are allowed to do concurrent computation if it doesn't affect the
+// result. We actually can return responses out of order, since vscode does
+// not seem to have issues with that. We also do everything concurrently,
+// except methods which could mutate the state used by our typecheckers (ie
+// textDocument/didOpen, etc). Those are done serially since applying them out
+// of order could result in a different textDocument.
+type lspHandler struct {
+	jsonrpc2.Handler
+}
+
+// Handle implements jsonrpc2.Handler
+func (h lspHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) {
+	if isFileSystemRequest(req.Method) {
+		h.Handler.Handle(ctx, conn, req)
+		return
+	}
+	go h.Handler.Handle(ctx, conn, req)
 }
 
 // LangHandler is a Go language server LSP/JSON-RPC handler.
@@ -38,8 +62,10 @@ type LangHandler struct {
 	typecheckCache cache
 	symbolCache    cache
 
-	// cache the reverse import graph
-	importGraphOnce sync.Once
+	// cache the reverse import graph. The sync.Once is a pointer since it
+	// is reset when we reset caches. If it was a value we would racily
+	// updated the internal mutex when assigning a new sync.Once.
+	importGraphOnce *sync.Once
 	importGraph     importgraph.Graph
 
 	cancel *cancel
@@ -70,7 +96,7 @@ func (h *LangHandler) resetCaches(lock bool) {
 		h.mu.Lock()
 	}
 
-	h.importGraphOnce = sync.Once{}
+	h.importGraphOnce = &sync.Once{}
 	h.importGraph = nil
 
 	if h.typecheckCache == nil {
@@ -95,9 +121,10 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 	return h.Handle(ctx, conn, req)
 }
 
-// Handle implements jsonrpc2.Handler, except conn is an interface
-// type for testability. The handle method implements jsonrpc2.Handler
-// exactly.
+// Handle creates a response for a JSONRPC2 LSP request. Note: LSP has strict
+// ordering requirements, so this should not just be wrapped in an
+// jsonrpc2.AsyncHandler. Ensure you have the same ordering as used in the
+// NewHandler implementation.
 func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
 	defer func() {
@@ -321,9 +348,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		return h.handleWorkspaceReferences(ctx, conn, req, params)
 
 	default:
-		if IsFileSystemRequest(req.Method) {
-			err := h.HandleFileSystemRequest(ctx, req)
-			h.resetCaches(true) // a file changed, so we must re-typecheck and re-enumerate symbols
+		if isFileSystemRequest(req.Method) {
+			uri, fileChanged, err := h.handleFileSystemRequest(ctx, req)
+			if fileChanged {
+				// a file changed, so we must re-typecheck and re-enumerate symbols
+				h.resetCaches(true)
+			}
+			if uri != "" {
+				// a user is viewing this path, hint to add it to the cache
+				go h.typecheck(ctx, conn, uri, lsp.Position{})
+			}
 			return nil, err
 		}
 

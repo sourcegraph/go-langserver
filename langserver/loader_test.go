@@ -142,7 +142,7 @@ func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context, *bui
 			URI:  utils.PathToURI(filename),
 			Text: contents,
 		}})
-		err := h.HandleFileSystemRequest(ctx, r)
+		_, _, err := h.handleFileSystemRequest(ctx, r)
 		if err != nil {
 			panic(err)
 		}

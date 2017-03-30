@@ -126,7 +126,9 @@ func TestServer(t *testing.T) {
 				wantHover: map[string]string{
 					// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
 					"a.go:1:28": "struct field F string",
-					"a.go:1:17": "type T struct",
+					"a.go:1:17": `type T struct; struct {
+    F string
+}`,
 				},
 				wantSymbols: map[string][]string{
 					"a.go": []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
@@ -781,7 +783,7 @@ type Header struct {
 					"a.go:12:5":  "var logit func(); logit is pkg2.X \n\n",
 					"a.go:12:13": "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
 					"a.go:12:18": "func X(); X does the unknown. \n\n",
-					"a.go:15:6":  "type T struct; T is a struct. \n\n",
+					"a.go:15:6":  "type T struct; T is a struct. \n\n; struct {\n    F string\n    H Header\n}",
 					"a.go:17:2":  "struct field F string; F is a string field. \n\n",
 					"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
 					"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
@@ -819,14 +821,31 @@ type Header struct {
 		"signatures": {
 			rootPath: "file:///src/test/pkg",
 			fs: map[string]string{
-				"a.go": "package p; func A(foo int, bar func(baz int) int) int { return bar(foo) }; func B() {}",
-				"b.go": "package p; func main() { B(); A(); A(0,) }",
+				"a.go": `package p
+
+				// Comments for A
+				func A(foo int, bar func(baz int) int) int { 
+					return bar(foo) 
+				}
+
+				
+				func B() {}
+
+				// Comments for C
+				func C(x int, y int) int { 
+					return x+y 
+				}`,
+				"b.go": "package p; func main() { B(); A(); A(0,); A(0); C(1,2) }",
 			},
 			cases: lspTestCases{
 				wantSignatures: map[string]string{
-					"b.go:1:27": "func() 0",
-					"b.go:1:32": "func(foo int, bar func(baz int) int) int 0",
-					"b.go:1:39": "func(foo int, bar func(baz int) int) int 1",
+					"b.go:1:28": "func() 0",
+					"b.go:1:33": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
+					"b.go:1:40": "func(foo int, bar func(baz int) int) int Comments for A\n 1",
+					"b.go:1:46": "func(foo int, bar func(baz int) int) int Comments for A\n 0",
+					"b.go:1:51": "func(x int, y int) int Comments for C\n 0",
+					"b.go:1:53": "func(x int, y int) int Comments for C\n 1",
+					"b.go:1:54": "func(x int, y int) int Comments for C\n 1",
 				},
 			},
 		},
@@ -1322,6 +1341,9 @@ func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char
 			str += "; "
 		}
 		str += si.Label
+		if si.Documentation != "" {
+			str += " " + si.Documentation
+		}
 	}
 	str += fmt.Sprintf(" %d", res.ActiveParameter)
 	return str, nil

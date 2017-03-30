@@ -1,4 +1,4 @@
-package main
+package main // import "github.com/sourcegraph/go-langserver"
 
 import (
 	"context"
@@ -14,11 +14,19 @@ import (
 )
 
 var (
-	mode    = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr    = flag.String("addr", ":4389", "server listen address (tcp)")
-	trace   = flag.Bool("trace", false, "print all requests and responses")
-	logfile = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
+	addr         = flag.String("addr", ":4389", "server listen address (tcp)")
+	trace        = flag.Bool("trace", false, "print all requests and responses")
+	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	printVersion = flag.Bool("version", false, "print version and exit")
 )
+
+// version is the version field we report back. If you are releasing a new version:
+// 1. Create commit without -dev suffix.
+// 2. Create commit with version incremented and -dev suffix
+// 3. Push to master
+// 4. Tag the commit created in (1) with the value of the version string
+const version = "v2-dev"
 
 func main() {
 	flag.Parse()
@@ -31,6 +39,11 @@ func main() {
 }
 
 func run() error {
+	if *printVersion {
+		fmt.Println(version)
+		return nil
+	}
+
 	var logW io.Writer
 	if *logfile == "" {
 		logW = os.Stderr
