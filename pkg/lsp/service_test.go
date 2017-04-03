@@ -61,3 +61,40 @@ func TestTextDocumentSyncOptionsOrKind_MarshalUnmarshalJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkedString_MarshalUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		data []byte
+		want MarkedString
+	}{{
+		data: []byte(`{"language":"go","value":"foo"}`),
+		want: MarkedString{Language: "go", Value: "foo", isRawString: false},
+	}, {
+		data: []byte(`{"language":"","value":"foo"}`),
+		want: MarkedString{Language: "", Value: "foo", isRawString: false},
+	}, {
+		data: []byte(`"foo"`),
+		want: MarkedString{Language: "", Value: "foo", isRawString: true},
+	}}
+
+	for _, test := range tests {
+		var m MarkedString
+		if err := json.Unmarshal(test.data, &m); err != nil {
+			t.Errorf("json.Unmarshal error: %s", err)
+			continue
+		}
+		if !reflect.DeepEqual(test.want, m) {
+			t.Errorf("Unmarshaled %q, expected %+v, but got %+v", string(test.data), test.want, m)
+			continue
+		}
+
+		marshaled, err := json.Marshal(m)
+		if err != nil {
+			t.Errorf("json.Marshal error: %s", err)
+			continue
+		}
+		if string(marshaled) != string(test.data) {
+			t.Errorf("Marshaled result expected %s, but got %s", string(test.data), string(marshaled))
+		}
+	}
+}
