@@ -3,6 +3,7 @@ package langserver
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -147,12 +148,23 @@ func maybeAddComments(comments string, contents []lsp.MarkedString) []lsp.Marked
 	if comments == "" {
 		return contents
 	}
+
+	var m lsp.MarkedString
+	input, marshallErr := json.Marshal(comments)
+	if marshallErr == nil {
+		unMarshallErr := json.Unmarshal(input, &m)
+		if unMarshallErr == nil {
+			return append(contents, m)
+		}
+	}
+
 	var b bytes.Buffer
 	doc.ToMarkdown(&b, comments, nil)
-	return append(contents, lsp.MarkedString{
+	m = lsp.MarkedString{
 		Language: "markdown",
 		Value:    b.String(),
-	})
+	}
+	return append(contents, m)
 }
 
 // packageDoc finds the documentation for the named package from its files or
