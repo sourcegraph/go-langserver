@@ -233,6 +233,12 @@ func (m MarkedString) MarshalJSON() ([]byte, error) {
 	return json.Marshal((markedString)(m))
 }
 
+// RawMarkedString returns a MarkedString consisting of only a raw
+// string (i.e., "foo" instead of {"value":"foo", "language":"bar"}).
+func RawMarkedString(s string) MarkedString {
+	return MarkedString{Value: s, isRawString: true}
+}
+
 type SignatureHelp struct {
 	Signatures      []SignatureInformation `json:"signatures"`
 	ActiveSignature int                    `json:"activeSignature"`
