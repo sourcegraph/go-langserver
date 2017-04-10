@@ -221,7 +221,7 @@ func (m *MarkedString) UnmarshalJSON(data []byte) error {
 		m.isRawString = true
 		return nil
 	}
-	// Markdown
+	// Language string
 	ms := (*markedString)(m)
 	return json.Unmarshal(data, ms)
 }
