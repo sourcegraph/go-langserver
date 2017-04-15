@@ -81,6 +81,10 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 	}
 
 	findComments := func(o types.Object) string {
+		if o == nil {
+			return ""
+		}
+
 		// Package names must be resolved specially, so do this now to avoid
 		// additional overhead.
 		if v, ok := o.(*types.PkgName); ok {
