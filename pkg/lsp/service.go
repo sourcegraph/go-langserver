@@ -3,6 +3,7 @@ package lsp
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 )
 
 type None struct{}
@@ -200,9 +201,42 @@ type Hover struct {
 	Range    *Range         `json:"range,omitempty"`
 }
 
-type MarkedString struct {
+type MarkedString markedString
+
+type markedString struct {
 	Language string `json:"language"`
 	Value    string `json:"value"`
+
+	isRawString bool
+}
+
+func (m *MarkedString) UnmarshalJSON(data []byte) error {
+	if d := strings.TrimSpace(string(data)); len(d) > 0 && d[0] == '"' {
+		// Raw string
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		m.Value = s
+		m.isRawString = true
+		return nil
+	}
+	// Language string
+	ms := (*markedString)(m)
+	return json.Unmarshal(data, ms)
+}
+
+func (m MarkedString) MarshalJSON() ([]byte, error) {
+	if m.isRawString {
+		return json.Marshal(m.Value)
+	}
+	return json.Marshal((markedString)(m))
+}
+
+// RawMarkedString returns a MarkedString consisting of only a raw
+// string (i.e., "foo" instead of {"value":"foo", "language":"bar"}).
+func RawMarkedString(s string) MarkedString {
+	return MarkedString{Value: s, isRawString: true}
 }
 
 type SignatureHelp struct {
