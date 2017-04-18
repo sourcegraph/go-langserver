@@ -73,43 +73,43 @@ func TestServer(t *testing.T) {
 					},
 				},
 				wantSymbols: map[string][]string{
-					"a.go": []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					"b.go": []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
+					"a.go": []string{"/src/test/pkg/a.go:function:A:1:17"},
+					"b.go": []string{"/src/test/pkg/b.go:function:B:1:17"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-					{Query: ""}:            []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Query: "A"}:           []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Query: "B"}:           []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Query: "is:exported"}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Query: "dir:/"}:       []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Query: "dir:/ A"}:     []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Query: "dir:/ B"}:     []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
+					{Query: ""}:            []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
+					{Query: "A"}:           []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Query: "B"}:           []string{"/src/test/pkg/b.go:function:B:1:17"},
+					{Query: "is:exported"}: []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
+					{Query: "dir:/"}:       []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
+					{Query: "dir:/ A"}:     []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Query: "dir:/ B"}:     []string{"/src/test/pkg/b.go:function:B:1:17"},
 
 					// non-nil SymbolDescriptor + no keys.
-					{Symbol: make(lspext.SymbolDescriptor)}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
+					{Symbol: make(lspext.SymbolDescriptor)}: []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
 
 					// Individual filter fields.
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg"}}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"name": "A"}}:           []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"name": "B"}}:           []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"packageName": "p"}}:    []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"recv": ""}}:            []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"vendor": false}}:       []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg"}}: []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"name": "A"}}:           []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"name": "B"}}:           []string{"/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"packageName": "p"}}:    []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"recv": ""}}:            []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"vendor": false}}:       []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
 
 					// Combined filter fields.
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg"}}:                                                               []string{"/src/test/pkg/a.go:function:pkg.A:1:17", "/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A"}}:                                                  []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p"}}:                              []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": ""}}:                  []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B"}}:                                                  []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p"}}:                              []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": ""}}:                  []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg"}}:                                                               []string{"/src/test/pkg/a.go:function:A:1:17", "/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A"}}:                                                  []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p"}}:                              []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": ""}}:                  []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B"}}:                                                  []string{"/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p"}}:                              []string{"/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": ""}}:                  []string{"/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "B", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/b.go:function:B:1:17"},
 
 					// By ID.
-					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/B"}}: []string{"/src/test/pkg/b.go:function:pkg.B:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/A"}}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/B"}}: []string{"/src/test/pkg/b.go:function:B:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/A"}}: []string{"/src/test/pkg/a.go:function:A:1:17"},
 				},
 				wantFormatting: map[string]string{
 					"a.go": "package p\n\nfunc A() { A() }\n",
@@ -130,13 +130,13 @@ func TestServer(t *testing.T) {
 }`,
 				},
 				wantSymbols: map[string][]string{
-					"a.go": []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
+					"a.go": []string{"/src/test/pkg/a.go:class:T:1:17"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-					{Query: ""}:            []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
-					{Query: "T"}:           []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
+					{Query: ""}:            []string{"/src/test/pkg/a.go:class:T:1:17"},
+					{Query: "T"}:           []string{"/src/test/pkg/a.go:class:T:1:17"},
 					{Query: "F"}:           []string{}, // we don't return fields for now
-					{Query: "is:exported"}: []string{"/src/test/pkg/a.go:class:pkg.T:1:17"},
+					{Query: "is:exported"}: []string{"/src/test/pkg/a.go:class:T:1:17"},
 				},
 			},
 		},
@@ -147,7 +147,7 @@ func TestServer(t *testing.T) {
 			},
 			cases: lspTestCases{
 				wantSymbols: map[string][]string{
-					"a.go": []string{"/src/test/pkg/a.go:class:pkg.t:1:17"},
+					"a.go": []string{"/src/test/pkg/a.go:class:t:1:17"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
 					{Query: "is:exported"}: []string{},
@@ -267,19 +267,19 @@ func TestServer(t *testing.T) {
 					"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39 id:test/pkg/d/d2/-/B name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
 				},
 				wantSymbols: map[string][]string{
-					"a.go":    []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
-					"d2/b.go": []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
+					"a.go":    []string{"/src/test/pkg/d/a.go:function:A:1:17"},
+					"d2/b.go": []string{"/src/test/pkg/d/d2/b.go:function:B:1:39"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-					{Query: ""}:            []string{"/src/test/pkg/d/a.go:function:d.A:1:17", "/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
-					{Query: "is:exported"}: []string{"/src/test/pkg/d/a.go:function:d.A:1:17", "/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
-					{Query: "dir:"}:        []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
-					{Query: "dir:/"}:       []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
-					{Query: "dir:."}:       []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
-					{Query: "dir:./"}:      []string{"/src/test/pkg/d/a.go:function:d.A:1:17"},
-					{Query: "dir:/d2"}:     []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
-					{Query: "dir:./d2"}:    []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
-					{Query: "dir:d2/"}:     []string{"/src/test/pkg/d/d2/b.go:function:d2.B:1:39"},
+					{Query: ""}:            []string{"/src/test/pkg/d/a.go:function:A:1:17", "/src/test/pkg/d/d2/b.go:function:B:1:39"},
+					{Query: "is:exported"}: []string{"/src/test/pkg/d/a.go:function:A:1:17", "/src/test/pkg/d/d2/b.go:function:B:1:39"},
+					{Query: "dir:"}:        []string{"/src/test/pkg/d/a.go:function:A:1:17"},
+					{Query: "dir:/"}:       []string{"/src/test/pkg/d/a.go:function:A:1:17"},
+					{Query: "dir:."}:       []string{"/src/test/pkg/d/a.go:function:A:1:17"},
+					{Query: "dir:./"}:      []string{"/src/test/pkg/d/a.go:function:A:1:17"},
+					{Query: "dir:/d2"}:     []string{"/src/test/pkg/d/d2/b.go:function:B:1:39"},
+					{Query: "dir:./d2"}:    []string{"/src/test/pkg/d/d2/b.go:function:B:1:39"},
+					{Query: "dir:d2/"}:     []string{"/src/test/pkg/d/d2/b.go:function:B:1:39"},
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					// Non-matching name query.
@@ -368,12 +368,12 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"a.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
 				},
 				wantSymbols: map[string][]string{
-					"a.go": []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
+					"a.go": []string{"/src/test/pkg/a.go:function:A:1:17"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-					{Query: ""}:            []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Query: "is:exported"}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:function:pkg.A:1:17"},
+					{Query: ""}:            []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Query: "is:exported"}: []string{"/src/test/pkg/a.go:function:A:1:17"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "A", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:function:A:1:17"},
 				},
 			},
 		},
@@ -402,18 +402,18 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantSymbols: map[string][]string{
 					"a.go": []string{
-						"/src/test/pkg/a.go:variable:pkg._:1:26",
-						"/src/test/pkg/a.go:variable:pkg.x:1:47",
+						"/src/test/pkg/a.go:variable:_:1:26",
+						"/src/test/pkg/a.go:variable:x:1:47",
 					},
 					"": []string{},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
 					{Query: ""}: []string{
-						"/src/test/pkg/a.go:variable:pkg._:1:26",
-						"/src/test/pkg/a.go:variable:pkg.x:1:47",
+						"/src/test/pkg/a.go:variable:_:1:26",
+						"/src/test/pkg/a.go:variable:x:1:47",
 					},
 					{Query: "is:exported"}: []string{},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:variable:pkg.x:1:47"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:variable:x:1:47"},
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
@@ -459,12 +459,12 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					},
 				},
 				wantSymbols: map[string][]string{
-					"a/a.go": []string{"/src/test/pkg/a/a.go:function:a.A:1:17"},
-					"b/b.go": []string{"/src/test/pkg/b/b.go:variable:b._:1:33"},
+					"a/a.go": []string{"/src/test/pkg/a/a.go:function:A:1:17"},
+					"b/b.go": []string{"/src/test/pkg/b/b.go:variable:_:1:33"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-					{Query: ""}:            []string{"/src/test/pkg/a/a.go:function:a.A:1:17", "/src/test/pkg/b/b.go:variable:b._:1:33"},
-					{Query: "is:exported"}: []string{"/src/test/pkg/a/a.go:function:a.A:1:17"},
+					{Query: ""}:            []string{"/src/test/pkg/a/a.go:function:A:1:17", "/src/test/pkg/b/b.go:variable:_:1:33"},
+					{Query: "is:exported"}: []string{"/src/test/pkg/a/a.go:function:A:1:17"},
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 					{Query: lspext.SymbolDescriptor{}}: []string{
@@ -497,14 +497,14 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					},
 				},
 				wantSymbols: map[string][]string{
-					"a.go": []string{"/src/test/pkg/a.go:variable:pkg._:1:44"},
-					"vendor/github.com/v/vendored/v.go": []string{"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:vendored.V:1:24"},
+					"a.go": []string{"/src/test/pkg/a.go:variable:_:1:44"},
+					"vendor/github.com/v/vendored/v.go": []string{"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-					{Query: ""}:            []string{"/src/test/pkg/a.go:variable:pkg._:1:44", "/src/test/pkg/vendor/github.com/v/vendored/v.go:function:vendored.V:1:24"},
+					{Query: ""}:            []string{"/src/test/pkg/a.go:variable:_:1:44", "/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
 					{Query: "is:exported"}: []string{},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "_", "packageName": "a", "recv": "", "vendor": false}}:                                     []string{"/src/test/pkg/a.go:variable:pkg._:1:44"},
-					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg/vendor/github.com/v/vendored", "name": "V", "packageName": "vendored", "recv": "", "vendor": true}}:  []string{"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:vendored.V:1:24"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "_", "packageName": "a", "recv": "", "vendor": false}}:                                     []string{"/src/test/pkg/a.go:variable:_:1:44"},
+					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg/vendor/github.com/v/vendored", "name": "V", "packageName": "vendored", "recv": "", "vendor": true}}:  []string{"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
 					{Symbol: lspext.SymbolDescriptor{"package": "test/pkg/vendor/github.com/v/vendored", "name": "V", "packageName": "vendored", "recv": "", "vendor": false}}: []string{},
 				},
 				wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
@@ -524,30 +524,30 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			cases: lspTestCases{
 				wantSymbols: map[string][]string{
-					"z.go": []string{"/src/test/pkg/z.go:function:pkg.x:1:19"},
-					"vendor/github.com/a/pkg2/x.go": []string{"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:pkg2.x:1:20"},
-					"vendor/github.com/x/pkg3/x.go": []string{"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:pkg3.x:1:20"},
+					"z.go": []string{"/src/test/pkg/z.go:function:x:1:19"},
+					"vendor/github.com/a/pkg2/x.go": []string{"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:x:1:20"},
+					"vendor/github.com/x/pkg3/x.go": []string{"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:x:1:20"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
 					{Query: ""}: []string{
-						"/src/test/pkg/z.go:function:pkg.x:1:19",
-						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:pkg2.x:1:20",
-						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:pkg3.x:1:20",
+						"/src/test/pkg/z.go:function:x:1:19",
+						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:x:1:20",
+						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:x:1:20",
 					},
 					{Query: "x"}: []string{
-						"/src/test/pkg/z.go:function:pkg.x:1:19",
-						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:pkg2.x:1:20",
-						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:pkg3.x:1:20",
+						"/src/test/pkg/z.go:function:x:1:19",
+						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:x:1:20",
+						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:x:1:20",
 					},
 					{Query: "pkg2.x"}: []string{
-						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:pkg2.x:1:20",
-						"/src/test/pkg/z.go:function:pkg.x:1:19",
-						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:pkg3.x:1:20",
+						"/src/test/pkg/z.go:function:x:1:19",
+						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:x:1:20",
+						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:x:1:20",
 					},
 					{Query: "pkg3.x"}: []string{
-						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:pkg3.x:1:20",
-						"/src/test/pkg/z.go:function:pkg.x:1:19",
-						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:pkg2.x:1:20",
+						"/src/test/pkg/z.go:function:x:1:19",
+						"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:x:1:20",
+						"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:x:1:20",
 					},
 					{Query: "is:exported"}: []string{},
 				},
@@ -703,17 +703,17 @@ func yza() {}
 			},
 			cases: lspTestCases{
 				wantSymbols: map[string][]string{
-					"abc.go": []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:class:pkg.XYZ:3:6"},
-					"bcd.go": []string{"/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/bcd.go:class:pkg.YZA:3:6"},
-					"xyz.go": []string{"/src/test/pkg/xyz.go:function:pkg.yza:3:6"},
+					"abc.go": []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14"},
+					"bcd.go": []string{"/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
+					"xyz.go": []string{"/src/test/pkg/xyz.go:function:yza:3:6"},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-					{Query: ""}:            []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/abc.go:class:pkg.XYZ:3:6", "/src/test/pkg/bcd.go:class:pkg.YZA:3:6", "/src/test/pkg/xyz.go:function:pkg.yza:3:6"},
-					{Query: "xyz"}:         []string{"/src/test/pkg/abc.go:class:pkg.XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/xyz.go:function:pkg.yza:3:6"},
-					{Query: "yza"}:         []string{"/src/test/pkg/bcd.go:class:pkg.YZA:3:6", "/src/test/pkg/xyz.go:function:pkg.yza:3:6", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
-					{Query: "abc"}:         []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:class:pkg.XYZ:3:6"},
-					{Query: "bcd"}:         []string{"/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/bcd.go:class:pkg.YZA:3:6"},
-					{Query: "is:exported"}: []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/abc.go:class:pkg.XYZ:3:6", "/src/test/pkg/bcd.go:class:pkg.YZA:3:6"},
+					{Query: ""}:            []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/xyz.go:function:yza:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
+					{Query: "xyz"}:         []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/xyz.go:function:yza:3:6"},
+					{Query: "yza"}:         []string{"/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/xyz.go:function:yza:3:6", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
+					{Query: "abc"}:         []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:class:XYZ:3:6"},
+					{Query: "bcd"}:         []string{"/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/bcd.go:class:YZA:3:6"},
+					{Query: "is:exported"}: []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
 				},
 			},
 		},
@@ -865,7 +865,7 @@ type Header struct {
 					},
 				},
 				wantSymbols: map[string][]string{
-					"a.go": []string{"/src/t:est/@hello/pkg/a.go:function:pkg.A:1:17"},
+					"a.go": []string{"/src/t:est/@hello/pkg/a.go:function:A:1:17"},
 				},
 			},
 		},
@@ -1289,7 +1289,7 @@ func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri string) ([]string, e
 	}
 	syms := make([]string, len(symbols))
 	for i, s := range symbols {
-		syms[i] = fmt.Sprintf("%s:%s:%s.%s:%d:%d", s.Location.URI, s.Kind, s.ContainerName, s.Name, s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
+		syms[i] = fmt.Sprintf("%s:%s:%s:%d:%d", s.Location.URI, s.Kind, qualifiedName(s), s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
 	}
 	return syms, nil
 }
@@ -1302,9 +1302,16 @@ func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, params lspext.W
 	}
 	syms := make([]string, len(symbols))
 	for i, s := range symbols {
-		syms[i] = fmt.Sprintf("%s:%s:%s.%s:%d:%d", s.Location.URI, s.Kind, s.ContainerName, s.Name, s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
+		syms[i] = fmt.Sprintf("%s:%s:%s:%d:%d", s.Location.URI, s.Kind, qualifiedName(s), s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
 	}
 	return syms, nil
+}
+
+func qualifiedName(s lsp.SymbolInformation) string {
+	if s.ContainerName != "" {
+		return s.ContainerName + "." + s.Name
+	}
+	return s.Name
 }
 
 func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspext.WorkspaceReferencesParams) ([]string, error) {
