@@ -16,6 +16,6 @@ go get github.com/sourcegraph/go-langserver
 
 # Supported Operations
 
-|         | hover | symbol search | jump to def | references | 
-|---------|-------|---------------|-------------|------------|
-| support |   x   |       x       |      x      |      x     |
+|    | Hover | Jump to def | Find references | Workspace symbols | VFS extension | Isolated | Parallel |
+|----|-------|-------------|-----------------|-------------------|---------------|----------|----------|
+| Go |   x   |      x      |        x        |         x         |       x       |     x    |     x    |
