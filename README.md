@@ -16,7 +16,7 @@ go get github.com/sourcegraph/go-langserver
 
 # Supported Operations
 
-| hover | symbol search | jump to def | references | cross repo jump to def | cross repo references |
-|-------|---------------|-------------|------------|------------------------|-----------------------|
-|   x   |       x       |      x      |      x     |            x           |           x           |
+| hover | symbol search | jump to def | references | 
+|-------|---------------|-------------|------------|
+|   x   |       x       |      x      |      x     |
 
