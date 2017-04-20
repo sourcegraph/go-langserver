@@ -20,5 +20,3 @@ go get github.com/sourcegraph/go-langserver
 |-------|---------------|-------------|------------|------------------------|-----------------------|
 |   x   |       x       |      x      |      x     |            x           |           x           |
 
-
-**Status: experimental**
