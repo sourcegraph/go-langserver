@@ -14,7 +14,7 @@ To build and install the standalone `go-langserver` run
 go get github.com/sourcegraph/go-langserver
 ```
 
-# Supported Operations
+# Support
 
 |    | Hover | Jump to def | Find references | Workspace symbols | VFS extension | Isolated | Parallel |
 |----|-------|-------------|-----------------|-------------------|---------------|----------|----------|
