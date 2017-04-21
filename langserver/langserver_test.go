@@ -29,7 +29,7 @@ func TestServer(t *testing.T) {
 		cases    lspTestCases
 	}{
 		"go basic": {
-			rootPath: "/src/test/pkg",
+			rootPath: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 				"b.go": "package p; func B() { A() }",
@@ -883,7 +883,7 @@ type Header struct {
 				}
 			}()
 
-			rootFSPath := uriToPath(test.rootPath)
+			rootFSPath := uriToFilePath(test.rootPath)
 
 			// Prepare the connection.
 			ctx := context.Background()
@@ -1061,7 +1061,7 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition = uriToPath(definition)
+	definition = uriToFilePath(definition)
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
 	}
@@ -1076,7 +1076,7 @@ func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPa
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition = uriToPath(xdefinition)
+	xdefinition = uriToFilePath(xdefinition)
 	if xdefinition != want {
 		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
 	}
@@ -1092,7 +1092,7 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 		t.Fatal(err)
 	}
 	for i := range references {
-		references[i] = uriToPath(references[i])
+		references[i] = uriToFilePath(references[i])
 	}
 	sort.Strings(references)
 	sort.Strings(want)
@@ -1107,7 +1107,7 @@ func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath s
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = uriToPath(symbols[i])
+		symbols[i] = uriToFilePath(symbols[i])
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %q, want %q", symbols, want)
@@ -1120,7 +1120,7 @@ func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = uriToPath(symbols[i])
+		symbols[i] = uriToFilePath(symbols[i])
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %#v, want %q", symbols, want)
@@ -1322,7 +1322,7 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 	}
 	refs := make([]string, len(references))
 	for i, r := range references {
-		locationURI := uriToPath(r.Reference.URI)
+		locationURI := uriToFilePath(r.Reference.URI)
 		start := r.Reference.Range.Start
 		end := r.Reference.Range.End
 		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)
