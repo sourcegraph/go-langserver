@@ -37,6 +37,11 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 	do := func(uri string, op func() error) (string, bool, error) {
 		span.SetTag("uri", uri)
 		before, beforeErr := h.readFile(ctx, uri)
+		if beforeErr != nil && !os.IsNotExist(beforeErr) {
+			// There is no op that could succeed in this case. (Most
+			// commonly occurs when uri refers to a dir, not a file.)
+			return uri, false, beforeErr
+		}
 		err := op()
 		after, afterErr := h.readFile(ctx, uri)
 		if os.IsNotExist(beforeErr) && os.IsNotExist(afterErr) {
