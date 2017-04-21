@@ -18,72 +18,72 @@ func Test_resultSorter(t *testing.T) {
 		rawQuery: "foo.bar",
 		allSymbols: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "foo", Name: "Bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "foo",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "asdf",
-			Location: lsp.Location{URI: "foo.go"},
+			Location: lsp.Location{URI: "file:///foo.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "one", Name: "two",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}},
 		expResults: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "Bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "foo",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "asdf",
-			Location: lsp.Location{URI: "foo.go"},
+			Location: lsp.Location{URI: "file:///foo.go"},
 			Kind:     lsp.SKFunction,
 		}},
 	}, {
 		rawQuery: "foo bar",
 		allSymbols: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "foo",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "asdf",
-			Location: lsp.Location{URI: "foo.go"},
+			Location: lsp.Location{URI: "file:///foo.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "one", Name: "two",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}},
 		expResults: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "foo",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}, {
 			ContainerName: "asdf", Name: "asdf",
-			Location: lsp.Location{URI: "foo.go"},
+			Location: lsp.Location{URI: "file:///foo.go"},
 			Kind:     lsp.SKFunction,
 		}},
 	}, {
@@ -92,24 +92,24 @@ func Test_resultSorter(t *testing.T) {
 		rawQuery: "is:exported",
 		allSymbols: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}},
 		expResults: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}},
 	}, {
 		rawQuery: "",
 		allSymbols: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}},
 		expResults: []lsp.SymbolInformation{{
 			ContainerName: "foo", Name: "bar",
-			Location: lsp.Location{URI: "file.go"},
+			Location: lsp.Location{URI: "file:///file.go"},
 			Kind:     lsp.SKFunction,
 		}},
 	}}

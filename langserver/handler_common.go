@@ -29,7 +29,7 @@ func (h *HandlerCommon) Reset(rootURI string) error {
 	if !isFileURI(rootURI) {
 		return fmt.Errorf("invalid root path %q: must be file:/// URI", rootURI)
 	}
-	h.RootFSPath = uriToPath(rootURI) // retain leading slash
+	h.RootFSPath = uriToFilePath(rootURI) // retain leading slash
 	return nil
 }
 
