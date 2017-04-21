@@ -166,7 +166,7 @@ func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
 }
 
 func uriToOverlayPath(uri string) string {
-	if isURI(uri) {
+	if isFileURI(uri) {
 		return strings.TrimPrefix(uriToPath(uri), "/")
 	}
 	return uri

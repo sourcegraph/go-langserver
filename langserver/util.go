@@ -35,8 +35,8 @@ func IsVendorDir(dir string) bool {
 	return strings.HasPrefix(dir, "vendor/") || strings.Contains(dir, "/vendor/")
 }
 
-// isURI tells if s denotes an URI
-func isURI(s string) bool {
+// isFileURI tells if s denotes an URI
+func isFileURI(s string) bool {
 	return strings.HasPrefix(s, "file:///")
 }
 
