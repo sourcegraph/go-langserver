@@ -239,7 +239,7 @@ func typecheck(ctx context.Context, fset *token.FileSet, bctx *build.Context, bp
 			// MultipleGoErrors. This occurs, e.g., when you have a
 			// main.go with "// +build ignore" that imports the
 			// non-main package in the same dir.
-			bpkg, err := findPackage(ctx, bctx, importPath, fromDir, mode)
+			bpkg, err := findPackage(ctx, bctx, importPath, fromDir, mode, true)
 			if err != nil && !isMultiplePackageError(err) {
 				return bpkg, err
 			}

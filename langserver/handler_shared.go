@@ -25,9 +25,9 @@ type HandlerShared struct {
 
 // FindPackageFunc matches the signature of loader.Config.FindPackage, except
 // also takes a context.Context.
-type FindPackageFunc func(ctx context.Context, bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error)
+type FindPackageFunc func(ctx context.Context, bctx *build.Context, importPath, fromDir string, mode build.ImportMode, fetchTransitiveDeps bool) (*build.Package, error)
 
-func defaultFindPackageFunc(ctx context.Context, bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+func defaultFindPackageFunc(ctx context.Context, bctx *build.Context, importPath, fromDir string, mode build.ImportMode, fetchTransitiveDeps bool) (*build.Package, error) {
 	return bctx.Import(importPath, fromDir, mode)
 }
 
