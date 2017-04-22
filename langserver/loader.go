@@ -63,7 +63,8 @@ func (h *LangHandler) typecheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fil
 		return nil, nil, nil, nil, nil, nil, err
 	}
 
-	if len(diags) > 0 {
+	if diags != nil {
+		// We actually did some typechecking, publish the (possibly empty) diagnostics
 		go func() {
 			if err := h.publishDiagnostics(ctx, conn, diags); err != nil {
 				log.Printf("warning: failed to send diagnostics: %s.", err)

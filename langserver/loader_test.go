@@ -95,6 +95,7 @@ func TestLoaderDiagnostics(t *testing.T) {
 		{
 			Name: "none",
 			FS:   map[string]string{"/src/p/f.go": `package p; func F() {}`},
+			Want: diagnostics{},
 		},
 		{
 			Name: "malformed",

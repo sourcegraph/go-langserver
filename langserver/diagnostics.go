@@ -44,7 +44,7 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSON
 }
 
 func errsToDiagnostics(typeErrs []error, prog *loader.Program) (diagnostics, error) {
-	var diags diagnostics
+	diags := diagnostics{}
 	for _, typeErr := range typeErrs {
 		var (
 			p    token.Position
@@ -88,9 +88,6 @@ func errsToDiagnostics(typeErrs []error, prog *loader.Program) (diagnostics, err
 			Severity: lsp.Error,
 			Source:   "go",
 			Message:  strings.TrimSpace(msg),
-		}
-		if diags == nil {
-			diags = diagnostics{}
 		}
 		diags[p.Filename] = append(diags[p.Filename], diag)
 	}
