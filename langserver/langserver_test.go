@@ -173,6 +173,10 @@ func TestServer(t *testing.T) {
 					"a_test.go:1:16": "var X int",
 					"a_test.go:1:20": "var A int",
 				},
+				wantSymbols: map[string][]string{
+					"y_test.go": []string{"/src/test/pkg/y_test.go:function:Y:1:22"},
+					"b_test.go": []string{"/src/test/pkg/b_test.go:function:Y:1:17"},
+				},
 				wantReferences: map[string][]string{
 					"a.go:1:16": []string{
 						"/src/test/pkg/a.go:1:16",
@@ -405,7 +409,6 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 						"/src/test/pkg/a.go:variable:_:1:26",
 						"/src/test/pkg/a.go:variable:x:1:47",
 					},
-					"": []string{},
 				},
 				wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
 					{Query: ""}: []string{
