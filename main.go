@@ -7,10 +7,13 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
+
+	_ "net/http/pprof"
 )
 
 var (
@@ -19,6 +22,7 @@ var (
 	trace        = flag.Bool("trace", false, "print all requests and responses")
 	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
 	printVersion = flag.Bool("version", false, "print version and exit")
+	pprof        = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -31,6 +35,13 @@ const version = "v2-dev"
 func main() {
 	flag.Parse()
 	log.SetFlags(0)
+
+	// Start pprof server, if desired.
+	if *pprof != "" {
+		go func() {
+			log.Println(http.ListenAndServe(*pprof, nil))
+		}()
+	}
 
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
