@@ -19,3 +19,21 @@ go get github.com/sourcegraph/go-langserver
 |    | Hover | Jump to def | Find references | Workspace symbols | VFS extension | Isolated | Parallel |
 |----|-------|-------------|-----------------|-------------------|---------------|----------|----------|
 | Go |   x   |      x      |        x        |         x         |       x       |     x    |     x    |
+
+## Profiling
+
+If you run into performance issues while using the language server, it can be very helpful to attach a CPU or memory profile with the issue report. To capture one, first [install Go](https://golang.org/doc/install) and then:
+
+Capture a heap (memory) profile:
+
+```bash
+go tool pprof -svg $GOPATH/bin/go-langserver http://localhost:6060/debug/pprof/heap > heap.svg
+```
+
+Capture a CPU profile:
+
+```bash
+go tool pprof -svg $GOPATH/bin/go-langserver http://localhost:6060/debug/pprof/profile > cpu.svg
+```
+
+Since these capture the active resource usage, it's best to run these commands while the issue is occuring (i.e. while memory or CPU is high).
