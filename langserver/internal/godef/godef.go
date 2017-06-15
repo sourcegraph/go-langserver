@@ -3,7 +3,6 @@ package godef
 import (
 	"bytes"
 	"errors"
-	"flag"
 	"fmt"
 	"go/build"
 	"io/ioutil"
@@ -23,26 +22,14 @@ import (
 	"github.com/rogpeppe/godef/go/types"
 )
 
-var offset = flag.Int("o", -1, "file offset of identifier in stdin")
-var fflag = flag.String("f", "", "Go source filename")
-
 func fail(s string, a ...interface{}) {
 	fmt.Fprint(os.Stderr, "godef: "+fmt.Sprintf(s, a...)+"\n")
 	os.Exit(2)
 }
 
-func Godef() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: godef [flags] [expr]\n")
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-	if flag.NArg() > 1 {
-		flag.Usage()
-		os.Exit(2)
-	}
-	searchpos := *offset
-	filename := *fflag
+func Godef(offset int, filename string) {
+	searchpos := offset
+	filename := filename
 
 	// TODO if there's no filename, look in the current
 	// directory and do something plausible.
@@ -60,15 +47,11 @@ func Godef() {
 
 	var o ast.Node
 	switch {
-	case flag.NArg() > 0:
-		o = parseExpr(f.Scope, flag.Arg(0))
-
 	case searchpos >= 0:
 		o = findIdentifier(f, searchpos)
 
 	default:
 		fmt.Fprintf(os.Stderr, "no expression or offset specified\n")
-		flag.Usage()
 		os.Exit(2)
 	}
 	switch e := o.(type) {
@@ -89,11 +72,6 @@ func Godef() {
 		pkg, err := parseLocalPackage(filename, f, pkgScope, types.DefaultImportPathToName)
 		if pkg == nil {
 			fmt.Printf("parseLocalPackage error: %v\n", err)
-		}
-		if flag.NArg() > 0 {
-			// Reading declarations in other files might have
-			// resolved the original expression.
-			e = parseExpr(f.Scope, flag.Arg(0)).(ast.Expr)
 		}
 		if obj, typ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
 			done(obj, typ)
