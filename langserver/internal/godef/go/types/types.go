@@ -18,9 +18,10 @@ import (
 
 	"go/printer"
 
+	"go/scanner"
+
 	"github.com/rogpeppe/godef/go/ast"
 	"github.com/rogpeppe/godef/go/parser"
-	"github.com/rogpeppe/godef/go/scanner"
 )
 
 // Type represents the type of a Go expression.

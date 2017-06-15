@@ -17,8 +17,9 @@ import (
 
 	"go/token"
 
+	"go/scanner"
+
 	"github.com/rogpeppe/godef/go/ast"
-	"github.com/rogpeppe/godef/go/scanner"
 )
 
 // The mode parameter to the Parse* functions is a set of flags (or 0).
@@ -37,7 +38,7 @@ const (
 type parser struct {
 	fset *token.FileSet
 	file *token.File
-	scanner.ErrorVector
+	scanner.ErrorList
 	scanner    scanner.Scanner
 	pathToName ImportPathToName
 
@@ -71,8 +72,8 @@ type parser struct {
 }
 
 // scannerMode returns the scanner mode bits given the parser's mode bits.
-func scannerMode(mode uint) uint {
-	var m uint = scanner.InsertSemis
+func scannerMode(mode uint) scanner.Mode {
+	var m scanner.Mode
 	if mode&ParseComments != 0 {
 		m |= scanner.ScanComments
 	}
@@ -82,7 +83,7 @@ func scannerMode(mode uint) uint {
 func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uint, topScope *ast.Scope, pathToName ImportPathToName) {
 	p.fset = fset
 	p.file = fset.AddFile(filename, fset.Base(), len(src))
-	p.scanner.Init(p.file, src, p, scannerMode(mode))
+	p.scanner.Init(p.file, src, p.errHandler, scannerMode(mode))
 	p.pathToName = pathToName
 	if p.pathToName == nil {
 		p.pathToName = naiveImportPathToName
@@ -434,8 +435,12 @@ func (p *parser) next() {
 	}
 }
 
+func (p *parser) errHandler(pos token.Position, msg string) {
+	p.ErrorList.Add(pos, msg)
+}
+
 func (p *parser) error(pos token.Pos, msg string) {
-	p.Error(p.file.Position(pos), msg)
+	p.ErrorList.Add(p.file.Position(pos), msg)
 }
 
 func (p *parser) errorExpected(pos token.Pos, msg string) {
@@ -2235,7 +2240,7 @@ func (p *parser) parseFile() *ast.File {
 	// Don't bother parsing the rest if we had errors already.
 	// Likely not a Go source file at all.
 
-	if p.ErrorCount() == 0 && p.mode&PackageClauseOnly == 0 {
+	if p.ErrorList.Len() == 0 && p.mode&PackageClauseOnly == 0 {
 		// import decls
 		for p.tok == token.IMPORT {
 			decls = append(decls, p.parseGenDecl(token.IMPORT, parseImportSpec))

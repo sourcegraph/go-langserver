@@ -17,8 +17,6 @@ import (
 	"github.com/rogpeppe/godef/go/ast"
 
 	"go/token"
-
-	"github.com/rogpeppe/godef/go/scanner"
 )
 
 // ImportPathToName is the type of the function that's used
@@ -60,7 +58,8 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 
 func (p *parser) parseEOF() error {
 	p.expect(token.EOF)
-	return p.GetError(scanner.Sorted)
+	p.ErrorList.Sort()
+	return p.ErrorList.Err()
 }
 
 // ParseExpr parses a Go expression and returns the corresponding
@@ -154,7 +153,8 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint,
 	p.pkgScope = p.topScope
 	p.openScope()
 	p.fileScope = p.topScope
-	return p.parseFile(), p.GetError(scanner.NoMultiples) // parseFile() reads to EOF
+	p.ErrorList.RemoveMultiples()
+	return p.parseFile(), p.ErrorList.Err() // parseFile() reads to EOF
 }
 
 func parseFileInPkg(fset *token.FileSet, pkgs map[string]*ast.Package, filename string, mode uint, pathToName ImportPathToName) (err error) {
