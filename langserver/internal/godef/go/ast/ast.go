@@ -11,7 +11,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/rogpeppe/godef/go/token"
+	"go/token"
 )
 
 // ----------------------------------------------------------------------------
