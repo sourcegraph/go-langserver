@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -27,8 +26,6 @@ import (
 
 var offset = flag.Int("o", -1, "file offset of identifier in stdin")
 var debug = flag.Bool("debug", false, "debug mode")
-var aflag = flag.Bool("a", false, "print public type and member information")
-var Aflag = flag.Bool("A", false, "print all type and members information")
 var fflag = flag.String("f", "", "Go source filename")
 var jsonFlag = flag.Bool("json", false, "output location in JSON format (-t flag is ignored)")
 
@@ -211,28 +208,6 @@ func done(obj *ast.Object, typ types.Type) {
 		return
 	} else {
 		fmt.Printf("%v\n", pos)
-	}
-	if typ.Kind == ast.Bad || true {
-		return
-	}
-	fmt.Printf("%s\n", strings.Replace(typeStr(obj, typ), "\n", "\n\t", -1))
-	if *aflag || *Aflag {
-		var m orderedObjects
-		for obj := range typ.Iter() {
-			m = append(m, obj)
-		}
-		sort.Sort(m)
-		for _, obj := range m {
-			// Ignore unexported members unless Aflag is set.
-			if !*Aflag && (typ.Pkg != "" || !ast.IsExported(obj.Name)) {
-				continue
-			}
-			id := ast.NewIdent(obj.Name)
-			id.Obj = obj
-			_, mt := types.ExprType(id, types.DefaultImporter, types.FileSet)
-			fmt.Printf("\t%s\n", strings.Replace(typeStr(obj, mt), "\n", "\n\t\t", -1))
-			fmt.Printf("\t\t%v\n", types.FileSet.Position(types.DeclPos(obj)))
-		}
 	}
 }
 
