@@ -19,7 +19,7 @@ import (
 
 	"go/scanner"
 
-	"github.com/rogpeppe/godef/go/ast"
+	"go/ast"
 )
 
 // The mode parameter to the Parse* functions is a set of flags (or 0).
@@ -935,7 +935,7 @@ func (p *parser) parseChanType() *ast.ChanType {
 	}
 	value := p.parseType()
 
-	return &ast.ChanType{pos, dir, value}
+	return &ast.ChanType{Begin: pos, Arrow: pos, Dir: dir, Value: value}
 }
 
 func (p *parser) tryRawType(ellipsisOk bool) ast.Expr {
@@ -1104,7 +1104,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 	}
 	p.expect(token.RPAREN)
 
-	return &ast.TypeAssertExpr{x, typ}
+	return &ast.TypeAssertExpr{X: x, Type: typ}
 }
 
 func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
@@ -1368,7 +1368,7 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 		if p.tok == token.CHAN {
 			p.next()
 			value := p.parseType()
-			return &ast.ChanType{pos, ast.RECV, value}
+			return &ast.ChanType{pos, pos, ast.RECV, value}
 		}
 
 		x := p.parseUnaryExpr()
@@ -1931,11 +1931,11 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 	case token.FOR:
 		s = p.parseForStmt()
 	case token.SEMICOLON:
-		s = &ast.EmptyStmt{p.pos}
+		s = &ast.EmptyStmt{p.pos, false}
 		p.next()
 	case token.RBRACE:
 		// a semicolon may be omitted before a closing "}"
-		s = &ast.EmptyStmt{p.pos}
+		s = &ast.EmptyStmt{p.pos, false}
 	default:
 		// no statement found
 		pos := p.pos
@@ -1985,7 +1985,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, decl *ast.GenDecl, _ int)
 	}
 	p.expectSemi() // call before accessing p.linecomment
 
-	spec := &ast.ImportSpec{doc, ident, path, p.lineComment}
+	spec := &ast.ImportSpec{doc, ident, path, p.lineComment, 0}
 	if declIdent != nil && declIdent.Name != "." {
 		p.declare(spec, p.topScope, ast.Pkg, declIdent)
 	}
