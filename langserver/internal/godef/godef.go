@@ -27,7 +27,6 @@ import (
 
 var offset = flag.Int("o", -1, "file offset of identifier in stdin")
 var debug = flag.Bool("debug", false, "debug mode")
-var tflag = flag.Bool("t", false, "print type information")
 var aflag = flag.Bool("a", false, "print public type and member information")
 var Aflag = flag.Bool("A", false, "print all type and members information")
 var fflag = flag.String("f", "", "Go source filename")
@@ -49,7 +48,6 @@ func Godef() {
 		os.Exit(2)
 	}
 	types.Debug = *debug
-	*tflag = *tflag || *aflag || *Aflag
 	searchpos := *offset
 	filename := *fflag
 
@@ -89,15 +87,14 @@ func Godef() {
 		}
 		fmt.Println(pkg.Dir)
 	case ast.Expr:
-		if !*tflag {
-			// try local declarations only
-			if obj, typ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
-				done(obj, typ)
-			}
+		// try local declarations only
+		if obj, typ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
+			done(obj, typ)
 		}
+
 		// add declarations from other files in the local package and try again
 		pkg, err := parseLocalPackage(filename, f, pkgScope, types.DefaultImportPathToName)
-		if pkg == nil && !*tflag {
+		if pkg == nil {
 			fmt.Printf("parseLocalPackage error: %v\n", err)
 		}
 		if flag.NArg() > 0 {
@@ -215,7 +212,7 @@ func done(obj *ast.Object, typ types.Type) {
 	} else {
 		fmt.Printf("%v\n", pos)
 	}
-	if typ.Kind == ast.Bad || !*tflag {
+	if typ.Kind == ast.Bad || true {
 		return
 	}
 	fmt.Printf("%s\n", strings.Replace(typeStr(obj, typ), "\n", "\n\t", -1))
