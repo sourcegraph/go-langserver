@@ -15,8 +15,10 @@ import (
 	"path/filepath"
 
 	"github.com/rogpeppe/godef/go/ast"
+
+	"go/token"
+
 	"github.com/rogpeppe/godef/go/scanner"
-	"github.com/rogpeppe/godef/go/token"
 )
 
 // ImportPathToName is the type of the function that's used

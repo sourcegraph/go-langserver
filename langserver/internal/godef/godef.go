@@ -15,10 +15,11 @@ import (
 	"strconv"
 	"strings"
 
+	"go/token"
+
 	"github.com/rogpeppe/godef/go/ast"
 	"github.com/rogpeppe/godef/go/parser"
 	"github.com/rogpeppe/godef/go/printer"
-	"github.com/rogpeppe/godef/go/token"
 	"github.com/rogpeppe/godef/go/types"
 )
 

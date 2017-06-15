@@ -28,7 +28,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/rogpeppe/godef/go/token"
+	"go/token"
 )
 
 // A Scanner holds the scanner's internal state while processing
@@ -247,7 +247,7 @@ func (S *Scanner) scanIdentifier() token.Token {
 	for isLetter(S.ch) || isDigit(S.ch) {
 		S.next()
 	}
-	return token.Lookup(S.src[offs:S.offset])
+	return token.Lookup(string(S.src[offs:S.offset]))
 }
 
 func digitVal(ch rune) int {
