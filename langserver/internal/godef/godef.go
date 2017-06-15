@@ -2,7 +2,6 @@ package godef
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,7 +26,6 @@ import (
 var offset = flag.Int("o", -1, "file offset of identifier in stdin")
 var debug = flag.Bool("debug", false, "debug mode")
 var fflag = flag.String("f", "", "Go source filename")
-var jsonFlag = flag.Bool("json", false, "output location in JSON format (-t flag is ignored)")
 
 func fail(s string, a ...interface{}) {
 	fmt.Fprint(os.Stderr, "godef: "+fmt.Sprintf(s, a...)+"\n")
@@ -190,25 +188,7 @@ func (o orderedObjects) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
 func done(obj *ast.Object, typ types.Type) {
 	defer os.Exit(0)
 	pos := types.FileSet.Position(types.DeclPos(obj))
-	if *jsonFlag {
-		p := struct {
-			Filename string `json:"filename,omitempty"`
-			Line     int    `json:"line,omitempty"`
-			Column   int    `json:"column,omitempty"`
-		}{
-			Filename: pos.Filename,
-			Line:     pos.Line,
-			Column:   pos.Column,
-		}
-		jsonStr, err := json.Marshal(p)
-		if err != nil {
-			fail("JSON marshal error: %v", err)
-		}
-		fmt.Printf("%s\n", jsonStr)
-		return
-	} else {
-		fmt.Printf("%v\n", pos)
-	}
+	fmt.Printf("%v\n", pos)
 }
 
 func typeStr(obj *ast.Object, typ types.Type) string {
