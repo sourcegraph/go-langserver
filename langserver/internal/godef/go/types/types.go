@@ -20,7 +20,8 @@ import (
 
 	"go/scanner"
 
-	"github.com/rogpeppe/godef/go/ast"
+	"go/ast"
+
 	"github.com/rogpeppe/godef/go/parser"
 )
 

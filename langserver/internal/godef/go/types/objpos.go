@@ -3,7 +3,7 @@ package types
 import (
 	"go/token"
 
-	"github.com/rogpeppe/godef/go/ast"
+	"go/ast"
 )
 
 func declPos(name string, decl ast.Node) token.Pos {

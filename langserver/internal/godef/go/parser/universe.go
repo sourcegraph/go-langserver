@@ -1,6 +1,6 @@
 package parser
 
-import "github.com/rogpeppe/godef/go/ast"
+import "go/ast"
 
 var Universe = ast.NewScope(nil)
 

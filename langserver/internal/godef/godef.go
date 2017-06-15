@@ -19,7 +19,8 @@ import (
 
 	"go/printer"
 
-	"github.com/rogpeppe/godef/go/ast"
+	"go/ast"
+
 	"github.com/rogpeppe/godef/go/parser"
 	"github.com/rogpeppe/godef/go/types"
 )

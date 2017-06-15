@@ -14,7 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rogpeppe/godef/go/ast"
+	"go/ast"
 
 	"go/token"
 )
