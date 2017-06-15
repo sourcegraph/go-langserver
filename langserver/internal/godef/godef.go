@@ -23,8 +23,8 @@ import (
 )
 
 type Result struct {
-	// Pos of the definition (only if not an import statement).
-	Pos token.Pos
+	// Start and end positions of the definition (only if not an import statement).
+	Start, End token.Pos
 
 	// Package in question (only if an import statement).
 	Package *build.Package
@@ -56,7 +56,8 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 		importer := types.DefaultImporter(fset)
 		// try local declarations only
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
-			return &Result{Pos: types.DeclPos(obj)}, nil
+			p := types.DeclPos(obj)
+			return &Result{Start: p, End: p + token.Pos(len(obj.Name))}, nil
 		}
 
 		// add declarations from other files in the local package and try again
@@ -65,7 +66,8 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 			log.Printf("parseLocalPackage error: %v\n", err)
 		}
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
-			return &Result{Pos: types.DeclPos(obj)}, nil
+			p := types.DeclPos(obj)
+			return &Result{Start: p, End: p + token.Pos(len(obj.Name))}, nil
 		}
 		return nil, fmt.Errorf("no declaration found for %v", pretty{fset, e})
 	}
