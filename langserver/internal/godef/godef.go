@@ -24,7 +24,6 @@ import (
 )
 
 var offset = flag.Int("o", -1, "file offset of identifier in stdin")
-var debug = flag.Bool("debug", false, "debug mode")
 var fflag = flag.String("f", "", "Go source filename")
 
 func fail(s string, a ...interface{}) {
@@ -42,7 +41,6 @@ func Godef() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	types.Debug = *debug
 	searchpos := *offset
 	filename := *fflag
 
