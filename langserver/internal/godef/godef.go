@@ -1,4 +1,4 @@
-package main
+package godef
 
 import (
 	"bytes"
@@ -39,7 +39,7 @@ func fail(s string, a ...interface{}) {
 	os.Exit(2)
 }
 
-func main() {
+func Godef() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: godef [flags] [expr]\n")
 		flag.PrintDefaults()
