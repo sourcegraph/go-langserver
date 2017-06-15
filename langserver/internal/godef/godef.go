@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -23,15 +22,7 @@ import (
 	"github.com/rogpeppe/godef/go/types"
 )
 
-func Godef(offset int, filename string) error {
-	// TODO if there's no filename, look in the current
-	// directory and do something plausible.
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("cannot read %s: %v", filename, err)
-	}
-	src := b
-
+func Godef(offset int, filename string, src []byte) error {
 	pkgScope := ast.NewScope(parser.Universe)
 	f, err := parser.ParseFile(types.FileSet, filename, src, 0, pkgScope, types.DefaultImportPathToName)
 	if f == nil {
