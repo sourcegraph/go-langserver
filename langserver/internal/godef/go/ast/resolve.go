@@ -12,16 +12,16 @@ import (
 
 	"go/token"
 
-	"github.com/rogpeppe/godef/go/scanner"
+	"go/scanner"
 )
 
 type pkgBuilder struct {
-	scanner.ErrorVector
+	scanner.ErrorList
 	fset *token.FileSet
 }
 
 func (p *pkgBuilder) error(pos token.Pos, msg string) {
-	p.Error(p.fset.Position(pos), msg)
+	p.ErrorList.Add(p.fset.Position(pos), msg)
 }
 
 func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...interface{}) {
@@ -171,5 +171,6 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, 
 		pkgScope.Outer = universe // reset universe scope
 	}
 
-	return &Package{pkgName, pkgScope, imports, files}, p.GetError(scanner.Sorted)
+	p.ErrorList.Sort()
+	return &Package{pkgName, pkgScope, imports, files}, p.ErrorList.Err()
 }
