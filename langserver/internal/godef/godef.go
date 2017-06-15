@@ -24,8 +24,6 @@ import (
 )
 
 func Godef(offset int, filename string) error {
-	searchpos := offset
-
 	// TODO if there's no filename, look in the current
 	// directory and do something plausible.
 	b, err := ioutil.ReadFile(filename)
@@ -40,7 +38,7 @@ func Godef(offset int, filename string) error {
 		return fmt.Errorf("cannot parse %s: %v", filename, err)
 	}
 
-	o := findIdentifier(f, searchpos)
+	o := findIdentifier(f, offset)
 	if o == nil {
 		return fmt.Errorf("no identifier found")
 	}
