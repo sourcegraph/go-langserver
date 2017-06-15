@@ -76,47 +76,46 @@ func predecl(name string) *ast.Ident {
 
 type Importer func(path string, srcDir string) *ast.Package
 
-// When DefaultImporter is called, it adds any files to FileSet.
-var FileSet = token.NewFileSet()
-
 // DefaultImporter looks for the package; if it finds it,
 // it parses and returns it. If no package was found, it returns nil.
-func DefaultImporter(path string, srcDir string) *ast.Package {
-	bpkg, err := build.Default.Import(path, srcDir, 0)
-	if err != nil {
-		return nil
-	}
-	goFiles := make(map[string]bool)
-	for _, f := range bpkg.GoFiles {
-		goFiles[f] = true
-	}
-	for _, f := range bpkg.CgoFiles {
-		goFiles[f] = true
-	}
-	shouldInclude := func(d os.FileInfo) bool {
-		return goFiles[d.Name()]
-	}
-	pkgs, err := parser.ParseDir(FileSet, bpkg.Dir, shouldInclude, 0, DefaultImportPathToName)
-	if err != nil {
-		if Debug {
-			switch err := err.(type) {
-			case scanner.ErrorList:
-				for _, e := range err {
-					debugp("\t%v: %s", e.Pos, e.Msg)
+func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.Package {
+	return func(path string, srcDir string) *ast.Package {
+		bpkg, err := build.Default.Import(path, srcDir, 0)
+		if err != nil {
+			return nil
+		}
+		goFiles := make(map[string]bool)
+		for _, f := range bpkg.GoFiles {
+			goFiles[f] = true
+		}
+		for _, f := range bpkg.CgoFiles {
+			goFiles[f] = true
+		}
+		shouldInclude := func(d os.FileInfo) bool {
+			return goFiles[d.Name()]
+		}
+		pkgs, err := parser.ParseDir(fset, bpkg.Dir, shouldInclude, 0, DefaultImportPathToName)
+		if err != nil {
+			if Debug {
+				switch err := err.(type) {
+				case scanner.ErrorList:
+					for _, e := range err {
+						debugp("\t%v: %s", e.Pos, e.Msg)
+					}
+				default:
+					debugp("\terror parsing %s: %v", bpkg.Dir, err)
 				}
-			default:
-				debugp("\terror parsing %s: %v", bpkg.Dir, err)
 			}
+			return nil
+		}
+		if pkg := pkgs[bpkg.Name]; pkg != nil {
+			return pkg
+		}
+		if Debug {
+			debugp("package not found by ParseDir!")
 		}
 		return nil
 	}
-	if pkg := pkgs[bpkg.Name]; pkg != nil {
-		return pkg
-	}
-	if Debug {
-		debugp("package not found by ParseDir!")
-	}
-	return nil
 }
 
 // DefaultImportPathToName returns the package identifier
@@ -146,7 +145,7 @@ var Debug = false
 
 // String is for debugging purposes.
 func (t Type) String() string {
-	return fmt.Sprintf("Type{%v %q %T %v}", t.Kind, t.Pkg, t.Node, pretty{t.Node})
+	return fmt.Sprintf("Type{%v %q %T %v}", t.Kind, t.Pkg, t.Node, pretty{t.ctxt.fileSet, t.Node})
 }
 
 var Panic = true
@@ -223,7 +222,7 @@ type exprTypeContext struct {
 }
 
 func (ctxt *exprTypeContext) exprType(n ast.Node, expectTuple bool, pkg string) (xobj *ast.Object, typ Type) {
-	debugp("exprType tuple:%v pkg:%s %T %v [", expectTuple, pkg, n, pretty{n})
+	debugp("exprType tuple:%v pkg:%s %T %v [", expectTuple, pkg, n, pretty{ctxt.fileSet, n})
 	defer func() {
 		debugp("] -> %p, %v", xobj, typ)
 	}()
@@ -791,7 +790,7 @@ func splitDecl(obj *ast.Object, id *ast.Ident) (expr, typ ast.Node) {
 		}
 		return expr, nil
 	}
-	debugp("unknown decl type %T %v", obj.Decl, pretty{obj.Decl})
+	debugp("unknown decl type %T %v", obj.Decl, obj.Decl)
 	return nil, nil
 }
 
@@ -922,11 +921,12 @@ func debugp(f string, a ...interface{}) {
 }
 
 type pretty struct {
-	n interface{}
+	fset *token.FileSet
+	n    interface{}
 }
 
 func (p pretty) String() string {
 	var b bytes.Buffer
-	printer.Fprint(&b, FileSet, p.n)
+	printer.Fprint(&b, p.fset, p.n)
 	return b.String()
 }

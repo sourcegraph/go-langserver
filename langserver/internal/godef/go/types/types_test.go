@@ -36,7 +36,7 @@ func (f astVisitor) Visit(n ast.Node) ast.Visitor {
 }
 
 func parseDir(dir string) *ast.Package {
-	pkgs, _ := parser.ParseDir(FileSet, dir, isGoFile, 0, DefaultImportPathToName)
+	pkgs, _ := parser.ParseDir(token.NewFileSet(), dir, isGoFile, 0, DefaultImportPathToName)
 	if len(pkgs) == 0 {
 		return nil
 	}
@@ -115,7 +115,7 @@ func checkExprs(t *testing.T, pkg *ast.File, importer Importer, fset *token.File
 		}()
 		obj, _ := ExprType(e, importer, fset)
 		if obj == nil && mustResolve {
-			t.Errorf("no object for %v(%p, %T) at %v\n", e, e, e, FileSet.Position(e.Pos()))
+			t.Errorf("no object for %v(%p, %T) at %v\n", e, e, e, fset.Position(e.Pos()))
 		}
 		return false
 	}
@@ -132,12 +132,14 @@ func TestStdLib(t *testing.T) {
 	}()
 	root := os.Getenv("GOROOT") + "/src"
 	cache := make(map[string]*ast.Package)
+	fset := token.NewFileSet()
+	defaultImporter := DefaultImporter(fset)
 	importer := func(path, srcDir string) *ast.Package {
 		p := filepath.Join(root, "pkg", path)
 		if pkg := cache[p]; pkg != nil {
 			return pkg
 		}
-		pkg := DefaultImporter(path, srcDir)
+		pkg := defaultImporter(path, srcDir)
 		cache[p] = pkg
 		return pkg
 	}
@@ -157,7 +159,7 @@ func TestStdLib(t *testing.T) {
 		}
 		if pkg != nil {
 			for _, f := range pkg.Files {
-				checkExprs(t, f, importer, FileSet)
+				checkExprs(t, f, importer, fset)
 			}
 		}
 		return nil
@@ -180,7 +182,8 @@ func TestCompile(t *testing.T) {
 func TestOneFile(t *testing.T) {
 	code, offsetMap := translateSymbols(testCode)
 	//fmt.Printf("------------------- {%s}\n", code)
-	f, err := parser.ParseFile(FileSet, "xx.go", code, 0, ast.NewScope(parser.Universe), DefaultImportPathToName)
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "xx.go", code, 0, ast.NewScope(parser.Universe), DefaultImportPathToName)
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}
@@ -190,7 +193,7 @@ func TestOneFile(t *testing.T) {
 		close(v)
 	}()
 	for e := range v {
-		testExpr(t, FileSet, e, offsetMap)
+		testExpr(t, fset, e, offsetMap)
 	}
 }
 
@@ -205,17 +208,17 @@ func testExpr(t *testing.T, fset *token.FileSet, e ast.Expr, offsetMap map[int]*
 		panic("unexpected expression type")
 	}
 	from := fset.Position(name.NamePos)
-	obj, typ := ExprType(e, DefaultImporter, fset)
+	obj, typ := ExprType(e, DefaultImporter(fset), fset)
 	if obj == nil {
-		t.Errorf("no object found for %v at %v", pretty{e}, from)
+		t.Errorf("no object found for %v at %v", pretty{fset, e}, from)
 		return
 	}
 	if typ.Kind == ast.Bad {
-		t.Errorf("no type found for %v at %v", pretty{e}, from)
+		t.Errorf("no type found for %v at %v", pretty{fset, e}, from)
 		return
 	}
 	if name.Name != obj.Name {
-		t.Errorf("wrong name found for %v at %v; expected %q got %q", pretty{e}, from, name, obj.Name)
+		t.Errorf("wrong name found for %v at %v; expected %q got %q", pretty{fset, e}, from, name, obj.Name)
 		return
 	}
 	to := offsetMap[from.Offset]
@@ -225,7 +228,7 @@ func testExpr(t *testing.T, fset *token.FileSet, e ast.Expr, offsetMap map[int]*
 	}
 	found := fset.Position(DeclPos(obj))
 	if found.Offset != to.offset {
-		t.Errorf("wrong offset found for %v at %v, decl %T (%#v); expected %d got %d", pretty{e}, from, obj.Decl, obj.Decl, to.offset, found.Offset)
+		t.Errorf("wrong offset found for %v at %v, decl %T (%#v); expected %d got %d", pretty{fset, e}, from, obj.Decl, obj.Decl, to.offset, found.Offset)
 	}
 	if typ.Kind != to.kind {
 		t.Errorf("wrong type for %s at %v; expected %v got %v", name.Name, from, to.kind, typ.Kind)
