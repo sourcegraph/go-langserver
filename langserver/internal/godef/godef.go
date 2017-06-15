@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/build"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,12 +23,7 @@ import (
 	"github.com/rogpeppe/godef/go/types"
 )
 
-func fail(s string, a ...interface{}) {
-	fmt.Fprint(os.Stderr, "godef: "+fmt.Sprintf(s, a...)+"\n")
-	os.Exit(2)
-}
-
-func Godef(offset int, filename string) {
+func Godef(offset int, filename string) error {
 	searchpos := offset
 	filename := filename
 
@@ -35,31 +31,29 @@ func Godef(offset int, filename string) {
 	// directory and do something plausible.
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		fail("cannot read %s: %v", filename, err)
+		return fmt.Errorf("cannot read %s: %v", filename, err)
 	}
 	src := b
 
 	pkgScope := ast.NewScope(parser.Universe)
 	f, err := parser.ParseFile(types.FileSet, filename, src, 0, pkgScope, types.DefaultImportPathToName)
 	if f == nil {
-		fail("cannot parse %s: %v", filename, err)
+		return fmt.Errorf("cannot parse %s: %v", filename, err)
 	}
 
-	var o ast.Node
-	switch {
-	case searchpos >= 0:
-		o = findIdentifier(f, searchpos)
-
-	default:
-		fmt.Fprintf(os.Stderr, "no expression or offset specified\n")
-		os.Exit(2)
+	o := findIdentifier(f, searchpos)
+	if o == nil {
+		return fmt.Errorf("no identifier found")
 	}
 	switch e := o.(type) {
 	case *ast.ImportSpec:
-		path := importPath(e)
+		path, err := importPath(e)
+		if err != nil {
+			return err
+		}
 		pkg, err := build.Default.Import(path, filepath.Dir(filename), build.FindOnly)
 		if err != nil {
-			fail("error finding import path for %s: %s", path, err)
+			return fmt.Errorf("error finding import path for %s: %s", path, err)
 		}
 		fmt.Println(pkg.Dir)
 	case ast.Expr:
@@ -76,14 +70,14 @@ func Godef(offset int, filename string) {
 		if obj, typ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
 			done(obj, typ)
 		}
-		fail("no declaration found for %v", pretty{e})
+		return fmt.Errorf("no declaration found for %v", pretty{e})
 	}
 }
 
-func importPath(n *ast.ImportSpec) string {
+func importPath(n *ast.ImportSpec) (string, error) {
 	p, err := strconv.Unquote(n.Path.Value)
 	if err != nil {
-		fail("invalid string literal %q in ast.ImportSpec", n.Path.Value)
+		return "", fmt.Errorf("invalid string literal %q in ast.ImportSpec", n.Path.Value)
 	}
 	return p
 }
@@ -132,7 +126,11 @@ func findIdentifier(f *ast.File, searchpos int) ast.Node {
 					}
 					if id, ok := t.(*ast.Ident); ok {
 						if found(id.NamePos, id.End()) {
-							ec <- parseExpr(f.Scope, id.Name)
+							e, err := parseExpr(f.Scope, id.Name)
+							if err != nil {
+								log.Println(err) // TODO(slimsag): return to caller
+							}
+							ec <- e
 							runtime.Goexit()
 						}
 					}
@@ -148,11 +146,7 @@ func findIdentifier(f *ast.File, searchpos int) ast.Node {
 		ast.Walk(FVisitor(visit), f)
 		ec <- nil
 	}()
-	ev := <-ec
-	if ev == nil {
-		fail("no identifier found")
-	}
-	return ev
+	return <-ec
 }
 
 type orderedObjects []*ast.Object
@@ -162,7 +156,6 @@ func (o orderedObjects) Len() int           { return len(o) }
 func (o orderedObjects) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
 
 func done(obj *ast.Object, typ types.Type) {
-	defer os.Exit(0)
 	pos := types.FileSet.Position(types.DeclPos(obj))
 	fmt.Printf("%v\n", pos)
 }
@@ -187,17 +180,16 @@ func typeStr(obj *ast.Object, typ types.Type) string {
 	return fmt.Sprintf("unknown %s %v", obj.Name, typ.Kind)
 }
 
-func parseExpr(s *ast.Scope, expr string) ast.Expr {
+func parseExpr(s *ast.Scope, expr string) (ast.Expr, error) {
 	n, err := parser.ParseExpr(types.FileSet, "<arg>", expr, s, types.DefaultImportPathToName)
 	if err != nil {
-		fail("cannot parse expression: %v", err)
+		return nil, fmt.Errorf("cannot parse expression: %v", err)
 	}
 	switch n := n.(type) {
 	case *ast.Ident, *ast.SelectorExpr:
 		return n
 	}
-	fail("no identifier found in expression")
-	return nil
+	return nil, fmt.Errorf("no identifier found in expression")
 }
 
 type FVisitor func(n ast.Node) bool
