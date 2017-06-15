@@ -62,7 +62,7 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 		// add declarations from other files in the local package and try again
 		pkg, err := parseLocalPackage(fset, filename, f, pkgScope, types.DefaultImportPathToName)
 		if pkg == nil {
-			fmt.Printf("parseLocalPackage error: %v\n", err)
+			log.Printf("parseLocalPackage error: %v\n", err)
 		}
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
 			return &Result{Pos: types.DeclPos(obj)}, nil
