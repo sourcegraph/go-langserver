@@ -25,7 +25,6 @@ import (
 
 func Godef(offset int, filename string) error {
 	searchpos := offset
-	filename := filename
 
 	// TODO if there's no filename, look in the current
 	// directory and do something plausible.
@@ -72,6 +71,7 @@ func Godef(offset int, filename string) error {
 		}
 		return fmt.Errorf("no declaration found for %v", pretty{e})
 	}
+	return fmt.Errorf("unreached")
 }
 
 func importPath(n *ast.ImportSpec) (string, error) {
@@ -79,7 +79,7 @@ func importPath(n *ast.ImportSpec) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid string literal %q in ast.ImportSpec", n.Path.Value)
 	}
-	return p
+	return p, nil
 }
 
 // findIdentifier looks for an identifier at byte-offset searchpos
@@ -187,7 +187,7 @@ func parseExpr(s *ast.Scope, expr string) (ast.Expr, error) {
 	}
 	switch n := n.(type) {
 	case *ast.Ident, *ast.SelectorExpr:
-		return n
+		return n, nil
 	}
 	return nil, fmt.Errorf("no identifier found in expression")
 }
