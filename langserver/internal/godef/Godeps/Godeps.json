@@ -1,0 +1,19 @@
+{
+	"ImportPath": "github.com/rogpeppe/godef",
+	"GoVersion": "devel-ea15f23",
+	"GodepVersion": "v71",
+	"Deps": [
+		{
+			"ImportPath": "9fans.net/go/acme",
+			"Rev": "65b8cf069318223b1e722b4b36e729e5e9bb9eab"
+		},
+		{
+			"ImportPath": "9fans.net/go/plan9",
+			"Rev": "65b8cf069318223b1e722b4b36e729e5e9bb9eab"
+		},
+		{
+			"ImportPath": "9fans.net/go/plan9/client",
+			"Rev": "65b8cf069318223b1e722b4b36e729e5e9bb9eab"
+		}
+	]
+}
