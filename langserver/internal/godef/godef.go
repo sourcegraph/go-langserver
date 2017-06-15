@@ -22,32 +22,40 @@ import (
 	"github.com/rogpeppe/godef/go/types"
 )
 
-func Godef(offset int, filename string, src []byte) error {
+type Result struct {
+	// Position of the definition (only if not an import statement).
+	Position token.Position
+
+	// Package in question (only if an import statement).
+	Package *build.Package
+}
+
+func Godef(offset int, filename string, src []byte) (*Result, error) {
 	pkgScope := ast.NewScope(parser.Universe)
 	f, err := parser.ParseFile(types.FileSet, filename, src, 0, pkgScope, types.DefaultImportPathToName)
 	if f == nil {
-		return fmt.Errorf("cannot parse %s: %v", filename, err)
+		return nil, fmt.Errorf("cannot parse %s: %v", filename, err)
 	}
 
 	o := findIdentifier(f, offset)
 	if o == nil {
-		return fmt.Errorf("no identifier found")
+		return nil, fmt.Errorf("no identifier found")
 	}
 	switch e := o.(type) {
 	case *ast.ImportSpec:
 		path, err := importPath(e)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		pkg, err := build.Default.Import(path, filepath.Dir(filename), build.FindOnly)
 		if err != nil {
-			return fmt.Errorf("error finding import path for %s: %s", path, err)
+			return nil, fmt.Errorf("error finding import path for %s: %s", path, err)
 		}
-		fmt.Println(pkg.Dir)
+		return &Result{Package: pkg}, nil
 	case ast.Expr:
 		// try local declarations only
-		if obj, typ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
-			done(obj, typ)
+		if obj, _ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
+			return &Result{Position: types.FileSet.Position(types.DeclPos(obj))}, nil
 		}
 
 		// add declarations from other files in the local package and try again
@@ -55,12 +63,12 @@ func Godef(offset int, filename string, src []byte) error {
 		if pkg == nil {
 			fmt.Printf("parseLocalPackage error: %v\n", err)
 		}
-		if obj, typ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
-			done(obj, typ)
+		if obj, _ := types.ExprType(e, types.DefaultImporter, types.FileSet); obj != nil {
+			return &Result{Position: types.FileSet.Position(types.DeclPos(obj))}, nil
 		}
-		return fmt.Errorf("no declaration found for %v", pretty{e})
+		return nil, fmt.Errorf("no declaration found for %v", pretty{e})
 	}
-	return fmt.Errorf("unreached")
+	return nil, fmt.Errorf("unreached")
 }
 
 func importPath(n *ast.ImportSpec) (string, error) {
@@ -143,11 +151,6 @@ type orderedObjects []*ast.Object
 func (o orderedObjects) Less(i, j int) bool { return o[i].Name < o[j].Name }
 func (o orderedObjects) Len() int           { return len(o) }
 func (o orderedObjects) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
-
-func done(obj *ast.Object, typ types.Type) {
-	pos := types.FileSet.Position(types.DeclPos(obj))
-	fmt.Printf("%v\n", pos)
-}
 
 func typeStr(obj *ast.Object, typ types.Type) string {
 	switch obj.Kind {
