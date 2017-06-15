@@ -146,32 +146,6 @@ func findIdentifier(f *ast.File, searchpos int) ast.Node {
 	return <-ec
 }
 
-type orderedObjects []*ast.Object
-
-func (o orderedObjects) Less(i, j int) bool { return o[i].Name < o[j].Name }
-func (o orderedObjects) Len() int           { return len(o) }
-func (o orderedObjects) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
-
-func typeStr(obj *ast.Object, typ types.Type) string {
-	switch obj.Kind {
-	case ast.Fun, ast.Var:
-		return fmt.Sprintf("%s %v", obj.Name, prettyType{typ})
-	case ast.Pkg:
-		return fmt.Sprintf("import (%s %s)", obj.Name, typ.Node.(*ast.ImportSpec).Path.Value)
-	case ast.Con:
-		if decl, ok := obj.Decl.(*ast.ValueSpec); ok {
-			return fmt.Sprintf("const %s %v = %s", obj.Name, prettyType{typ}, pretty{decl.Values[0]})
-		}
-		return fmt.Sprintf("const %s %v", obj.Name, prettyType{typ})
-	case ast.Lbl:
-		return fmt.Sprintf("label %s", obj.Name)
-	case ast.Typ:
-		typ = typ.Underlying(false)
-		return fmt.Sprintf("type %s %v", obj.Name, prettyType{typ})
-	}
-	return fmt.Sprintf("unknown %s %v", obj.Name, typ.Kind)
-}
-
 func parseExpr(s *ast.Scope, expr string) (ast.Expr, error) {
 	n, err := parser.ParseExpr(types.FileSet, "<arg>", expr, s, types.DefaultImportPathToName)
 	if err != nil {
@@ -246,10 +220,6 @@ func pkgName(filename string) string {
 	return ""
 }
 
-func hasSuffix(s, suff string) bool {
-	return len(s) >= len(suff) && s[len(s)-len(suff):] == suff
-}
-
 type pretty struct {
 	n interface{}
 }
@@ -258,18 +228,4 @@ func (p pretty) String() string {
 	var b bytes.Buffer
 	printer.Fprint(&b, types.FileSet, p.n)
 	return b.String()
-}
-
-type prettyType struct {
-	n types.Type
-}
-
-func (p prettyType) String() string {
-	// TODO print path package when appropriate.
-	// Current issues with using p.n.Pkg:
-	//	- we should actually print the local package identifier
-	//	rather than the package path when possible.
-	//	- p.n.Pkg is non-empty even when
-	//	the type is not relative to the package.
-	return pretty{p.n.Node}.String()
 }
