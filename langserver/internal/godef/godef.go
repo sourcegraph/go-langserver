@@ -25,7 +25,6 @@ import (
 	"github.com/rogpeppe/godef/go/types"
 )
 
-var readStdin = flag.Bool("i", false, "read file from stdin")
 var offset = flag.Int("o", -1, "file offset of identifier in stdin")
 var debug = flag.Bool("debug", false, "debug mode")
 var tflag = flag.Bool("t", false, "print type information")
@@ -54,18 +53,14 @@ func Godef() {
 	searchpos := *offset
 	filename := *fflag
 
-	var src []byte
-	if *readStdin {
-		src, _ = ioutil.ReadAll(os.Stdin)
-	} else {
-		// TODO if there's no filename, look in the current
-		// directory and do something plausible.
-		b, err := ioutil.ReadFile(filename)
-		if err != nil {
-			fail("cannot read %s: %v", filename, err)
-		}
-		src = b
+	// TODO if there's no filename, look in the current
+	// directory and do something plausible.
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		fail("cannot read %s: %v", filename, err)
 	}
+	src := b
+
 	pkgScope := ast.NewScope(parser.Universe)
 	f, err := parser.ParseFile(types.FileSet, filename, src, 0, pkgScope, types.DefaultImportPathToName)
 	if f == nil {
