@@ -14,7 +14,7 @@ import (
 
 	"go/ast"
 
-	"github.com/rogpeppe/godef/go/parser"
+	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/parser"
 )
 
 var testStdlib = flag.Bool("test-stdlib", false, "test all symbols in standard library (will fail)")
