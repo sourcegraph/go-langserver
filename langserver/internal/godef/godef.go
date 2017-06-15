@@ -140,7 +140,7 @@ func findIdentifier(f *ast.File, searchpos int) ast.Node {
 			}
 			return true
 		}
-		ast.Walk(FVisitor(visit), f)
+		ast.Walk(visitorFunc(visit), f)
 		ec <- nil
 	}()
 	return <-ec
@@ -184,9 +184,9 @@ func parseExpr(s *ast.Scope, expr string) (ast.Expr, error) {
 	return nil, fmt.Errorf("no identifier found in expression")
 }
 
-type FVisitor func(n ast.Node) bool
+type visitorFunc func(n ast.Node) bool
 
-func (f FVisitor) Visit(n ast.Node) ast.Visitor {
+func (f visitorFunc) Visit(n ast.Node) ast.Visitor {
 	if f(n) {
 		return f
 	}
