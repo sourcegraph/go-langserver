@@ -84,44 +84,6 @@ func ParseExpr(fset *token.FileSet, filename string, src interface{}, scope *ast
 	return x, p.parseEOF()
 }
 
-// ParseStmtList parses a list of Go statements and returns the list
-// of corresponding AST nodes. The fset, filename, and src arguments have the same
-// interpretation as for ParseFile. If there is an error, the node
-// list may be nil or contain partial ASTs.
-//
-// if scope is non-nil, it will be used as the scope for the statements.
-//
-func ParseStmtList(fset *token.FileSet, filename string, src interface{}, scope *ast.Scope, pathToName ImportPathToName) ([]ast.Stmt, error) {
-	data, err := readSource(filename, src)
-	if err != nil {
-		return nil, err
-	}
-
-	var p parser
-	p.init(fset, filename, data, 0, scope, pathToName)
-	return p.parseStmtList(), p.parseEOF()
-}
-
-// ParseDeclList parses a list of Go declarations and returns the list
-// of corresponding AST nodes. The fset, filename, and src arguments have the same
-// interpretation as for ParseFile. If there is an error, the node
-// list may be nil or contain partial ASTs.
-//
-// If scope is non-nil, it will be used for declarations.
-//
-func ParseDeclList(fset *token.FileSet, filename string, src interface{}, scope *ast.Scope, pathToName ImportPathToName) ([]ast.Decl, error) {
-	data, err := readSource(filename, src)
-	if err != nil {
-		return nil, err
-	}
-
-	var p parser
-	p.init(fset, filename, data, 0, scope, pathToName)
-	p.pkgScope = scope
-	p.fileScope = scope
-	return p.parseDeclList(), p.parseEOF()
-}
-
 // ParseFile parses the source code of a single Go source file and returns
 // the corresponding ast.File node. The source code may be provided via
 // the filename of the source file, or via the src parameter.
