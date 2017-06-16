@@ -185,7 +185,7 @@ func parseLocalPackage(fset *token.FileSet, filename string, src *ast.File, pkgS
 	}
 	fd, err := os.Open(d)
 	if err != nil {
-		return nil, errNoPkgFiles
+		return nil, err
 	}
 	defer fd.Close()
 
