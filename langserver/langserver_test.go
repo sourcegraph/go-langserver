@@ -5,9 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/build"
+	"io"
+	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"sort"
@@ -397,6 +402,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"a.go:1:40": "func Println(a ...interface{}) (n int, err error)",
 					// "a.go:1:53": "type int int",
 				},
+				overrideGodefDefinition: map[string]string{
+					"a.go:1:40": "/goroot/src/fmt/print.go:256:6-256:13",  // hitting the real GOROOT
+					"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
+				},
 				wantDefinition: map[string]string{
 					"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
 					// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
@@ -489,6 +498,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 				wantDefinition: map[string]string{
 					"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24-1:25",
+					//"a.go:1:40": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24-1:25",
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24 id:test/pkg/vendor/github.com/v/vendored/-/V name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
@@ -912,7 +922,7 @@ type Header struct {
 			}
 			h.Mu.Unlock()
 
-			lspTests(t, ctx, conn, rootFSPath, test.cases)
+			lspTests(t, ctx, h.FS, conn, rootFSPath, test.cases)
 		})
 	}
 }
@@ -962,28 +972,126 @@ func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
 }
 
 type lspTestCases struct {
-	wantHover               map[string]string
-	wantDefinition          map[string]string
-	wantXDefinition         map[string]string
-	wantReferences          map[string][]string
-	wantSymbols             map[string][]string
-	wantWorkspaceSymbols    map[*lspext.WorkspaceSymbolParams][]string
-	wantSignatures          map[string]string
-	wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string
-	wantFormatting          map[string]string
+	wantHover                               map[string]string
+	wantDefinition, overrideGodefDefinition map[string]string
+	wantXDefinition                         map[string]string
+	wantReferences                          map[string][]string
+	wantSymbols                             map[string][]string
+	wantWorkspaceSymbols                    map[*lspext.WorkspaceSymbolParams][]string
+	wantSignatures                          map[string]string
+	wantWorkspaceReferences                 map[*lspext.WorkspaceReferencesParams][]string
+	wantFormatting                          map[string]string
+}
+
+func copyFileToOS(ctx context.Context, fs *AtomicFS, targetFile, srcFile string) error {
+	src, err := fs.Open(ctx, srcFile)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.Create(targetFile)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
+	return err
+}
+
+func copyDirToOS(ctx context.Context, fs *AtomicFS, targetDir, srcDir string) error {
+	if err := os.Mkdir(targetDir, 0777); err != nil && !os.IsExist(err) {
+		return err
+	}
+	files, err := fs.ReadDir(ctx, srcDir)
+	if err != nil {
+		return err
+	}
+	for _, fi := range files {
+		targetPath := filepath.Join(targetDir, fi.Name())
+		srcPath := path.Join(srcDir, fi.Name())
+		if fi.IsDir() {
+			err := copyDirToOS(ctx, fs, targetPath, srcPath)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		err := copyFileToOS(ctx, fs, targetPath, srcPath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // lspTests runs all test suites for LSP functionality.
-func lspTests(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, cases lspTestCases) {
+func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn, rootPath string, cases lspTestCases) {
 	for pos, want := range cases.wantHover {
 		tbRun(t, fmt.Sprintf("hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 			hoverTest(t, ctx, c, rootPath, pos, want)
 		})
 	}
 
+	// Godef-based definition testing
+	wantGodefDefinition := cases.overrideGodefDefinition
+	if len(wantGodefDefinition) == 0 {
+		wantGodefDefinition = cases.wantDefinition
+	}
+
+	if len(wantGodefDefinition) > 0 {
+		UseBinaryPkgCache = true
+
+		// Copy the VFS into a temp directory, which will be our $GOPATH.
+		tmpDir, err := ioutil.TempDir("", "godef-definition")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(tmpDir)
+		if err := copyDirToOS(ctx, fs, tmpDir, "/"); err != nil {
+			t.Fatal(err)
+		}
+
+		// Important: update build.Default.GOPATH, since it is compiled into
+		// the binary we must update it here at runtime. Otherwise, godef would
+		// look for $GOPATH/pkg .a files inside the $GOPATH that was set during
+		// 'go test' instead of our tmp directory.
+		build.Default.GOPATH = tmpDir
+		tmpRootPath := filepath.Join(tmpDir, rootPath)
+
+		// Install all Go packages in the $GOPATH.
+		oldGOPATH := os.Getenv("GOPATH")
+		os.Setenv("GOPATH", tmpDir)
+		out, err := exec.Command("go", "install", "-v", "...").CombinedOutput()
+		os.Setenv("GOPATH", oldGOPATH)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("$ go install -v ...\n%s", out)
+
+		// Run the tests.
+		for pos, want := range wantGodefDefinition {
+			if strings.HasPrefix(want, "/goroot") {
+				want = strings.Replace(want, "/goroot", build.Default.GOROOT, 1)
+			}
+			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
+				definitionTest(t, ctx, c, tmpRootPath, pos, want, tmpDir)
+			})
+		}
+
+		UseBinaryPkgCache = false
+	}
+
 	for pos, want := range cases.wantDefinition {
 		tbRun(t, fmt.Sprintf("definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			definitionTest(t, ctx, c, rootPath, pos, want)
+			definitionTest(t, ctx, c, rootPath, pos, want, "")
+		})
+	}
+	for pos, want := range cases.wantDefinition {
+		tbRun(t, fmt.Sprintf("definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
+			definitionTest(t, ctx, c, rootPath, pos, want, "")
 		})
 	}
 	for pos, want := range cases.wantXDefinition {
@@ -1055,7 +1163,7 @@ func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath str
 	}
 }
 
-func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want string) {
+func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want, trimPrefix string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
@@ -1065,6 +1173,9 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 		t.Fatal(err)
 	}
 	definition = uriToFilePath(definition)
+	if trimPrefix != "" {
+		definition = strings.TrimPrefix(definition, trimPrefix)
+	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
 	}

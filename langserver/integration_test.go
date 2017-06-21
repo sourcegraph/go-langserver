@@ -71,7 +71,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 			"p2/c.go:1:40": "func A()",
 		},
 	}
-	lspTests(t, ctx, conn, rootPath, cases)
+	lspTests(t, ctx, nil, conn, rootPath, cases)
 
 	// Now mimic what happens when a file is edited but not yet
 	// saved. It should re-typecheck using the unsaved file contents.
@@ -90,5 +90,5 @@ func TestIntegration_FileSystem(t *testing.T) {
 			"p2/c.go:1:40": "func A() int",
 		},
 	}
-	lspTests(t, ctx, conn, rootPath, cases)
+	lspTests(t, ctx, nil, conn, rootPath, cases)
 }

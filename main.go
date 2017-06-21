@@ -19,13 +19,14 @@ import (
 )
 
 var (
-	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr         = flag.String("addr", ":4389", "server listen address (tcp)")
-	trace        = flag.Bool("trace", false, "print all requests and responses")
-	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
-	printVersion = flag.Bool("version", false, "print version and exit")
-	pprof        = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
-	freeosmemory = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	mode              = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
+	addr              = flag.String("addr", ":4389", "server listen address (tcp)")
+	trace             = flag.Bool("trace", false, "print all requests and responses")
+	logfile           = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	printVersion      = flag.Bool("version", false, "print version and exit")
+	pprof             = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
+	freeosmemory      = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	usebinarypkgcache = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -49,6 +50,7 @@ func main() {
 	if *freeosmemory {
 		go freeOSMemory()
 	}
+	langserver.UseBinaryPkgCache = *usebinarypkgcache
 
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
