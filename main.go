@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"time"
 
@@ -27,6 +28,7 @@ var (
 	pprof             = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 	freeosmemory      = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
 	usebinarypkgcache = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
+	maxparallelism    = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -51,6 +53,15 @@ func main() {
 		go freeOSMemory()
 	}
 	langserver.UseBinaryPkgCache = *usebinarypkgcache
+
+	// Default max parallelism to half the CPU cores, but at least always one.
+	if *maxparallelism <= 0 {
+		*maxparallelism = runtime.NumCPU() / 2
+		if *maxparallelism <= 0 {
+			*maxparallelism = 1
+		}
+	}
+	langserver.MaxParallelism = *maxparallelism
 
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
