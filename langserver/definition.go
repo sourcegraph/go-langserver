@@ -5,14 +5,27 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
+	"go/token"
+	"io/ioutil"
 	"log"
+	"path/filepath"
 
+	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+// UseBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
+// be used.
+var UseBinaryPkgCache = false
+
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
+	if UseBinaryPkgCache {
+		return h.handleDefinitionGodef(ctx, conn, req, params)
+	}
+
 	res, err := h.handleXDefinition(ctx, conn, req, params)
 	if err != nil {
 		return nil, err
@@ -22,6 +35,41 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRP
 		locs = append(locs, li.Location)
 	}
 	return locs, nil
+}
+
+func (h *LangHandler) handleDefinitionGodef(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
+	// Read file contents and calculate byte offset.
+	filename := h.FilePath(params.TextDocument.URI)
+	contents, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	offset, valid, why := offsetForPosition(contents, params.Position)
+	if !valid {
+		return nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
+	}
+
+	// Invoke godef to determine the position of the definition.
+	fset := token.NewFileSet()
+	res, err := godef.Godef(fset, offset, filename, contents)
+	if err != nil {
+		return nil, err
+	}
+	if res.Package != nil {
+		// TODO: return directory location. This right now at least matches our
+		// other implementation.
+		return []lsp.Location{}, nil
+	}
+	loc := goRangeToLSPLocation(fset, res.Start, res.End)
+
+	if loc.URI == "file://" {
+		// TODO: builtins do not have valid URIs or locations, so we emit a
+		// phony location here instead. This is better than our other
+		// implementation.
+		loc.URI = pathToURI(filepath.Join(build.Default.GOROOT, "/src/builtin/builtin.go"))
+		loc.Range = lsp.Range{}
+	}
+	return []lsp.Location{loc}, nil
 }
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {

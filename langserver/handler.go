@@ -354,7 +354,11 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			}
 			if uri != "" {
 				// a user is viewing this path, hint to add it to the cache
-				go h.typecheck(ctx, conn, uri, lsp.Position{})
+				// (unless we're primarily using binary package cache .a
+				// files).
+				if !UseBinaryPkgCache {
+					go h.typecheck(ctx, conn, uri, lsp.Position{})
+				}
 			}
 			return nil, err
 		}
