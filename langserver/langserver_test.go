@@ -40,6 +40,13 @@ func TestServer(t *testing.T) {
 				"b.go": "package p; func B() { A() }",
 			},
 			cases: lspTestCases{
+				overrideGodefHover: map[string]string{
+					//"a.go:1:9":  "package p", // TODO(slimsag): sub-optimal "no declaration found for p"
+					"a.go:1:17": "func A()",
+					"a.go:1:23": "func A()",
+					"b.go:1:17": "func B()",
+					"b.go:1:23": "func A()",
+				},
 				wantHover: map[string]string{
 					"a.go:1:9":  "package p",
 					"a.go:1:17": "func A()",
@@ -127,6 +134,12 @@ func TestServer(t *testing.T) {
 				"a.go": "package p; type T struct { F string }",
 			},
 			cases: lspTestCases{
+				overrideGodefHover: map[string]string{
+					// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
+					"a.go:1:28": "struct field F string",
+					"a.go:1:17": `type T struct; struct{ F string }`,
+				},
+
 				wantHover: map[string]string{
 					// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
 					"a.go:1:28": "struct field F string",
@@ -171,6 +184,14 @@ func TestServer(t *testing.T) {
 				"b_test.go": "package p; func Y() int { return X }",
 			},
 			cases: lspTestCases{
+				overrideGodefHover: map[string]string{
+					"a.go:1:16":      "var A int",
+					"x_test.go:1:40": "var X = p.A",
+					"x_test.go:1:46": "var A int",
+					"a_test.go:1:16": "var X = A",
+					"a_test.go:1:20": "var A int",
+				},
+
 				wantHover: map[string]string{
 					"a.go:1:16":      "var A int",
 					"x_test.go:1:40": "var X int",
@@ -226,6 +247,10 @@ func TestServer(t *testing.T) {
 				"c/c.go":    `package c; import "test/pkg/b"; var X = b.B;`,
 			},
 			cases: lspTestCases{
+				overrideGodefHover: map[string]string{
+					"a_test.go:1:37": "var X = b.B",
+					"a_test.go:1:43": "var B int",
+				},
 				wantHover: map[string]string{
 					"a_test.go:1:37": "var X int",
 					"a_test.go:1:43": "var B int",
@@ -398,6 +423,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			cases: lspTestCases{
+				overrideGodefHover: map[string]string{
+					"a.go:1:40": "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n",
+					// "a.go:1:53": "type int int",
+				},
 				wantHover: map[string]string{
 					"a.go:1:40": "func Println(a ...interface{}) (n int, err error)",
 					// "a.go:1:53": "type int int",
@@ -673,6 +702,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			cases: lspTestCases{
+				overrideGodefHover: map[string]string{
+					"a.go:1:53": "func D1() dep2.D2",
+					"a.go:1:59": "struct field D2 int",
+				},
 				wantHover: map[string]string{
 					"a.go:1:53": "func D1() D2",
 					"a.go:1:59": "struct field D2 int",
@@ -789,6 +822,19 @@ type Header struct {
 `,
 			},
 			cases: lspTestCases{
+				overrideGodefHover: map[string]string{
+					//"a.go:7:9": "package p; Package p is a package with lots of great things. \n\n", // TODO(slimsag): sub-optimal "no declaration found for p"
+					//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
+					"a.go:12:5":  "var logit = pkg2.X; logit is pkg2.X \n\n",
+					"a.go:12:13": "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
+					"a.go:12:18": "func X(); X does the unknown. \n\n",
+					"a.go:15:6":  "type T struct; T is a struct. \n\n; struct {\n\t// F is a string field.\n\tF string\n\n\t// H is a header.\n\tH pkg2.Header\n}",
+					"a.go:17:2":  "struct field F string; F is a string field. \n\n",
+					"a.go:20:2":  "struct field H pkg2.Header; H is a header. \n\n",
+					"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
+					"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
+					"a.go:31:2":  "var I2 = 3; I2 is an int \n\n",
+				},
 				wantHover: map[string]string{
 					"a.go:7:9": "package p; Package p is a package with lots of great things. \n\n",
 					//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
@@ -972,7 +1018,7 @@ func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
 }
 
 type lspTestCases struct {
-	wantHover                               map[string]string
+	wantHover, overrideGodefHover           map[string]string
 	wantDefinition, overrideGodefDefinition map[string]string
 	wantXDefinition                         map[string]string
 	wantReferences                          map[string][]string
@@ -1035,13 +1081,17 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		})
 	}
 
-	// Godef-based definition testing
+	// Godef-based definition & hover testing
 	wantGodefDefinition := cases.overrideGodefDefinition
 	if len(wantGodefDefinition) == 0 {
 		wantGodefDefinition = cases.wantDefinition
 	}
+	wantGodefHover := cases.overrideGodefHover
+	if len(wantGodefHover) == 0 {
+		wantGodefHover = cases.wantHover
+	}
 
-	if len(wantGodefDefinition) > 0 {
+	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && fs != nil) {
 		UseBinaryPkgCache = true
 
 		// Copy the VFS into a temp directory, which will be our $GOPATH.
@@ -1078,6 +1128,11 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 			}
 			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 				definitionTest(t, ctx, c, tmpRootPath, pos, want, tmpDir)
+			})
+		}
+		for pos, want := range wantGodefHover {
+			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
+				hoverTest(t, ctx, c, tmpRootPath, pos, want)
 			})
 		}
 
