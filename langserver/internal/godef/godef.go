@@ -26,7 +26,8 @@ type Result struct {
 	// Start and end positions of the definition (only if not an import statement).
 	Start, End token.Pos
 
-	// Package in question (only if an import statement).
+	// Package in question, only present if an import statement OR package selector
+	// ('http' in 'http.Router').
 	Package *build.Package
 }
 
@@ -53,11 +54,26 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 		}
 		return &Result{Package: pkg}, nil
 	case ast.Expr:
+		result := func(obj *ast.Object) (*Result, error) {
+			p := types.DeclPos(obj)
+			r := &Result{Start: p, End: p + token.Pos(len(obj.Name))}
+			if imp, ok := obj.Decl.(*ast.ImportSpec); ok {
+				path, err := importPath(imp)
+				if err != nil {
+					return nil, err
+				}
+				pkg, err := build.Default.Import(path, filepath.Dir(fset.Position(p).Filename), build.FindOnly)
+				if err != nil {
+					return nil, fmt.Errorf("error finding import path for %s: %s", path, err)
+				}
+				r.Package = pkg
+			}
+			return r, nil
+		}
 		importer := types.DefaultImporter(fset)
 		// try local declarations only
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
-			p := types.DeclPos(obj)
-			return &Result{Start: p, End: p + token.Pos(len(obj.Name))}, nil
+			return result(obj)
 		}
 
 		// add declarations from other files in the local package and try again
@@ -66,8 +82,7 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 			log.Printf("parseLocalPackage error: %v\n", err)
 		}
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
-			p := types.DeclPos(obj)
-			return &Result{Start: p, End: p + token.Pos(len(obj.Name))}, nil
+			return result(obj)
 		}
 		return nil, fmt.Errorf("no declaration found for %v", pretty{fset, e})
 	}
