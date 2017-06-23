@@ -7,7 +7,6 @@ import (
 	"go/ast"
 	"go/build"
 	"go/token"
-	"io/ioutil"
 	"log"
 	"path/filepath"
 
@@ -38,13 +37,23 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRP
 	return locs, nil
 }
 
+var testOSToVFSPath func(osPath string) string
+
 func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocumentPositionParams) (*token.FileSet, *godef.Result, []lsp.Location, error) {
+	// In the case of testing, our OS paths and VFS paths do not match. In the
+	// real world, this is never the case. Give the test suite the opportunity
+	// to correct the path now.
+	vfsURI := params.TextDocument.URI
+	if testOSToVFSPath != nil {
+		vfsURI = pathToURI(testOSToVFSPath(uriToFilePath(vfsURI)))
+	}
+
 	// Read file contents and calculate byte offset.
-	filename := h.FilePath(params.TextDocument.URI)
-	contents, err := ioutil.ReadFile(filename)
+	contents, err := h.readFile(ctx, vfsURI)
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	filename := h.FilePath(params.TextDocument.URI)
 	offset, valid, why := offsetForPosition(contents, params.Position)
 	if !valid {
 		return nil, nil, nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)

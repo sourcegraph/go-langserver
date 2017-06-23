@@ -1121,6 +1121,10 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		}
 		t.Logf("$ go install -v ...\n%s", out)
 
+		testOSToVFSPath = func(osPath string) string {
+			return strings.TrimPrefix(osPath, tmpDir)
+		}
+
 		// Run the tests.
 		for pos, want := range wantGodefDefinition {
 			if strings.HasPrefix(want, "/goroot") {
