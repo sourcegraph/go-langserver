@@ -2033,7 +2033,7 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, decl *ast.GenDecl, _ int) a
 	// at the identifier in the TypeSpec and ends at the end of the innermost
 	// containing block.
 	// (Global identifiers are resolved in a separate phase after parsing.)
-	spec := &ast.TypeSpec{doc, ident, nil, p.lineComment}
+	spec := &ast.TypeSpec{Doc: doc, Name: ident, Comment: p.lineComment}
 	p.declare(spec, p.topScope, ast.Typ, ident)
 	typ := p.parseType()
 	p.expectSemi() // call before accessing p.linecomment
