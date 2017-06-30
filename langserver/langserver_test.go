@@ -1111,15 +1111,18 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		build.Default.GOPATH = tmpDir
 		tmpRootPath := filepath.Join(tmpDir, rootPath)
 
-		// Install all Go packages in the $GOPATH.
-		oldGOPATH := os.Getenv("GOPATH")
-		os.Setenv("GOPATH", tmpDir)
-		out, err := exec.Command("go", "install", "-v", "...").CombinedOutput()
-		os.Setenv("GOPATH", oldGOPATH)
-		if err != nil {
-			t.Fatal(err)
+		BuildGoPackage = func(path string) error {
+			// Install all Go packages in the $GOPATH.
+			oldGOPATH := os.Getenv("GOPATH")
+			os.Setenv("GOPATH", tmpDir)
+			out, err := exec.Command("go", "install", "-v", path).CombinedOutput()
+			os.Setenv("GOPATH", oldGOPATH)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("$ go install -v %s\n%s", path, out)
+			return nil
 		}
-		t.Logf("$ go install -v ...\n%s", out)
 
 		testOSToVFSPath = func(osPath string) string {
 			return strings.TrimPrefix(osPath, tmpDir)

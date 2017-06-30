@@ -20,6 +20,13 @@ import (
 // be used.
 var UseBinaryPkgCache = false
 
+// BuildGoPackage is a callback that invoked prior to using data from a $GOPATH/pkg
+// .a file for the specified import path.
+//
+// The import path is always absolute (i.e. inclusive of the entire path to the
+// vendor directory).
+var BuildGoPackage func(paths string) error
+
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
 	if UseBinaryPkgCache {
 		_, _, locs, err := h.definitionGodef(ctx, params)
@@ -61,7 +68,7 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 
 	// Invoke godef to determine the position of the definition.
 	fset := token.NewFileSet()
-	res, err := godef.Godef(fset, offset, filename, contents)
+	res, err := godef.Godef(fset, offset, filename, contents, BuildGoPackage)
 	if err != nil {
 		return nil, nil, nil, err
 	}
