@@ -2,11 +2,11 @@ package godef
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go/build"
 	"log"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -18,6 +18,7 @@ import (
 
 	"go/ast"
 
+	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/parser"
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/types"
 )
@@ -31,9 +32,9 @@ type Result struct {
 	Package *build.Package
 }
 
-func Godef(fset *token.FileSet, offset int, filename string, src []byte, buildGoPackage func(paths string) error) (*Result, error) {
+func Godef(ctx context.Context, fset *token.FileSet, offset int, filename string, contents []byte, fs ctxvfs.FileSystem, buildGoPackage func(paths string) error) (*Result, error) {
 	pkgScope := ast.NewScope(parser.Universe)
-	f, err := parser.ParseFile(fset, filename, src, 0, pkgScope, types.DefaultImportPathToName)
+	f, err := parser.ParseFile(fset, filename, contents, 0, pkgScope, types.DefaultImportPathToName)
 	if f == nil {
 		return nil, fmt.Errorf("cannot parse %s: %v", filename, err)
 	}
@@ -97,7 +98,7 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte, buildGo
 		}
 
 		// add declarations from other files in the local package and try again
-		pkg, err := parseLocalPackage(fset, filename, f, pkgScope, types.DefaultImportPathToName)
+		pkg, err := parseLocalPackage(ctx, fs, fset, filename, f, pkgScope, types.DefaultImportPathToName)
 		if pkg == nil {
 			log.Printf("parseLocalPackage error: %v\n", err)
 		}
@@ -215,31 +216,29 @@ var errNoPkgFiles = errors.New("no more package files found")
 // the principal source file, except the original source file
 // itself, which will already have been parsed.
 //
-func parseLocalPackage(fset *token.FileSet, filename string, src *ast.File, pkgScope *ast.Scope, pathToName parser.ImportPathToName) (*ast.Package, error) {
+func parseLocalPackage(ctx context.Context, fs ctxvfs.FileSystem, fset *token.FileSet, filename string, src *ast.File, pkgScope *ast.Scope, pathToName parser.ImportPathToName) (*ast.Package, error) {
 	pkg := &ast.Package{src.Name.Name, pkgScope, nil, map[string]*ast.File{filename: src}}
 	d, f := filepath.Split(filename)
 	if d == "" {
 		d = "./"
 	}
-	fd, err := os.Open(d)
+	infos, err := fs.ReadDir(ctx, d)
 	if err != nil {
 		return nil, err
 	}
-	defer fd.Close()
 
-	list, err := fd.Readdirnames(-1)
-	if err != nil {
-		return nil, errNoPkgFiles
-	}
-
-	for _, pf := range list {
-		file := filepath.Join(d, pf)
-		if !strings.HasSuffix(pf, ".go") ||
-			pf == f ||
-			pkgName(fset, file) != pkg.Name {
+	for _, fi := range infos {
+		file := filepath.Join(d, fi.Name())
+		if !strings.HasSuffix(fi.Name(), ".go") ||
+			fi.Name() == f ||
+			pkgName(ctx, fs, fset, file) != pkg.Name {
 			continue
 		}
-		src, err := parser.ParseFile(fset, file, nil, 0, pkg.Scope, types.DefaultImportPathToName)
+		fileSrc, err := ctxvfs.ReadFile(ctx, fs, file)
+		if err != nil {
+			return nil, err
+		}
+		src, err := parser.ParseFile(fset, file, fileSrc, 0, pkg.Scope, types.DefaultImportPathToName)
 		if err == nil {
 			pkg.Files[file] = src
 		}
@@ -253,8 +252,12 @@ func parseLocalPackage(fset *token.FileSet, filename string, src *ast.File, pkgS
 // pkgName returns the package name implemented by the
 // go source filename.
 //
-func pkgName(fset *token.FileSet, filename string) string {
-	prog, _ := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly, nil, types.DefaultImportPathToName)
+func pkgName(ctx context.Context, fs ctxvfs.FileSystem, fset *token.FileSet, filename string) string {
+	src, err := ctxvfs.ReadFile(ctx, fs, filename)
+	if err != nil {
+		return ""
+	}
+	prog, _ := parser.ParseFile(fset, filename, src, parser.PackageClauseOnly, nil, types.DefaultImportPathToName)
 	if prog != nil {
 		return prog.Name.Name
 	}
