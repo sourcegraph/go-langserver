@@ -31,7 +31,7 @@ type Result struct {
 	Package *build.Package
 }
 
-func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Result, error) {
+func Godef(fset *token.FileSet, offset int, filename string, src []byte, buildGoPackage func(paths string) error) (*Result, error) {
 	pkgScope := ast.NewScope(parser.Universe)
 	f, err := parser.ParseFile(fset, filename, src, 0, pkgScope, types.DefaultImportPathToName)
 	if f == nil {
@@ -70,10 +70,30 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 			}
 			return r, nil
 		}
-		importer := types.DefaultImporter(fset)
+		defaultImporter := types.DefaultImporter(fset)
+		var importerErr error
+		importer := func(path string, srcDir string) *ast.Package {
+			if buildGoPackage != nil {
+				// Find the absolute package path (i.e. inclusive of the entire
+				// path to the vendor directory).
+				pkg, err := build.Default.Import(path, srcDir, build.FindOnly)
+				if err != nil {
+					importerErr = fmt.Errorf("error finding import path for %s: %s", path, err)
+					return nil
+				}
+				if err := buildGoPackage(pkg.ImportPath); err != nil {
+					importerErr = fmt.Errorf("buildGoPackage: %v", err)
+					return nil
+				}
+			}
+			return defaultImporter(path, srcDir)
+		}
 		// try local declarations only
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
 			return result(obj)
+		}
+		if importerErr != nil {
+			return nil, importerErr
 		}
 
 		// add declarations from other files in the local package and try again
@@ -83,6 +103,9 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 		}
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
 			return result(obj)
+		}
+		if importerErr != nil {
+			return nil, importerErr
 		}
 		return nil, fmt.Errorf("no declaration found for %v", pretty{fset, e})
 	}
