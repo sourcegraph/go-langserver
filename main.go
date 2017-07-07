@@ -27,7 +27,7 @@ var (
 	printVersion      = flag.Bool("version", false, "print version and exit")
 	pprof             = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 	freeosmemory      = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
-	usebinarypkgcache = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
+	usebinarypkgcache = flag.Bool("usebinarypkgcache", true, "deprecated / ignored")
 	maxparallelism    = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests")
 )
 
@@ -52,7 +52,7 @@ func main() {
 	if *freeosmemory {
 		go freeOSMemory()
 	}
-	langserver.UseBinaryPkgCache = *usebinarypkgcache
+	langserver.UsePremptiveTypechecking = true
 
 	// Default max parallelism to half the CPU cores, but at least always one.
 	if *maxparallelism <= 0 {

@@ -15,10 +15,6 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// UseBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
-// be used.
-var UseBinaryPkgCache = false
-
 // BuildGoPackage is a callback that invoked prior to using data from a $GOPATH/pkg
 // .a file for the specified import path.
 //
@@ -27,20 +23,8 @@ var UseBinaryPkgCache = false
 var BuildGoPackage func(paths string) error
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
-	if UseBinaryPkgCache {
-		_, _, locs, err := h.definitionGodef(ctx, params)
-		return locs, err
-	}
-
-	res, err := h.handleXDefinition(ctx, conn, req, params)
-	if err != nil {
-		return nil, err
-	}
-	locs := make([]lsp.Location, 0, len(res))
-	for _, li := range res {
-		locs = append(locs, li.Location)
-	}
-	return locs, nil
+	_, _, locs, err := h.definitionGodef(ctx, params)
+	return locs, err
 }
 
 var testOSToVFSPath func(osPath string) string

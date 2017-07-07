@@ -37,15 +37,8 @@ func TestServer(t *testing.T) {
 				"b.go": "package p; func B() { A() }",
 			},
 			cases: lspTestCases{
-				overrideGodefHover: map[string]string{
-					//"a.go:1:9":  "package p", // TODO(slimsag): sub-optimal "no declaration found for p"
-					"a.go:1:17": "func A()",
-					"a.go:1:23": "func A()",
-					"b.go:1:17": "func B()",
-					"b.go:1:23": "func A()",
-				},
 				wantHover: map[string]string{
-					"a.go:1:9":  "package p",
+					//"a.go:1:9":  "package p", // TODO(slimsag): sub-optimal "no declaration found for p"
 					"a.go:1:17": "func A()",
 					"a.go:1:23": "func A()",
 					"b.go:1:17": "func B()",
@@ -131,18 +124,10 @@ func TestServer(t *testing.T) {
 				"a.go": "package p; type T struct { F string }",
 			},
 			cases: lspTestCases{
-				overrideGodefHover: map[string]string{
-					// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
-					"a.go:1:28": "struct field F string",
-					"a.go:1:17": `type T struct; struct{ F string }`,
-				},
-
 				wantHover: map[string]string{
 					// "a.go:1:28": "(T).F string", // TODO(sqs): see golang/hover.go; this is the output we want
 					"a.go:1:28": "struct field F string",
-					"a.go:1:17": `type T struct; struct {
-    F string
-}`,
+					"a.go:1:17": `type T struct; struct{ F string }`,
 				},
 				wantSymbols: map[string][]string{
 					"a.go": []string{"/src/test/pkg/a.go:class:T:1:17"},
@@ -181,19 +166,11 @@ func TestServer(t *testing.T) {
 				"b_test.go": "package p; func Y() int { return X }",
 			},
 			cases: lspTestCases{
-				overrideGodefHover: map[string]string{
+				wantHover: map[string]string{
 					"a.go:1:16":      "var A int",
 					"x_test.go:1:40": "var X = p.A",
 					"x_test.go:1:46": "var A int",
 					"a_test.go:1:16": "var X = A",
-					"a_test.go:1:20": "var A int",
-				},
-
-				wantHover: map[string]string{
-					"a.go:1:16":      "var A int",
-					"x_test.go:1:40": "var X int",
-					"x_test.go:1:46": "var A int",
-					"a_test.go:1:16": "var X int",
 					"a_test.go:1:20": "var A int",
 				},
 				wantSymbols: map[string][]string{
@@ -244,12 +221,8 @@ func TestServer(t *testing.T) {
 				"c/c.go":    `package c; import "test/pkg/b"; var X = b.B;`,
 			},
 			cases: lspTestCases{
-				overrideGodefHover: map[string]string{
-					"a_test.go:1:37": "var X = b.B",
-					"a_test.go:1:43": "var B int",
-				},
 				wantHover: map[string]string{
-					"a_test.go:1:37": "var X int",
+					"a_test.go:1:37": "var X = b.B",
 					"a_test.go:1:43": "var B int",
 				},
 				wantReferences: map[string][]string{
@@ -424,13 +397,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 					"a.go:1:40": "func Println(a ...interface{}) (n int, err error)",
 					// "a.go:1:53": "type int int",
 				},
-				overrideGodefDefinition: map[string]string{
-					"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
-					"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
-				},
 				wantDefinition: map[string]string{
 					"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
-					// "a.go:1:53": "/goroot/src/builtin/builtin.go:TODO:TODO", // TODO(sqs): support builtins
+					"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
 				},
 				wantXDefinition: map[string]string{
 					"a.go:1:40": "/goroot/src/fmt/print.go:1:19 id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
@@ -695,12 +664,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			cases: lspTestCases{
-				overrideGodefHover: map[string]string{
-					"a.go:1:53": "func D1() dep2.D2",
-					"a.go:1:59": "struct field D2 int",
-				},
 				wantHover: map[string]string{
-					"a.go:1:53": "func D1() D2",
+					"a.go:1:53": "func D1() dep2.D2",
 					"a.go:1:59": "struct field D2 int",
 				},
 				wantDefinition: map[string]string{
@@ -815,7 +780,7 @@ type Header struct {
 `,
 			},
 			cases: lspTestCases{
-				overrideGodefHover: map[string]string{
+				wantHover: map[string]string{
 					//"a.go:7:9": "package p; Package p is a package with lots of great things. \n\n", // TODO(slimsag): sub-optimal "no declaration found for p"
 					//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
 					"a.go:12:5":  "var logit = pkg2.X; logit is pkg2.X \n\n",
@@ -827,19 +792,6 @@ type Header struct {
 					"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
 					"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
 					"a.go:31:2":  "var I2 = 3; I2 is an int \n\n",
-				},
-				wantHover: map[string]string{
-					"a.go:7:9": "package p; Package p is a package with lots of great things. \n\n",
-					//"a.go:9:9": "", TODO: handle hovering on import statements (ast.BasicLit)
-					"a.go:12:5":  "var logit func(); logit is pkg2.X \n\n",
-					"a.go:12:13": "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
-					"a.go:12:18": "func X(); X does the unknown. \n\n",
-					"a.go:15:6":  "type T struct; T is a struct. \n\n; struct {\n    F string\n    H Header\n}",
-					"a.go:17:2":  "struct field F string; F is a string field. \n\n",
-					"a.go:20:2":  "struct field H test/pkg/vendor/github.com/a/pkg2.Header; H is a header. \n\n",
-					"a.go:20:4":  "package pkg2 (\"test/pkg/vendor/github.com/a/pkg2\"); Package pkg2 shows dependencies. \n\nHow to \n\n```\nExample Code!\n\n```\n",
-					"a.go:24:5":  "var Foo string; Foo is the best string. \n\n",
-					"a.go:31:2":  "var I2 int; I2 is an int \n\n",
 				},
 			},
 		},
@@ -1011,15 +963,15 @@ func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
 }
 
 type lspTestCases struct {
-	wantHover, overrideGodefHover           map[string]string
-	wantDefinition, overrideGodefDefinition map[string]string
-	wantXDefinition                         map[string]string
-	wantReferences                          map[string][]string
-	wantSymbols                             map[string][]string
-	wantWorkspaceSymbols                    map[*lspext.WorkspaceSymbolParams][]string
-	wantSignatures                          map[string]string
-	wantWorkspaceReferences                 map[*lspext.WorkspaceReferencesParams][]string
-	wantFormatting                          map[string]string
+	wantHover               map[string]string
+	wantDefinition          map[string]string
+	wantXDefinition         map[string]string
+	wantReferences          map[string][]string
+	wantSymbols             map[string][]string
+	wantWorkspaceSymbols    map[*lspext.WorkspaceSymbolParams][]string
+	wantSignatures          map[string]string
+	wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string
+	wantFormatting          map[string]string
 }
 
 func copyFileToOS(ctx context.Context, fs *AtomicFS, targetFile, srcFile string) error {
@@ -1072,34 +1024,6 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		tbRun(t, fmt.Sprintf("hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 			hoverTest(t, ctx, c, rootPath, pos, want)
 		})
-	}
-
-	// Godef-based definition & hover testing
-	wantGodefDefinition := cases.overrideGodefDefinition
-	if len(wantGodefDefinition) == 0 {
-		wantGodefDefinition = cases.wantDefinition
-	}
-	wantGodefHover := cases.overrideGodefHover
-	if len(wantGodefHover) == 0 {
-		wantGodefHover = cases.wantHover
-	}
-
-	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && fs != nil) {
-		UseBinaryPkgCache = true
-
-		// Run the tests.
-		for pos, want := range wantGodefDefinition {
-			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				definitionTest(t, ctx, c, rootPath, pos, want)
-			})
-		}
-		for pos, want := range wantGodefHover {
-			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				hoverTest(t, ctx, c, rootPath, pos, want)
-			})
-		}
-
-		UseBinaryPkgCache = false
 	}
 
 	for pos, want := range cases.wantDefinition {
