@@ -15,31 +15,14 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// BuildGoPackage is a callback that invoked prior to using data from a $GOPATH/pkg
-// .a file for the specified import path.
-//
-// The import path is always absolute (i.e. inclusive of the entire path to the
-// vendor directory).
-var BuildGoPackage func(paths string) error
-
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
 	_, _, locs, err := h.definitionGodef(ctx, params)
 	return locs, err
 }
 
-var testOSToVFSPath func(osPath string) string
-
 func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocumentPositionParams) (*token.FileSet, *godef.Result, []lsp.Location, error) {
-	// In the case of testing, our OS paths and VFS paths do not match. In the
-	// real world, this is never the case. Give the test suite the opportunity
-	// to correct the path now.
-	vfsURI := params.TextDocument.URI
-	if testOSToVFSPath != nil {
-		vfsURI = pathToURI(testOSToVFSPath(uriToFilePath(vfsURI)))
-	}
-
 	// Read file contents and calculate byte offset.
-	contents, err := h.readFile(ctx, vfsURI)
+	contents, err := h.readFile(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -52,7 +35,7 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 	// Invoke godef to determine the position of the definition.
 	bctx := h.BuildContext(ctx)
 	fset := token.NewFileSet()
-	res, err := godef.Godef(ctx, bctx, fset, offset, filename, contents, h.FS, BuildGoPackage)
+	res, err := godef.Godef(ctx, bctx, fset, offset, filename, contents, h.FS)
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -76,7 +76,7 @@ func defaultImportPathToName(bctx *build.Context) func(path, srcDir string) (str
 
 // Godef finds the definition of the given filename and contents at the
 // specified offset.
-func Godef(ctx context.Context, bctx *build.Context, fset *token.FileSet, offset int, filename string, contents []byte, fs ctxvfs.FileSystem, buildGoPackage func(paths string) error) (*Result, error) {
+func Godef(ctx context.Context, bctx *build.Context, fset *token.FileSet, offset int, filename string, contents []byte, fs ctxvfs.FileSystem) (*Result, error) {
 	pkgScope := ast.NewScope(parser.Universe)
 	f, err := parser.ParseFile(fset, filename, contents, 0, pkgScope, defaultImportPathToName(bctx))
 	if f == nil {
@@ -115,30 +115,10 @@ func Godef(ctx context.Context, bctx *build.Context, fset *token.FileSet, offset
 			}
 			return r, nil
 		}
-		var importerErr error
-		defaultImporter := defaultImporter(ctx, fs, bctx, fset)
-		importer := func(path string, srcDir string) *ast.Package {
-			if buildGoPackage != nil {
-				// Find the absolute package path (i.e. inclusive of the entire
-				// path to the vendor directory).
-				pkg, err := bctx.Import(path, srcDir, build.FindOnly)
-				if err != nil {
-					importerErr = fmt.Errorf("error finding import path for %s: %s", path, err)
-					return nil
-				}
-				if err := buildGoPackage(pkg.ImportPath); err != nil {
-					importerErr = fmt.Errorf("buildGoPackage: %v", err)
-					return nil
-				}
-			}
-			return defaultImporter(path, srcDir)
-		}
+		importer := defaultImporter(ctx, fs, bctx, fset)
 		// try local declarations only
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
 			return result(obj)
-		}
-		if importerErr != nil {
-			return nil, importerErr
 		}
 
 		// add declarations from other files in the local package and try again
@@ -148,9 +128,6 @@ func Godef(ctx context.Context, bctx *build.Context, fset *token.FileSet, offset
 		}
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
 			return result(obj)
-		}
-		if importerErr != nil {
-			return nil, importerErr
 		}
 		return nil, fmt.Errorf("no declaration found for %v", pretty{fset, e})
 	}
