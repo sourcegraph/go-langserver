@@ -255,6 +255,8 @@ func prettyPrintTypesString(s string) string {
 }
 
 func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
+	bctx := h.BuildContext(ctx)
+
 	// First perform the equivalent of a textDocument/definition request in
 	// order to resolve the definition position.
 	fset, res, _, err := h.definitionGodef(ctx, params)
@@ -267,13 +269,13 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 	if res.Package != nil {
 		// res.Package.Name is invalid since it was imported with FindOnly, so
 		// import normally now.
-		bpkg, err := build.Default.ImportDir(res.Package.Dir, 0)
+		bpkg, err := bctx.Import(res.Package.ImportPath, res.Package.Dir, 0)
 		if err != nil {
 			return nil, err
 		}
 
 		// Parse the entire dir into its respective AST packages.
-		pkgs, err := parser.ParseDir(fset, res.Package.Dir, nil, parser.ParseComments)
+		pkgs, err := parseDir(fset, bctx, res.Package.Dir, nil, parser.ParseComments)
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +308,7 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 	filename := uriToFilePath(loc.URI)
 
 	// Parse the entire dir into its respective AST packages.
-	pkgs, err := parser.ParseDir(fset, filepath.Dir(filename), nil, parser.ParseComments)
+	pkgs, err := parseDir(fset, bctx, filepath.Dir(filename), nil, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}

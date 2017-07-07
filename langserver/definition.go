@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/token"
 	"log"
-	"path/filepath"
+	"path"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
@@ -67,8 +66,9 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 	}
 
 	// Invoke godef to determine the position of the definition.
+	bctx := h.BuildContext(ctx)
 	fset := token.NewFileSet()
-	res, err := godef.Godef(fset, offset, filename, contents, BuildGoPackage)
+	res, err := godef.Godef(ctx, bctx, fset, offset, filename, contents, h.FS, BuildGoPackage)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -83,7 +83,7 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 		// TODO: builtins do not have valid URIs or locations, so we emit a
 		// phony location here instead. This is better than our other
 		// implementation.
-		loc.URI = pathToURI(filepath.Join(build.Default.GOROOT, "/src/builtin/builtin.go"))
+		loc.URI = pathToURI(path.Join(bctx.GOROOT, "/src/builtin/builtin.go"))
 		loc.Range = lsp.Range{}
 	}
 

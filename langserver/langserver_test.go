@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/build"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -423,16 +420,12 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			cases: lspTestCases{
-				overrideGodefHover: map[string]string{
-					"a.go:1:40": "func Println(a ...interface{}) (n int, err error); Println formats using the default formats for its operands and writes to standard output. Spaces are always added between operands and a newline is appended. It returns the number of bytes written and any write error encountered. \n\n",
-					// "a.go:1:53": "type int int",
-				},
 				wantHover: map[string]string{
 					"a.go:1:40": "func Println(a ...interface{}) (n int, err error)",
 					// "a.go:1:53": "type int int",
 				},
 				overrideGodefDefinition: map[string]string{
-					"a.go:1:40": "/goroot/src/fmt/print.go:256:6-256:13",  // hitting the real GOROOT
+					"a.go:1:40": "/goroot/src/fmt/print.go:1:19-1:26",
 					"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
 				},
 				wantDefinition: map[string]string{
@@ -1094,52 +1087,15 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && fs != nil) {
 		UseBinaryPkgCache = true
 
-		// Copy the VFS into a temp directory, which will be our $GOPATH.
-		tmpDir, err := ioutil.TempDir("", "godef-definition")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer os.RemoveAll(tmpDir)
-		if err := copyDirToOS(ctx, fs, tmpDir, "/"); err != nil {
-			t.Fatal(err)
-		}
-
-		// Important: update build.Default.GOPATH, since it is compiled into
-		// the binary we must update it here at runtime. Otherwise, godef would
-		// look for $GOPATH/pkg .a files inside the $GOPATH that was set during
-		// 'go test' instead of our tmp directory.
-		build.Default.GOPATH = tmpDir
-		tmpRootPath := filepath.Join(tmpDir, rootPath)
-
-		BuildGoPackage = func(path string) error {
-			// Install all Go packages in the $GOPATH.
-			oldGOPATH := os.Getenv("GOPATH")
-			os.Setenv("GOPATH", tmpDir)
-			out, err := exec.Command("go", "install", "-v", path).CombinedOutput()
-			os.Setenv("GOPATH", oldGOPATH)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Logf("$ go install -v %s\n%s", path, out)
-			return nil
-		}
-
-		testOSToVFSPath = func(osPath string) string {
-			return strings.TrimPrefix(osPath, tmpDir)
-		}
-
 		// Run the tests.
 		for pos, want := range wantGodefDefinition {
-			if strings.HasPrefix(want, "/goroot") {
-				want = strings.Replace(want, "/goroot", build.Default.GOROOT, 1)
-			}
 			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				definitionTest(t, ctx, c, tmpRootPath, pos, want, tmpDir)
+				definitionTest(t, ctx, c, rootPath, pos, want)
 			})
 		}
 		for pos, want := range wantGodefHover {
 			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				hoverTest(t, ctx, c, tmpRootPath, pos, want)
+				hoverTest(t, ctx, c, rootPath, pos, want)
 			})
 		}
 
@@ -1148,7 +1104,7 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 
 	for pos, want := range cases.wantDefinition {
 		tbRun(t, fmt.Sprintf("definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			definitionTest(t, ctx, c, rootPath, pos, want, "")
+			definitionTest(t, ctx, c, rootPath, pos, want)
 		})
 	}
 	for pos, want := range cases.wantXDefinition {
@@ -1220,7 +1176,7 @@ func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath str
 	}
 }
 
-func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want, trimPrefix string) {
+func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
@@ -1230,9 +1186,6 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 		t.Fatal(err)
 	}
 	definition = uriToFilePath(definition)
-	if trimPrefix != "" {
-		definition = strings.TrimPrefix(definition, trimPrefix)
-	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
 	}
