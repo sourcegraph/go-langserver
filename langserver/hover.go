@@ -18,35 +18,6 @@ import (
 )
 
 func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
-	return h.handleHoverGodef(ctx, conn, req, params)
-}
-
-// maybeAddComments appends the specified comments converted to Markdown godoc
-// form to the specified contents slice, if the comments string is not empty.
-func maybeAddComments(comments string, contents []lsp.MarkedString) []lsp.MarkedString {
-	if comments == "" {
-		return contents
-	}
-	var b bytes.Buffer
-	doc.ToMarkdown(&b, comments, nil)
-	return append(contents, lsp.RawMarkedString(b.String()))
-}
-
-// packageDoc finds the documentation for the named package from its files or
-// additional files.
-func packageDoc(files []*ast.File, pkgName string) string {
-	for _, f := range files {
-		if f.Name.Name == pkgName {
-			txt := f.Doc.Text()
-			if strings.TrimSpace(txt) != "" {
-				return txt
-			}
-		}
-	}
-	return ""
-}
-
-func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
 	bctx := h.BuildContext(ctx)
 
 	// First perform the equivalent of a textDocument/definition request in
@@ -127,6 +98,31 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 		Contents: contents,
 		Range:    &r,
 	}, nil
+}
+
+// maybeAddComments appends the specified comments converted to Markdown godoc
+// form to the specified contents slice, if the comments string is not empty.
+func maybeAddComments(comments string, contents []lsp.MarkedString) []lsp.MarkedString {
+	if comments == "" {
+		return contents
+	}
+	var b bytes.Buffer
+	doc.ToMarkdown(&b, comments, nil)
+	return append(contents, lsp.RawMarkedString(b.String()))
+}
+
+// packageDoc finds the documentation for the named package from its files or
+// additional files.
+func packageDoc(files []*ast.File, pkgName string) string {
+	for _, f := range files {
+		if f.Name.Name == pkgName {
+			txt := f.Doc.Text()
+			if strings.TrimSpace(txt) != "" {
+				return txt
+			}
+		}
+	}
+	return ""
 }
 
 // packageForFile returns the import path and pkg from pkgs that contains the
