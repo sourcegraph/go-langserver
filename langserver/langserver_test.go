@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"runtime"
 	"sort"
@@ -972,50 +970,6 @@ type lspTestCases struct {
 	wantSignatures          map[string]string
 	wantWorkspaceReferences map[*lspext.WorkspaceReferencesParams][]string
 	wantFormatting          map[string]string
-}
-
-func copyFileToOS(ctx context.Context, fs *AtomicFS, targetFile, srcFile string) error {
-	src, err := fs.Open(ctx, srcFile)
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	dst, err := os.Create(targetFile)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	_, err = io.Copy(dst, src)
-	return err
-}
-
-func copyDirToOS(ctx context.Context, fs *AtomicFS, targetDir, srcDir string) error {
-	if err := os.Mkdir(targetDir, 0777); err != nil && !os.IsExist(err) {
-		return err
-	}
-	files, err := fs.ReadDir(ctx, srcDir)
-	if err != nil {
-		return err
-	}
-	for _, fi := range files {
-		targetPath := filepath.Join(targetDir, fi.Name())
-		srcPath := path.Join(srcDir, fi.Name())
-		if fi.IsDir() {
-			err := copyDirToOS(ctx, fs, targetPath, srcPath)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		err := copyFileToOS(ctx, fs, targetPath, srcPath)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // lspTests runs all test suites for LSP functionality.
