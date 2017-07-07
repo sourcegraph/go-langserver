@@ -393,6 +393,27 @@ func findDocTarget(fset *token.FileSet, target token.Position, in interface{}) i
 		if inRange(target, fset.Position(v.Decl.Pos()), fset.Position(v.Decl.End())) {
 			return v
 		}
+
+		for _, x := range v.Consts {
+			if r := findDocTarget(fset, target, x); r != nil {
+				return r
+			}
+		}
+		for _, x := range v.Vars {
+			if r := findDocTarget(fset, target, x); r != nil {
+				return r
+			}
+		}
+		for _, x := range v.Funcs {
+			if r := findDocTarget(fset, target, x); r != nil {
+				return r
+			}
+		}
+		for _, x := range v.Methods {
+			if r := findDocTarget(fset, target, x); r != nil {
+				return r
+			}
+		}
 		return nil
 	case *doc.Func:
 		if inRange(target, fset.Position(v.Decl.Pos()), fset.Position(v.Decl.End())) {
