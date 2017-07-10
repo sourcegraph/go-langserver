@@ -32,7 +32,8 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 	if res.Package != nil {
 		// res.Package.Name is invalid since it was imported with FindOnly, so
 		// import normally now.
-		bpkg, err := bctx.Import(res.Package.ImportPath, res.Package.Dir, 0)
+		findPackage := h.getFindPackageFunc()
+		bpkg, err := findPackage(ctx, bctx, res.Package.ImportPath, res.Package.Dir, 0)
 		if err != nil {
 			return nil, err
 		}

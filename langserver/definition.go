@@ -35,7 +35,8 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 	// Invoke godef to determine the position of the definition.
 	bctx := h.BuildContext(ctx)
 	fset := token.NewFileSet()
-	res, err := godef.Godef(ctx, bctx, fset, offset, filename, contents, h.FS)
+	findPackage := h.getFindPackageFunc()
+	res, err := godef.Godef(ctx, bctx, fset, offset, filename, contents, h.FS, godef.FindPackageFunc(findPackage))
 	if err != nil {
 		return nil, nil, nil, err
 	}
