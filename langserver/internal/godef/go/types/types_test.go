@@ -19,6 +19,10 @@ import (
 
 var testStdlib = flag.Bool("test-stdlib", false, "test all symbols in standard library (will fail)")
 
+func init() {
+	test = true
+}
+
 // TODO recursive types avoiding infinite loop.
 // e.g.
 // type A struct {*A}

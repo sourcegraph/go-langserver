@@ -76,9 +76,14 @@ func predecl(name string) *ast.Ident {
 
 type Importer func(path string, srcDir string) *ast.Package
 
+var test bool
+
 // DefaultImporter looks for the package; if it finds it,
 // it parses and returns it. If no package was found, it returns nil.
 func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.Package {
+	if !test {
+		panic("do not use this")
+	}
 	return func(path string, srcDir string) *ast.Package {
 		bpkg, err := build.Default.Import(path, srcDir, 0)
 		if err != nil {
@@ -121,6 +126,9 @@ func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.
 // DefaultImportPathToName returns the package identifier
 // for the given import path.
 func DefaultImportPathToName(path, srcDir string) (string, error) {
+	if !test {
+		panic("do not use this")
+	}
 	if path == "C" {
 		return "C", nil
 	}

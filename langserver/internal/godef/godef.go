@@ -2,6 +2,7 @@ package godef
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"go/build"
@@ -18,6 +19,7 @@ import (
 
 	"go/ast"
 
+	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/parser"
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/types"
 )
@@ -31,14 +33,64 @@ type Result struct {
 	Package *build.Package
 }
 
-func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Result, error) {
+// defaultImporter looks for the package; if it finds it,
+// it parses and returns it. If no package was found, it returns nil.
+func defaultImporter(ctx context.Context, fs ctxvfs.FileSystem, bctx *build.Context, fset *token.FileSet, findPackage FindPackageFunc) func(path string, srcDir string) *ast.Package {
+	return func(path string, srcDir string) *ast.Package {
+		bpkg, err := findPackage(ctx, bctx, path, srcDir, 0)
+		if err != nil {
+			return nil
+		}
+		goFiles := make(map[string]bool)
+		for _, f := range bpkg.GoFiles {
+			goFiles[f] = true
+		}
+		for _, f := range bpkg.CgoFiles {
+			goFiles[f] = true
+		}
+		shouldInclude := func(d os.FileInfo) bool {
+			return goFiles[d.Name()]
+		}
+		pkgs, err := parseDir(ctx, fs, fset, bpkg.Dir, shouldInclude, 0, defaultImportPathToName(ctx, bctx, findPackage))
+		if err != nil {
+			return nil
+		}
+		if pkg := pkgs[bpkg.Name]; pkg != nil {
+			return pkg
+		}
+		return nil
+	}
+}
+
+// defaultImportPathToName returns the package identifier
+// for the given import path.
+func defaultImportPathToName(ctx context.Context, bctx *build.Context, findPackage FindPackageFunc) func(path, srcDir string) (string, error) {
+	return func(path, srcDir string) (string, error) {
+		if path == "C" {
+			return "C", nil
+		}
+		pkg, err := findPackage(ctx, bctx, path, srcDir, 0)
+		if err != nil {
+			return "", err
+		}
+		return pkg.Name, nil
+	}
+}
+
+// FindPackageFunc matches the signature of loader.Config.FindPackage, except
+// also takes a context.Context.
+type FindPackageFunc func(ctx context.Context, bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error)
+
+// Godef finds the definition of the given filename and contents at the
+// specified offset.
+func Godef(ctx context.Context, bctx *build.Context, fset *token.FileSet, offset int, filename string, contents []byte, fs ctxvfs.FileSystem, findPackage FindPackageFunc) (*Result, error) {
 	pkgScope := ast.NewScope(parser.Universe)
-	f, err := parser.ParseFile(fset, filename, src, 0, pkgScope, types.DefaultImportPathToName)
+	f, err := parser.ParseFile(fset, filename, contents, 0, pkgScope, defaultImportPathToName(ctx, bctx, findPackage))
 	if f == nil {
 		return nil, fmt.Errorf("cannot parse %s: %v", filename, err)
 	}
 
-	o := findIdentifier(fset, f, offset)
+	o := findIdentifier(ctx, bctx, fset, findPackage, f, offset)
 	if o == nil {
 		return nil, fmt.Errorf("no identifier found")
 	}
@@ -48,7 +100,7 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 		if err != nil {
 			return nil, err
 		}
-		pkg, err := build.Default.Import(path, filepath.Dir(filename), build.FindOnly)
+		pkg, err := findPackage(ctx, bctx, path, filepath.Dir(filename), build.FindOnly)
 		if err != nil {
 			return nil, fmt.Errorf("error finding import path for %s: %s", path, err)
 		}
@@ -62,7 +114,7 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 				if err != nil {
 					return nil, err
 				}
-				pkg, err := build.Default.Import(path, filepath.Dir(fset.Position(p).Filename), build.FindOnly)
+				pkg, err := findPackage(ctx, bctx, path, filepath.Dir(fset.Position(p).Filename), build.FindOnly)
 				if err != nil {
 					return nil, fmt.Errorf("error finding import path for %s: %s", path, err)
 				}
@@ -70,14 +122,14 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 			}
 			return r, nil
 		}
-		importer := types.DefaultImporter(fset)
+		importer := defaultImporter(ctx, fs, bctx, fset, findPackage)
 		// try local declarations only
 		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
 			return result(obj)
 		}
 
 		// add declarations from other files in the local package and try again
-		pkg, err := parseLocalPackage(fset, filename, f, pkgScope, types.DefaultImportPathToName)
+		pkg, err := parseLocalPackage(ctx, bctx, fs, fset, findPackage, filename, f, pkgScope, defaultImportPathToName(ctx, bctx, findPackage))
 		if pkg == nil {
 			log.Printf("parseLocalPackage error: %v\n", err)
 		}
@@ -105,7 +157,7 @@ func importPath(n *ast.ImportSpec) (string, error) {
 // As a special case, if it finds an import
 // spec, it returns ImportSpec.
 //
-func findIdentifier(fset *token.FileSet, f *ast.File, searchpos int) ast.Node {
+func findIdentifier(ctx context.Context, bctx *build.Context, fset *token.FileSet, findPackage FindPackageFunc, f *ast.File, searchpos int) ast.Node {
 	ec := make(chan ast.Node)
 	found := func(startPos, endPos token.Pos) bool {
 		start := fset.Position(startPos).Offset
@@ -141,7 +193,7 @@ func findIdentifier(fset *token.FileSet, f *ast.File, searchpos int) ast.Node {
 					}
 					if id, ok := t.(*ast.Ident); ok {
 						if found(id.NamePos, id.End()) {
-							e, err := parseExpr(fset, f.Scope, id.Name)
+							e, err := parseExpr(ctx, bctx, fset, findPackage, f.Scope, id.Name)
 							if err != nil {
 								log.Println(err) // TODO(slimsag): return to caller
 							}
@@ -164,8 +216,8 @@ func findIdentifier(fset *token.FileSet, f *ast.File, searchpos int) ast.Node {
 	return <-ec
 }
 
-func parseExpr(fset *token.FileSet, s *ast.Scope, expr string) (ast.Expr, error) {
-	n, err := parser.ParseExpr(fset, "<arg>", expr, s, types.DefaultImportPathToName)
+func parseExpr(ctx context.Context, bctx *build.Context, fset *token.FileSet, findPackage FindPackageFunc, s *ast.Scope, expr string) (ast.Expr, error) {
+	n, err := parser.ParseExpr(fset, "<arg>", expr, s, defaultImportPathToName(ctx, bctx, findPackage))
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse expression: %v", err)
 	}
@@ -192,31 +244,29 @@ var errNoPkgFiles = errors.New("no more package files found")
 // the principal source file, except the original source file
 // itself, which will already have been parsed.
 //
-func parseLocalPackage(fset *token.FileSet, filename string, src *ast.File, pkgScope *ast.Scope, pathToName parser.ImportPathToName) (*ast.Package, error) {
+func parseLocalPackage(ctx context.Context, bctx *build.Context, fs ctxvfs.FileSystem, fset *token.FileSet, findPackage FindPackageFunc, filename string, src *ast.File, pkgScope *ast.Scope, pathToName parser.ImportPathToName) (*ast.Package, error) {
 	pkg := &ast.Package{src.Name.Name, pkgScope, nil, map[string]*ast.File{filename: src}}
 	d, f := filepath.Split(filename)
 	if d == "" {
 		d = "./"
 	}
-	fd, err := os.Open(d)
+	infos, err := fs.ReadDir(ctx, d)
 	if err != nil {
 		return nil, err
 	}
-	defer fd.Close()
 
-	list, err := fd.Readdirnames(-1)
-	if err != nil {
-		return nil, errNoPkgFiles
-	}
-
-	for _, pf := range list {
-		file := filepath.Join(d, pf)
-		if !strings.HasSuffix(pf, ".go") ||
-			pf == f ||
-			pkgName(fset, file) != pkg.Name {
+	for _, fi := range infos {
+		file := filepath.Join(d, fi.Name())
+		if !strings.HasSuffix(fi.Name(), ".go") ||
+			fi.Name() == f ||
+			pkgName(ctx, bctx, fs, fset, findPackage, file) != pkg.Name {
 			continue
 		}
-		src, err := parser.ParseFile(fset, file, nil, 0, pkg.Scope, types.DefaultImportPathToName)
+		fileSrc, err := ctxvfs.ReadFile(ctx, fs, file)
+		if err != nil {
+			return nil, err
+		}
+		src, err := parser.ParseFile(fset, file, fileSrc, 0, pkg.Scope, defaultImportPathToName(ctx, bctx, findPackage))
 		if err == nil {
 			pkg.Files[file] = src
 		}
@@ -230,8 +280,12 @@ func parseLocalPackage(fset *token.FileSet, filename string, src *ast.File, pkgS
 // pkgName returns the package name implemented by the
 // go source filename.
 //
-func pkgName(fset *token.FileSet, filename string) string {
-	prog, _ := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly, nil, types.DefaultImportPathToName)
+func pkgName(ctx context.Context, bctx *build.Context, fs ctxvfs.FileSystem, fset *token.FileSet, findPackage FindPackageFunc, filename string) string {
+	src, err := ctxvfs.ReadFile(ctx, fs, filename)
+	if err != nil {
+		return ""
+	}
+	prog, _ := parser.ParseFile(fset, filename, src, parser.PackageClauseOnly, nil, defaultImportPathToName(ctx, bctx, findPackage))
 	if prog != nil {
 		return prog.Name.Name
 	}

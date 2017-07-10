@@ -119,6 +119,11 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 	return h.Handle(ctx, conn, req)
 }
 
+// UsePremptiveTypechecking controls whether or not typechecking should be done
+// as early as possible. For just hover/definition, this does not improve time
+// to results, so it's advised for it to be off in local editor environments.
+var UsePremptiveTypechecking = false
+
 // Handle creates a response for a JSONRPC2 LSP request. Note: LSP has strict
 // ordering requirements, so this should not just be wrapped in an
 // jsonrpc2.AsyncHandler. Ensure you have the same ordering as used in the
@@ -356,7 +361,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				// a user is viewing this path, hint to add it to the cache
 				// (unless we're primarily using binary package cache .a
 				// files).
-				if !UseBinaryPkgCache {
+				if !UsePremptiveTypechecking {
 					go h.typecheck(ctx, conn, uri, lsp.Position{})
 				}
 			}

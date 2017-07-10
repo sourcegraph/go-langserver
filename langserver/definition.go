@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/token"
 	"log"
-	"path/filepath"
+	"path"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
@@ -16,40 +15,14 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// UseBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
-// be used.
-var UseBinaryPkgCache = false
-
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
-	if UseBinaryPkgCache {
-		_, _, locs, err := h.definitionGodef(ctx, params)
-		return locs, err
-	}
-
-	res, err := h.handleXDefinition(ctx, conn, req, params)
-	if err != nil {
-		return nil, err
-	}
-	locs := make([]lsp.Location, 0, len(res))
-	for _, li := range res {
-		locs = append(locs, li.Location)
-	}
-	return locs, nil
+	_, _, locs, err := h.definitionGodef(ctx, params)
+	return locs, err
 }
 
-var testOSToVFSPath func(osPath string) string
-
 func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocumentPositionParams) (*token.FileSet, *godef.Result, []lsp.Location, error) {
-	// In the case of testing, our OS paths and VFS paths do not match. In the
-	// real world, this is never the case. Give the test suite the opportunity
-	// to correct the path now.
-	vfsURI := params.TextDocument.URI
-	if testOSToVFSPath != nil {
-		vfsURI = pathToURI(testOSToVFSPath(uriToFilePath(vfsURI)))
-	}
-
 	// Read file contents and calculate byte offset.
-	contents, err := h.readFile(ctx, vfsURI)
+	contents, err := h.readFile(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -60,8 +33,10 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 	}
 
 	// Invoke godef to determine the position of the definition.
+	bctx := h.BuildContext(ctx)
 	fset := token.NewFileSet()
-	res, err := godef.Godef(fset, offset, filename, contents)
+	findPackage := h.getFindPackageFunc()
+	res, err := godef.Godef(ctx, bctx, fset, offset, filename, contents, h.FS, godef.FindPackageFunc(findPackage))
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -76,7 +51,7 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 		// TODO: builtins do not have valid URIs or locations, so we emit a
 		// phony location here instead. This is better than our other
 		// implementation.
-		loc.URI = pathToURI(filepath.Join(build.Default.GOROOT, "/src/builtin/builtin.go"))
+		loc.URI = pathToURI(path.Join(bctx.GOROOT, "/src/builtin/builtin.go"))
 		loc.Range = lsp.Range{}
 	}
 
