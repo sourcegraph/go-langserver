@@ -15,9 +15,9 @@ import (
 	"strings"
 
 	doc "github.com/slimsag/godocmd"
-	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/lambdalab/go-langserver/langserver/internal/godef"
+	"github.com/lambdalab/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

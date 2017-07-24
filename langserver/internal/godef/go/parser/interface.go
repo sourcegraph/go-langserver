@@ -25,6 +25,13 @@ import (
 // import statement, which may be empty.
 type ImportPathToName func(path string, fromDir string) (string, error)
 
+const tail = 50
+
+var fileNames [tail]string
+var fileConts [tail][]byte
+var fileError [tail]error
+var head = 0
+
 // If src != nil, readSource converts src to a []byte if possible;
 // otherwise it returns an error. If src == nil, readSource returns
 // the result of reading the file specified by filename.
@@ -53,7 +60,21 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 		}
 	}
 
-	return ioutil.ReadFile(filename)
+	for i := 0; i < tail; i++ {
+		if fileNames[i] == filename {
+			return fileConts[i], fileError[i]
+		}
+	}
+
+	if head == tail {
+		head = 0
+	}
+	fileNames[head] = filename
+	fileConts[head], fileError[head] = ioutil.ReadFile(filename)
+
+	head = head + 1
+
+	return fileConts[head-1], fileError[head-1]
 }
 
 func (p *parser) parseEOF() error {

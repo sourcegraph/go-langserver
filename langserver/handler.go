@@ -15,9 +15,9 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
+	"github.com/lambdalab/go-langserver/langserver/internal/gocode"
+	"github.com/lambdalab/go-langserver/pkg/lsp"
+	"github.com/lambdalab/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 
 	"github.com/sourcegraph/go-langserver/langserver/util"

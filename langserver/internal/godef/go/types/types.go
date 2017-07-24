@@ -22,7 +22,7 @@ import (
 
 	"go/ast"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/parser"
+	"github.com/lambdalab/go-langserver/langserver/internal/godef/go/parser"
 )
 
 // Type represents the type of a Go expression.

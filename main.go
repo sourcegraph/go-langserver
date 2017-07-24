@@ -1,4 +1,4 @@
-package main // import "github.com/sourcegraph/go-langserver"
+package main
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/sourcegraph/go-langserver/langserver"
+	"github.com/lambdalab/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
 
 	_ "net/http/pprof"

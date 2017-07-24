@@ -13,8 +13,8 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
+	"github.com/lambdalab/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/ctxvfs"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
 	"github.com/sourcegraph/go-langserver/langserver/util"
@@ -199,10 +199,23 @@ func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
 	return path
 }
 
-func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]byte, error) {
-	if !util.IsURI(uri) {
-		return nil, &os.PathError{Op: "Open", Path: string(uri), Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
+const tail = 50
+
+var fileNames [tail]string
+var fileConts [tail][]byte
+var fileError [tail]error
+var head = 0
+
+func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error) {
+	if !isFileURI(uri) {
+		return nil, &os.PathError{Op: "Open", Path: uri, Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
 	}
+	for i := 0; i < tail; i++ {
+		if fileNames[i] == uri {
+			return fileConts[i], fileError[i]
+		}
+	}
+
 	h.Mu.Lock()
 	fs := h.FS
 	h.Mu.Unlock()
@@ -213,7 +226,16 @@ func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]by
 			err = &os.PathError{Op: "Open", Path: path, Err: err}
 		}
 	}
-	return contents, err
+
+	if head == tail {
+		head = 0
+	}
+	fileNames[head] = uri
+	fileConts[head], fileError[head] = contents, err
+
+	head = head + 1
+
+	return fileConts[head-1], fileError[head-1]
 }
 
 // AtomicFS wraps a ctxvfs.NameSpace but is safe for concurrent calls to Bind

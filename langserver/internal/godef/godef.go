@@ -18,8 +18,8 @@ import (
 
 	"go/ast"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/parser"
-	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/types"
+	"github.com/lambdalab/go-langserver/langserver/internal/godef/go/parser"
+	"github.com/lambdalab/go-langserver/langserver/internal/godef/go/types"
 )
 
 type Result struct {
