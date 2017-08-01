@@ -39,8 +39,8 @@ func TestIntegration_FileSystem(t *testing.T) {
 		}
 	}()
 
-	rootPath := filepath.Join(build.Default.GOPATH, "src/test/p")
-	if err := os.MkdirAll(rootPath, 0700); err != nil {
+	rootFSPath := filepath.Join(build.Default.GOPATH, "src/test/p")
+	if err := os.MkdirAll(rootFSPath, 0700); err != nil {
 		t.Fatal(err)
 	}
 	files := map[string]string{
@@ -49,7 +49,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 		"p2/c.go": `package p2; import "test/p"; var _ = p.A`,
 	}
 	for filename, contents := range files {
-		path := filepath.Join(rootPath, filename)
+		path := filepath.Join(rootFSPath, filename)
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)
 		}
@@ -59,7 +59,8 @@ func TestIntegration_FileSystem(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	if err := conn.Call(ctx, "initialize", lsp.InitializeParams{RootPath: rootPath}, nil); err != nil {
+	rootURI := pathToURI(rootFSPath)
+	if err := conn.Call(ctx, "initialize", lsp.InitializeParams{RootURI: rootURI}, nil); err != nil {
 		t.Fatal("initialize:", err)
 	}
 
@@ -71,13 +72,13 @@ func TestIntegration_FileSystem(t *testing.T) {
 			"p2/c.go:1:40": "func A()",
 		},
 	}
-	lspTests(t, ctx, nil, conn, rootPath, cases)
+	lspTests(t, ctx, nil, conn, rootURI, cases)
 
 	// Now mimic what happens when a file is edited but not yet
 	// saved. It should re-typecheck using the unsaved file contents.
 	if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 		TextDocument: lsp.TextDocumentItem{
-			URI:  pathToURI(filepath.Join(rootPath, "a.go")),
+			URI:  uriJoin(rootURI, "a.go"),
 			Text: "package p; func A() int { return 0 }",
 		},
 	}, nil); err != nil {
@@ -90,5 +91,5 @@ func TestIntegration_FileSystem(t *testing.T) {
 			"p2/c.go:1:40": "func A() int",
 		},
 	}
-	lspTests(t, ctx, nil, conn, rootPath, cases)
+	lspTests(t, ctx, nil, conn, rootURI, cases)
 }
