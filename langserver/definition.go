@@ -91,7 +91,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		}
 	}
 
-	rootPath := h.FilePath(h.init.RootPath)
+	rootPath := h.FilePath(h.init.Root())
 	bctx := h.BuildContext(ctx)
 
 	fset, node, pathEnclosingInterval, _, pkg, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)

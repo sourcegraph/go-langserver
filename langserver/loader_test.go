@@ -127,7 +127,7 @@ func TestLoaderDiagnostics(t *testing.T) {
 func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context, *build.Package) {
 	h := LangHandler{HandlerShared: new(HandlerShared)}
 	if err := h.reset(&InitializeParams{
-		InitializeParams:     lsp.InitializeParams{RootPath: "file:///src/p"},
+		InitializeParams:     lsp.InitializeParams{RootURI: "file:///src/p"},
 		NoOSFileSystemAccess: true,
 		BuildContext: &InitializeBuildContextParams{
 			GOPATH: "/",

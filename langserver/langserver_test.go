@@ -28,13 +28,13 @@ import (
 
 func TestServer(t *testing.T) {
 	tests := map[string]struct {
-		rootPath string
-		fs       map[string]string
-		mountFS  map[string]map[string]string // mount dir -> map VFS
-		cases    lspTestCases
+		rootURI lsp.DocumentURI
+		fs      map[string]string
+		mountFS map[string]map[string]string // mount dir -> map VFS
+		cases   lspTestCases
 	}{
 		"go basic": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 				"b.go": "package p; func B() { A() }",
@@ -129,7 +129,7 @@ func TestServer(t *testing.T) {
 			},
 		},
 		"go detailed": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": "package p; type T struct { F string }",
 			},
@@ -159,7 +159,7 @@ func TestServer(t *testing.T) {
 			},
 		},
 		"exported defs unexported type": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": "package p; type t struct { F string }",
 			},
@@ -173,7 +173,7 @@ func TestServer(t *testing.T) {
 			},
 		},
 		"go xtest": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go":      "package p; var A int",
 				"x_test.go": `package p_test; import "test/pkg"; var X = p.A`,
@@ -239,7 +239,7 @@ func TestServer(t *testing.T) {
 			},
 		},
 		"go test": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go":      "package p; var A int",
 				"a_test.go": `package p; import "test/pkg/b"; var X = b.B; func TestB() {}`,
@@ -273,7 +273,7 @@ func TestServer(t *testing.T) {
 			},
 		},
 		"go subdirectory in repo": {
-			rootPath: "file:///src/test/pkg/d",
+			rootURI: "file:///src/test/pkg/d",
 			fs: map[string]string{
 				"a.go":    "package d; func A() { A() }",
 				"d2/b.go": `package d2; import "test/pkg/d"; func B() { d.A(); B() }`,
@@ -370,7 +370,7 @@ func TestServer(t *testing.T) {
 			},
 		},
 		"go multiple packages in dir": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 				"main.go": `// +build ignore
@@ -412,7 +412,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"goroot": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
 			},
@@ -465,7 +465,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"gopath": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a/a.go": `package a; func A() {}`,
 				"b/b.go": `package b; import "test/pkg/a"; var _ = a.A`,
@@ -516,7 +516,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go vendored dep": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package a; import "github.com/v/vendored"; var _ = vendored.V`,
 				"vendor/github.com/v/vendored/v.go": "package vendored; func V() {}",
@@ -558,7 +558,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go vendor symbols with same name": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"z.go": `package pkg; func x() bool { return true }`,
 				"vendor/github.com/a/pkg2/x.go": `package pkg2; func x() bool { return true }`,
@@ -596,7 +596,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go external dep": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package a; import "github.com/d/dep"; var _ = dep.D; var _ = dep.D`,
 			},
@@ -634,7 +634,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"external dep with vendor": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package p; import "github.com/d/dep"; var _ = dep.D().F`,
 			},
@@ -661,7 +661,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go external dep at subtree": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package a; import "github.com/d/dep/subp"; var _ = subp.D`,
 			},
@@ -689,7 +689,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go nested external dep": { // a depends on dep1, dep1 depends on dep2
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package a; import "github.com/d/dep1"; var _ = dep1.D1().D2`,
 			},
@@ -728,7 +728,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go symbols": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"abc.go": `package a
 
@@ -764,7 +764,7 @@ func yza() {}
 			},
 		},
 		"go hover docs": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `// Copyright 2015 someone.
 // Copyrights often span multiple lines.
@@ -851,7 +851,7 @@ type Header struct {
 			},
 		},
 		"workspace references multiple files": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
 				"b.go": `package p; import "fmt"; var _ = fmt.Println; var y int`,
@@ -877,7 +877,7 @@ type Header struct {
 			},
 		},
 		"signatures": {
-			rootPath: "file:///src/test/pkg",
+			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
 				"a.go": `package p
 
@@ -909,7 +909,7 @@ type Header struct {
 		},
 		"unexpected paths": {
 			// notice the : and @ symbol
-			rootPath: "file:///src/t:est/@hello/pkg",
+			rootURI: "file:///src/t:est/@hello/pkg",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 			},
@@ -942,12 +942,12 @@ type Header struct {
 				}
 			}()
 
-			rootFSPath := uriToFilePath(test.rootPath)
+			rootFSPath := uriToFilePath(test.rootURI)
 
 			// Prepare the connection.
 			ctx := context.Background()
 			if err := conn.Call(ctx, "initialize", InitializeParams{
-				InitializeParams:     lsp.InitializeParams{RootPath: test.rootPath},
+				InitializeParams:     lsp.InitializeParams{RootURI: test.rootURI},
 				NoOSFileSystemAccess: true,
 				RootImportPath:       strings.TrimPrefix(rootFSPath, "/src/"),
 				BuildContext: &InitializeBuildContextParams{
@@ -968,7 +968,7 @@ type Header struct {
 			}
 			h.Mu.Unlock()
 
-			lspTests(t, ctx, h.FS, conn, rootFSPath, test.cases)
+			lspTests(t, ctx, h.FS, conn, test.rootURI, test.cases)
 		})
 	}
 }
@@ -1074,10 +1074,10 @@ func copyDirToOS(ctx context.Context, fs *AtomicFS, targetDir, srcDir string) er
 }
 
 // lspTests runs all test suites for LSP functionality.
-func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn, rootPath string, cases lspTestCases) {
+func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, cases lspTestCases) {
 	for pos, want := range cases.wantHover {
 		tbRun(t, fmt.Sprintf("hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			hoverTest(t, ctx, c, rootPath, pos, want)
+			hoverTest(t, ctx, c, rootURI, pos, want)
 		})
 	}
 
@@ -1109,7 +1109,7 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		// look for $GOPATH/pkg .a files inside the $GOPATH that was set during
 		// 'go test' instead of our tmp directory.
 		build.Default.GOPATH = tmpDir
-		tmpRootPath := filepath.Join(tmpDir, rootPath)
+		tmpRootPath := filepath.Join(tmpDir, uriToFilePath(rootURI))
 
 		// Install all Go packages in the $GOPATH.
 		oldGOPATH := os.Getenv("GOPATH")
@@ -1131,12 +1131,12 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 				want = strings.Replace(want, "/goroot", build.Default.GOROOT, 1)
 			}
 			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				definitionTest(t, ctx, c, tmpRootPath, pos, want, tmpDir)
+				definitionTest(t, ctx, c, pathToURI(tmpRootPath), pos, want, tmpDir)
 			})
 		}
 		for pos, want := range wantGodefHover {
 			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				hoverTest(t, ctx, c, tmpRootPath, pos, want)
+				hoverTest(t, ctx, c, pathToURI(tmpRootPath), pos, want)
 			})
 		}
 
@@ -1145,53 +1145,53 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 
 	for pos, want := range cases.wantDefinition {
 		tbRun(t, fmt.Sprintf("definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			definitionTest(t, ctx, c, rootPath, pos, want, "")
+			definitionTest(t, ctx, c, rootURI, pos, want, "")
 		})
 	}
 	for pos, want := range cases.wantDefinition {
 		tbRun(t, fmt.Sprintf("definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			definitionTest(t, ctx, c, rootPath, pos, want, "")
+			definitionTest(t, ctx, c, rootURI, pos, want, "")
 		})
 	}
 	for pos, want := range cases.wantXDefinition {
 		tbRun(t, fmt.Sprintf("xdefinition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			xdefinitionTest(t, ctx, c, rootPath, pos, want)
+			xdefinitionTest(t, ctx, c, rootURI, pos, want)
 		})
 	}
 
 	for pos, want := range cases.wantReferences {
 		tbRun(t, fmt.Sprintf("references-%s", pos), func(t testing.TB) {
-			referencesTest(t, ctx, c, rootPath, pos, want)
+			referencesTest(t, ctx, c, rootURI, pos, want)
 		})
 	}
 
 	for file, want := range cases.wantSymbols {
 		tbRun(t, fmt.Sprintf("symbols-%s", file), func(t testing.TB) {
-			symbolsTest(t, ctx, c, rootPath, file, want)
+			symbolsTest(t, ctx, c, rootURI, file, want)
 		})
 	}
 
 	for params, want := range cases.wantWorkspaceSymbols {
 		tbRun(t, fmt.Sprintf("workspaceSymbols(%v)", *params), func(t testing.TB) {
-			workspaceSymbolsTest(t, ctx, c, rootPath, *params, want)
+			workspaceSymbolsTest(t, ctx, c, rootURI, *params, want)
 		})
 	}
 
 	for pos, want := range cases.wantSignatures {
 		tbRun(t, fmt.Sprintf("signature-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			signatureTest(t, ctx, c, rootPath, pos, want)
+			signatureTest(t, ctx, c, rootURI, pos, want)
 		})
 	}
 
 	for params, want := range cases.wantWorkspaceReferences {
 		tbRun(t, fmt.Sprintf("workspaceReferences"), func(t testing.TB) {
-			workspaceReferencesTest(t, ctx, c, rootPath, *params, want)
+			workspaceReferencesTest(t, ctx, c, rootURI, *params, want)
 		})
 	}
 
 	for file, want := range cases.wantFormatting {
 		tbRun(t, fmt.Sprintf("formatting-%s", file), func(t testing.TB) {
-			formattingTest(t, ctx, c, rootPath, file, want)
+			formattingTest(t, ctx, c, rootURI, file, want)
 		})
 	}
 }
@@ -1208,12 +1208,16 @@ func tbRun(t testing.TB, name string, f func(testing.TB)) bool {
 	}
 }
 
-func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want string) {
+func uriJoin(base lsp.DocumentURI, file string) lsp.DocumentURI {
+	return lsp.DocumentURI(string(base) + "/" + file)
+}
+
+func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	hover, err := callHover(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
+	hover, err := callHover(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1222,16 +1226,16 @@ func hoverTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath str
 	}
 }
 
-func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want, trimPrefix string) {
+func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want, trimPrefix string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition, err := callDefinition(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
+	definition, err := callDefinition(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition = uriToFilePath(definition)
+	definition = uriToFilePath(lsp.DocumentURI(definition))
 	if trimPrefix != "" {
 		definition = strings.TrimPrefix(definition, trimPrefix)
 	}
@@ -1240,32 +1244,32 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	}
 }
 
-func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want string) {
+func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition, err := callXDefinition(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
+	xdefinition, err := callXDefinition(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition = uriToFilePath(xdefinition)
+	xdefinition = uriToFilePath(lsp.DocumentURI(xdefinition))
 	if xdefinition != want {
 		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
 	}
 }
 
-func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos string, want []string) {
+func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos string, want []string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	references, err := callReferences(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
+	references, err := callReferences(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range references {
-		references[i] = uriToFilePath(references[i])
+		references[i] = uriToFilePath(lsp.DocumentURI(references[i]))
 	}
 	sort.Strings(references)
 	sort.Strings(want)
@@ -1274,38 +1278,38 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPat
 	}
 }
 
-func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want []string) {
-	symbols, err := callSymbols(ctx, c, pathToURI(path.Join(rootPath, file)))
+func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, file string, want []string) {
+	symbols, err := callSymbols(ctx, c, uriJoin(rootURI, file))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = uriToFilePath(symbols[i])
+		symbols[i] = uriToFilePath(lsp.DocumentURI(symbols[i]))
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %q, want %q", symbols, want)
 	}
 }
 
-func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, params lspext.WorkspaceSymbolParams, want []string) {
+func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, params lspext.WorkspaceSymbolParams, want []string) {
 	symbols, err := callWorkspaceSymbols(ctx, c, params)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = uriToFilePath(symbols[i])
+		symbols[i] = uriToFilePath(lsp.DocumentURI(symbols[i]))
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %#v, want %q", symbols, want)
 	}
 }
 
-func signatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, pos, want string) {
+func signatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
 	file, line, char, err := parsePos(pos)
 	if err != nil {
 		t.Fatal(err)
 	}
-	signature, err := callSignature(ctx, c, pathToURI(path.Join(rootPath, file)), line, char)
+	signature, err := callSignature(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1314,7 +1318,7 @@ func signatureTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath
 	}
 }
 
-func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, params lspext.WorkspaceReferencesParams, want []string) {
+func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, params lspext.WorkspaceReferencesParams, want []string) {
 	references, err := callWorkspaceReferences(ctx, c, params)
 	if err != nil {
 		t.Fatal(err)
@@ -1324,8 +1328,8 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 	}
 }
 
-func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootPath string, file string, want string) {
-	edits, err := callFormatting(ctx, c, pathToURI(path.Join(rootPath, file)))
+func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, file string, want string) {
+	edits, err := callFormatting(ctx, c, uriJoin(rootURI, file))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1367,7 +1371,7 @@ func parsePos(s string) (file string, line, char int, err error) {
 	return file, line - 1, char - 1, nil // LSP is 0-indexed
 }
 
-func callHover(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
+func callHover(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res struct {
 		Contents markedStrings `json:"contents"`
 		lsp.Hover
@@ -1389,7 +1393,7 @@ func callHover(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int
 	return str, nil
 }
 
-func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
+func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res locations
 	err := c.Call(ctx, "textDocument/definition", lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
@@ -1411,7 +1415,7 @@ func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, cha
 	return str, nil
 }
 
-func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
+func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res []lspext.SymbolLocationInformation
 	err := c.Call(ctx, "textDocument/xdefinition", lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
@@ -1433,7 +1437,7 @@ func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri string, line, ch
 	return str, nil
 }
 
-func callReferences(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) ([]string, error) {
+func callReferences(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) ([]string, error) {
 	var res locations
 	err := c.Call(ctx, "textDocument/references", lsp.ReferenceParams{
 		Context: lsp.ReferenceContext{IncludeDeclaration: true},
@@ -1452,7 +1456,7 @@ func callReferences(ctx context.Context, c *jsonrpc2.Conn, uri string, line, cha
 	return str, nil
 }
 
-func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri string) ([]string, error) {
+func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]string, error) {
 	var symbols []lsp.SymbolInformation
 	err := c.Call(ctx, "textDocument/documentSymbol", lsp.DocumentSymbolParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
@@ -1503,7 +1507,7 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 	return refs, nil
 }
 
-func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char int) (string, error) {
+func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res lsp.SignatureHelp
 	err := c.Call(ctx, "textDocument/signatureHelp", lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
@@ -1526,7 +1530,7 @@ func callSignature(ctx context.Context, c *jsonrpc2.Conn, uri string, line, char
 	return str, nil
 }
 
-func callFormatting(ctx context.Context, c *jsonrpc2.Conn, uri string) ([]lsp.TextEdit, error) {
+func callFormatting(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]lsp.TextEdit, error) {
 	var edits []lsp.TextEdit
 	err := c.Call(ctx, "textDocument/formatting", lsp.DocumentFormattingParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},

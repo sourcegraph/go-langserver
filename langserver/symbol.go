@@ -324,7 +324,7 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 		// id implicitly contains a dir hint. We can use that to
 		// reduce the number of files we have to parse.
 		importPath := strings.SplitN(id.(string), "/-/", 2)[0]
-		if isStdLib := PathHasPrefix(h.BuildContext(ctx).GOROOT, h.init.RootPath); isStdLib {
+		if isStdLib := PathHasPrefix(h.BuildContext(ctx).GOROOT, h.FilePath(h.init.Root())); isStdLib {
 			q.Dir = path.Join("/src", importPath)
 		} else {
 			q.Dir = importPath
@@ -349,7 +349,7 @@ var MaxParallelism = 8
 func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
 	{
-		rootPath := h.FilePath(h.init.RootPath)
+		rootPath := h.FilePath(h.init.Root())
 		bctx := h.BuildContext(ctx)
 
 		par := parallel.NewRun(8)

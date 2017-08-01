@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -71,9 +72,13 @@ type LangHandler struct {
 
 // reset clears all internal state in h.
 func (h *LangHandler) reset(init *InitializeParams) error {
+	if isFileURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
+		log.Printf("Passing an initialize rootPath URI (%q) is deprecated. Use rootUri instead.", init.InitializeParams.RootPath)
+	}
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if err := h.HandlerCommon.Reset(init.RootPath); err != nil {
+	if err := h.HandlerCommon.Reset(init.Root()); err != nil {
 		return err
 	}
 	if !h.HandlerShared.Shared {
@@ -179,12 +184,6 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		var params InitializeParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
-		}
-
-		// HACK: RootPath is not a URI, but historically we treated it
-		// as such. Convert it to a file URI
-		if !isFileURI(params.RootPath) {
-			params.RootPath = pathToURI(params.RootPath)
 		}
 
 		if err := h.reset(&params); err != nil {
