@@ -124,7 +124,12 @@ func ParseExpr(fset *token.FileSet, filename string, src interface{}, scope *ast
 // errors were found, the result is a partial AST (with ast.BadX nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by file position.
-//
+// filename/mode/importhapathtoName => result  / scope
+
+type parseCache struct {
+	
+}
+
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint, pkgScope *ast.Scope, pathToName ImportPathToName) (*ast.File, error) {
 	data, err := readSource(filename, src)
 	if err != nil {

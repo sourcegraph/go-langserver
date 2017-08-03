@@ -76,38 +76,50 @@ func predecl(name string) *ast.Ident {
 
 type Importer func(path string, srcDir string) *ast.Package
 
+var pkgCache = make(map[string]map[string]*ast.Package)
+
 // DefaultImporter looks for the package; if it finds it,
 // it parses and returns it. If no package was found, it returns nil.
 func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.Package {
 	return func(path string, srcDir string) *ast.Package {
+		var pkgs map[string]*ast.Package
+
 		bpkg, err := build.Default.Import(path, srcDir, 0)
 		if err != nil {
 			return nil
 		}
-		goFiles := make(map[string]bool)
-		for _, f := range bpkg.GoFiles {
-			goFiles[f] = true
-		}
-		for _, f := range bpkg.CgoFiles {
-			goFiles[f] = true
-		}
-		shouldInclude := func(d os.FileInfo) bool {
-			return goFiles[d.Name()]
-		}
-		pkgs, err := parser.ParseDir(fset, bpkg.Dir, shouldInclude, 0, DefaultImportPathToName)
-		if err != nil {
-			if Debug {
-				switch err := err.(type) {
-				case scanner.ErrorList:
-					for _, e := range err {
-						debugp("\t%v: %s", e.Pos, e.Msg)
-					}
-				default:
-					debugp("\terror parsing %s: %v", bpkg.Dir, err)
-				}
+
+		cache, ok := pkgCache[srcDir+path]
+		if ok {
+			pkgs = cache
+		} else {
+			goFiles := make(map[string]bool)
+			for _, f := range bpkg.GoFiles {
+				goFiles[f] = true
 			}
-			return nil
+			for _, f := range bpkg.CgoFiles {
+				goFiles[f] = true
+			}
+			shouldInclude := func(d os.FileInfo) bool {
+				return goFiles[d.Name()]
+			}
+			pkgs, err = parser.ParseDir(fset, bpkg.Dir, shouldInclude, 0, DefaultImportPathToName)
+			if err != nil {
+				if Debug {
+					switch err := err.(type) {
+					case scanner.ErrorList:
+						for _, e := range err {
+							debugp("\t%v: %s", e.Pos, e.Msg)
+						}
+					default:
+						debugp("\terror parsing %s: %v", bpkg.Dir, err)
+					}
+				}
+				return nil
+			}
+			pkgCache[srcDir+path] = pkgs
 		}
+
 		if pkg := pkgs[bpkg.Name]; pkg != nil {
 			return pkg
 		}

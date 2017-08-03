@@ -2,7 +2,6 @@ package godef
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/build"
 	"log"
@@ -31,16 +30,64 @@ type Result struct {
 	Package *build.Package
 }
 
-var ErrNoIdentifierFound = errors.New("no identifier found")
+type PackageCache struct {
+	f map[string]*ast.File
+	fset *token.FileSet
+	scope *ast.Scope
+}
 
-func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Result, error) {
-	pkgScope := ast.NewScope(parser.Universe)
-	f, err := parser.ParseFile(fset, filename, src, 0, pkgScope, types.DefaultImportPathToName)
-	if f == nil {
-		return nil, fmt.Errorf("cannot parse %s: %v", filename, err)
+var pkgCache map[string]PackageCache
+var pkgName  map[string]string
+var identMap map[int]ast.Node
+
+var prevDirectory string = ""
+var prevFilename string = ""
+
+func ClearCache(filename string) {
+	d := filepath.Dir(filename)
+	if  prevDirectory != d {
+		prevDirectory = d
+		pkgCache = make(map[string]PackageCache)
+		pkgName = make(map[string]string)
+	}
+}
+
+func Godef(offset int, filename string, src []byte, fset **token.FileSet) (*Result, error) {
+	var pkgScope *ast.Scope
+	var err error
+	var f *ast.File
+
+	name, ok := pkgName[filename]
+	if ok {
+		*fset = pkgCache[name].fset
+		pkgScope = pkgCache[name].scope
+		f = pkgCache[name].f[filename]
+	} else {
+		ClearCache(filename)
+
+		*fset = token.NewFileSet()
+		pkgScope = ast.NewScope(parser.Universe)
+		f, err = parser.ParseFile(*fset, filename, src, 0, pkgScope, types.DefaultImportPathToName)
+		if f == nil {
+			return nil, fmt.Errorf("cannot parse %s: %v", filename, err)
+		}
+
+		name := f.Name.Name
+		pkgName[filename] = name
+
+		pkgCache[name] = PackageCache{make(map[string]*ast.File),*fset,pkgScope}
+		pkgCache[name].f[filename] = f
+
+		parseLocalPackage(*fset, filename, name, pkgScope, types.DefaultImportPathToName)
 	}
 
-	o := findIdentifier(fset, f, offset)
+	if prevFilename != filename {
+		prevFilename = filename
+		identMap = make(map[int]ast.Node)
+		walkIdentifier(*fset, f, identMap)
+	}
+
+	o, ok := identMap[offset]
 	if o == nil {
 		return nil, ErrNoIdentifierFound
 	}
@@ -64,7 +111,7 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 				if err != nil {
 					return nil, err
 				}
-				pkg, err := build.Default.Import(path, filepath.Dir(fset.Position(p).Filename), build.FindOnly)
+				pkg, err := build.Default.Import(path, filepath.Dir((*fset).Position(p).Filename), build.FindOnly)
 				if err != nil {
 					return nil, fmt.Errorf("error finding import path for %s: %s", path, err)
 				}
@@ -72,21 +119,13 @@ func Godef(fset *token.FileSet, offset int, filename string, src []byte) (*Resul
 			}
 			return r, nil
 		}
-		importer := types.DefaultImporter(fset)
-		// try local declarations only
-		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
+		importer := types.DefaultImporter(*fset)
+
+		if obj, _ := types.ExprType(e, importer, *fset); obj != nil {
 			return result(obj)
 		}
 
-		// add declarations from other files in the local package and try again
-		pkg, err := parseLocalPackage(fset, filename, f, pkgScope, types.DefaultImportPathToName)
-		if pkg == nil {
-			log.Printf("parseLocalPackage error: %v\n", err)
-		}
-		if obj, _ := types.ExprType(e, importer, fset); obj != nil {
-			return result(obj)
-		}
-		return nil, fmt.Errorf("no declaration found for %v", pretty{fset, e})
+		return nil, fmt.Errorf("no declaration found for %v", pretty{*fset, e})
 	}
 	return nil, fmt.Errorf("unreached")
 }
@@ -166,6 +205,50 @@ func findIdentifier(fset *token.FileSet, f *ast.File, searchpos int) ast.Node {
 	return <-ec
 }
 
+func walkIdentifier(fset *token.FileSet, f *ast.File, idMap map[int]ast.Node) {
+	var visit func(ast.Node) bool
+	visit = func(n ast.Node) bool {
+		var startPos token.Pos
+		switch n := n.(type) {
+		default:
+			return true
+		case *ast.Ident:
+			startPos = n.NamePos
+		case *ast.SelectorExpr:
+			startPos = n.Sel.NamePos
+		case *ast.ImportSpec:
+			startPos = n.Pos()
+		case *ast.StructType:
+			for _, field := range n.Fields.List {
+				if field.Names != nil {
+					continue
+				}
+				t := field.Type
+				if pt, ok := field.Type.(*ast.StarExpr); ok {
+					t = pt.X
+				}
+				if id, ok := t.(*ast.Ident); ok {
+					pos := fset.Position(id.NamePos).Offset
+					e, err := parseExpr(fset, f.Scope, id.Name)
+					if err != nil {
+						log.Println(err) // TODO(slimsag): return to caller
+					}
+					idMap[pos] = e
+				}
+			}
+			return true
+		}
+		pos := fset.Position(startPos).Offset
+		_, ok := idMap[pos]
+		if !ok {
+			idMap[pos] = n
+		}
+
+		return true
+	}
+	ast.Walk(visitorFunc(visit), f)
+}
+
 func parseExpr(fset *token.FileSet, s *ast.Scope, expr string) (ast.Expr, error) {
 	n, err := parser.ParseExpr(fset, "<arg>", expr, s, types.DefaultImportPathToName)
 	if err != nil {
@@ -187,57 +270,40 @@ func (f visitorFunc) Visit(n ast.Node) ast.Visitor {
 	return nil
 }
 
-var errNoPkgFiles = errors.New("no more package files found")
-
 // parseLocalPackage reads and parses all go files from the
 // current directory that implement the same package name
 // the principal source file, except the original source file
 // itself, which will already have been parsed.
 //
-func parseLocalPackage(fset *token.FileSet, filename string, src *ast.File, pkgScope *ast.Scope, pathToName parser.ImportPathToName) (*ast.Package, error) {
-	pkg := &ast.Package{src.Name.Name, pkgScope, nil, map[string]*ast.File{filename: src}}
+func parseLocalPackage(fset *token.FileSet, filename string, name string, pkgScope *ast.Scope, pathToName parser.ImportPathToName) error {
 	d, f := filepath.Split(filename)
 	if d == "" {
 		d = "./"
 	}
 	fd, err := os.Open(d)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer fd.Close()
 
 	list, err := fd.Readdirnames(-1)
 	if err != nil {
-		return nil, errNoPkgFiles
+		return err
 	}
 
 	for _, pf := range list {
 		file := filepath.Join(d, pf)
-		if !strings.HasSuffix(pf, ".go") ||
-			pf == f ||
-			pkgName(fset, file) != pkg.Name {
+		if !strings.HasSuffix(pf, ".go") || pf == f {
 			continue
 		}
-		src, err := parser.ParseFile(fset, file, nil, 0, pkg.Scope, types.DefaultImportPathToName)
-		if err == nil {
-			pkg.Files[file] = src
+		src, err := parser.ParseFile(fset, file, nil, 0, pkgScope, types.DefaultImportPathToName)
+		if err == nil && src.Name.Name == name {
+			pkgCache[name].f[file] = src
+			pkgName[file] = name
 		}
 	}
-	if len(pkg.Files) == 1 {
-		return nil, errNoPkgFiles
-	}
-	return pkg, nil
-}
 
-// pkgName returns the package name implemented by the
-// go source filename.
-//
-func pkgName(fset *token.FileSet, filename string) string {
-	prog, _ := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly, nil, types.DefaultImportPathToName)
-	if prog != nil {
-		return prog.Name.Name
-	}
-	return ""
+	return nil
 }
 
 type pretty struct {

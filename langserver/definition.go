@@ -66,8 +66,9 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 	}
 
 	// Invoke godef to determine the position of the definition.
-	fset := token.NewFileSet()
-	res, err := godef.Godef(fset, offset, filename, contents)
+
+	var fset *token.FileSet
+	res, err := godef.Godef(offset, filename, contents, &fset)
 	if err != nil {
 		return nil, nil, nil, err
 	}
