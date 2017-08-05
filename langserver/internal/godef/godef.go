@@ -296,8 +296,10 @@ func parseLocalPackage(fset *token.FileSet, filename string, name string, pkgSco
 		if !strings.HasSuffix(pf, ".go") || pf == f {
 			continue
 		}
-		src, err := parser.ParseFile(fset, file, nil, 0, pkgScope, types.DefaultImportPathToName)
-		if err == nil && src.Name.Name == name {
+		nset := token.NewFileSet()
+		src, _ := parser.ParseFile(nset, filename, nil, parser.PackageClauseOnly, nil, pathToName)
+		if src != nil && src.Name.Name == name {
+			src, _ := parser.ParseFile(fset, file, nil, 0, pkgScope, pathToName)
 			pkgCache[name].f[file] = src
 			pkgName[file] = name
 		}

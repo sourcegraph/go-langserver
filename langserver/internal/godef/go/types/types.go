@@ -104,7 +104,7 @@ func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.
 				return goFiles[d.Name()]
 			}
 			pkgs, err = parser.ParseDir(fset, bpkg.Dir, shouldInclude, 0, DefaultImportPathToName)
-			if err != nil {
+			if pkgs == nil {
 				if Debug {
 					switch err := err.(type) {
 					case scanner.ErrorList:
