@@ -181,9 +181,12 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint,
 		return nil, err
 	}
 
+	return doParseFile(fset, filename, data, mode, pkgScope, pathToName)
+
+	/*
 	if mode != 0  {
 		cache, ok := pkgNameCache[filename]
-		if ok {
+		if ok  {
 			file := fset.AddFile(filename, fset.Base(), len(data))
 			file.SetLines(cache.lines)
 			return cache.f, nil
@@ -206,7 +209,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint,
 			parseCache[filename] = parseCacheType{f, getLineInfo(data), e,scope}
 			return f, e
 		}
-	}
+	}*/
 }
 
 func parseFileInPkg(fset *token.FileSet, pkgs map[string]*ast.Package, filename string, mode uint, pathToName ImportPathToName) (err error) {

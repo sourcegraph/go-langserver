@@ -17,6 +17,7 @@ import (
 	"github.com/lambdalab/go-langserver/langserver/internal/refs"
 	"github.com/lambdalab/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"strings"
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
@@ -42,6 +43,7 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRP
 }
 
 var testOSToVFSPath func(osPath string) string
+var importPath = make(map[string]bool)
 
 func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocumentPositionParams) (*token.FileSet, *godef.Result, []lsp.Location, error) {
 	// In the case of testing, our OS paths and VFS paths do not match. In the
@@ -75,7 +77,15 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 	if res.Package != nil {
 		// TODO: return directory location. This right now at least matches our
 		// other implementation.
-		return fset, res, []lsp.Location{}, nil
+		path := "imt://"+strings.TrimSuffix(res.Package.Dir,res.Package.ImportPath)
+		_, ok := importPath[path]
+		if ok {
+			return fset, res, []lsp.Location{}, nil
+		} else {
+			importPath[path] = true
+			loc := lsp.Location{URI: path}
+			return fset, res, []lsp.Location{loc}, nil
+		}
 	}
 	loc := goRangeToLSPLocation(fset, res.Start, res.End)
 
