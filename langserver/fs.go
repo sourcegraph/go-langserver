@@ -199,21 +199,21 @@ func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
 	return path
 }
 
-const tail = 50
+type fileContCache struct {
+	fileCont []byte
+	fileErr error
+}
 
-var fileNames [tail]string
-var fileConts [tail][]byte
-var fileError [tail]error
-var head = 0
+var contentCache = make(map[string]fileContCache)
 
 func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error) {
 	if !isFileURI(uri) {
 		return nil, &os.PathError{Op: "Open", Path: uri, Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
 	}
-	for i := 0; i < tail; i++ {
-		if fileNames[i] == uri {
-			return fileConts[i], fileError[i]
-		}
+
+	c, ok := contentCache[uri]
+	if ok {
+		return c.fileCont, c.fileErr
 	}
 
 	h.Mu.Lock()
@@ -227,15 +227,8 @@ func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error
 		}
 	}
 
-	if head == tail {
-		head = 0
-	}
-	fileNames[head] = uri
-	fileConts[head], fileError[head] = contents, err
-
-	head = head + 1
-
-	return fileConts[head-1], fileError[head-1]
+	contentCache[uri] = fileContCache{contents, err}
+	return contents, err
 }
 
 // AtomicFS wraps a ctxvfs.NameSpace but is safe for concurrent calls to Bind

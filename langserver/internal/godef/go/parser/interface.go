@@ -25,12 +25,12 @@ import (
 // import statement, which may be empty.
 type ImportPathToName func(path string, fromDir string) (string, error)
 
-const tail = 50
+type fileContCache struct {
+	fileCont []byte
+	fileErr error
+}
 
-var fileNames [tail]string
-var fileConts [tail][]byte
-var fileError [tail]error
-var head = 0
+var contentCache = make(map[string]fileContCache)
 
 // If src != nil, readSource converts src to a []byte if possible;
 // otherwise it returns an error. If src == nil, readSource returns
@@ -60,21 +60,14 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 		}
 	}
 
-	for i := 0; i < tail; i++ {
-		if fileNames[i] == filename {
-			return fileConts[i], fileError[i]
-		}
+	cache, ok := contentCache[filename]
+	if ok {
+		return cache.fileCont, cache.fileErr
+	} else {
+		c, e := ioutil.ReadFile(filename)
+		contentCache[filename] = fileContCache{c, e}
+		return c, e
 	}
-
-	if head == tail {
-		head = 0
-	}
-	fileNames[head] = filename
-	fileConts[head], fileError[head] = ioutil.ReadFile(filename)
-
-	head = head + 1
-
-	return fileConts[head-1], fileError[head-1]
 }
 
 func (p *parser) parseEOF() error {
@@ -126,26 +119,24 @@ func ParseExpr(fset *token.FileSet, filename string, src interface{}, scope *ast
 // are returned via a scanner.ErrorList which is sorted by file position.
 // filename/mode/importhapathtoName => result  / scope
 
-type ParseCache struct {
+type parseCacheType struct {
 	f *ast.File
+	lines []int
 	e error
 	scope *ast.Scope
 }
 
-var parseCache = make(map[string]ParseCache)
+var parseCache = make(map[string]parseCacheType)
+var pkgNameCache = make(map[string]parseCacheType)
 
-func ExtendScope(pkgScope *ast.Scope, fileScope *ast.Scope) {
-	if pkgScope == nil {
-		return
-	}
-
+func extendScope(pkgScope *ast.Scope, fileScope *ast.Scope) {
 	p := pkgScope.Objects
 	f := fileScope.Objects
 	for k := range f {
 		if p[k] == nil {
 			p[k] = f[k]
 		} else {
-			if p[k].Kind == ast.Bad && p[k].Type == f[k].Type{
+			if p[k].Kind == ast.Bad { //&& p[k].Type == f[k].Type{
 				p[k].Kind = f[k].Kind
 				p[k].Name = f[k].Name
 				p[k].Decl = f[k].Decl
@@ -159,7 +150,7 @@ func ExtendScope(pkgScope *ast.Scope, fileScope *ast.Scope) {
 	}
 }
 
-func DoParseFile(fset *token.FileSet, filename string, data []byte, mode uint, scope *ast.Scope, pathToName ImportPathToName) (*ast.File, error){
+func doParseFile(fset *token.FileSet, filename string, data []byte, mode uint, scope *ast.Scope, pathToName ImportPathToName) (*ast.File, error){
 	var p parser
 	p.init(fset, filename, data, mode, scope, pathToName)
 	p.pkgScope = p.topScope
@@ -169,6 +160,21 @@ func DoParseFile(fset *token.FileSet, filename string, data []byte, mode uint, s
 	return p.parseFile(), p.ErrorList.Err() // parseFile() reads to EOF
 }
 
+func getLineInfo(content []byte) []int {
+	var lines []int
+	line := 0
+	for offset, b := range content {
+		if line >= 0 {
+			lines = append(lines, line)
+		}
+		line = -1
+		if b == '\n' {
+			line = offset + 1
+		}
+	}
+	return lines
+}
+
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint, pkgScope *ast.Scope, pathToName ImportPathToName) (*ast.File, error) {
 	data, err := readSource(filename, src)
 	if err != nil {
@@ -176,19 +182,28 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint,
 	}
 
 	if mode != 0  {
-		return DoParseFile(fset, filename, data, mode, pkgScope, pathToName)
+		cache, ok := pkgNameCache[filename]
+		if ok {
+			file := fset.AddFile(filename, fset.Base(), len(data))
+			file.SetLines(cache.lines)
+			return cache.f, nil
+		} else {
+			f, err := doParseFile(fset, filename, data, mode, pkgScope, pathToName)
+			pkgNameCache[filename] = parseCacheType{f:f, lines:getLineInfo(data)}
+			return f, err
+		}
 	} else {
 		cache, ok := parseCache[filename]
 		if ok {
-			ExtendScope(pkgScope, cache.scope)
+			extendScope(pkgScope, cache.scope)
 			file := fset.AddFile(filename, fset.Base(), len(data))
-			file.SetLinesForContent(data)
+			file.SetLines(cache.lines)
 			return cache.f, cache.e
 		} else {
 			scope := pkgScope
-			f, e := DoParseFile(fset, filename, data, mode, scope, pathToName)
-			ExtendScope(pkgScope, scope)
-			parseCache[filename] = ParseCache{f,e,scope}
+			f, e := doParseFile(fset, filename, data, mode, scope, pathToName)
+			extendScope(pkgScope, scope)
+			parseCache[filename] = parseCacheType{f, getLineInfo(data), e,scope}
 			return f, e
 		}
 	}

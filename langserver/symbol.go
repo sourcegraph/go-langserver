@@ -306,10 +306,13 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	pkg.Files[filepath.Base(path)] = src
 
 	symbols := astPkgToSymbols(fset, pkg, &build.Package{})
-	res := make([]lsp.SymbolInformation, len(symbols))
+	size := len(symbols)
+	res := make([]lsp.SymbolInformation, size+1)
 	for i, s := range symbols {
 		res[i] = s.SymbolInformation
 	}
+
+	res[size] = lsp.SymbolInformation{Name: pkg.Name, Kind: lsp.SKPkgName}
 	return res, nil
 }
 
@@ -462,16 +465,36 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 			}
 		}
 	}
+
+	index := 0
 	for _, v := range docPkg.Consts {
-		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, declNamePos(v.Decl, name)))
+		if len(v.Decl.Specs) == 1 {
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[0].Pos()))
+			}
+		} else {
+			index = 0
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[index].Pos()))
+				index += 1
+			}
 		}
 	}
+
 	for _, v := range docPkg.Vars {
-		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, declNamePos(v.Decl, name)))
+		if len(v.Decl.Specs) == 1 {
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+			}
+		} else {
+			index = 0
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[index].Pos()))
+				index += 1
+			}
 		}
 	}
+
 	for _, v := range docPkg.Funcs {
 		pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
 	}
