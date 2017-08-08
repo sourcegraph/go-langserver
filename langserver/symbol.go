@@ -466,17 +466,19 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 		}
 	}
 
-	index := 0
 	for _, v := range docPkg.Consts {
 		if len(v.Decl.Specs) == 1 {
 			for _, name := range v.Names {
 				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[0].Pos()))
 			}
 		} else {
-			index = 0
-			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[index].Pos()))
-				index += 1
+			len := len(v.Decl.Specs)
+			for i, name := range v.Names {
+				if i < len {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[i].Pos()))
+				} else {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[0].Pos()))
+				}
 			}
 		}
 	}
@@ -487,10 +489,13 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
 			}
 		} else {
-			index = 0
-			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[index].Pos()))
-				index += 1
+			len := len(v.Decl.Specs)
+			for i, name := range v.Names {
+				if i < len {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[i].Pos()))
+				} else {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+				}
 			}
 		}
 	}
