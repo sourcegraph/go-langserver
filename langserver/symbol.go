@@ -442,10 +442,15 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 // astToSymbols returns a slice of LSP symbols from an AST.
 func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Package) []symbolPair {
 	// TODO(keegancsmith) Remove vendored doc/go once https://github.com/golang/go/issues/17788 is shipped
-	docPkg := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
+	docPkg, fileNodes := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
+
+	var pkgSyms []symbolPair
+
+	for _, node := range fileNodes {
+		pkgSyms = append(pkgSyms, toSym(node.Name, buildPkg, node.Recv, lsp.SKField, fs, node.Pos))
+	}
 
 	// Emit decls
-	var pkgSyms []symbolPair
 	for _, t := range docPkg.Types {
 		pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", typeSpecSym(t), fs, declNamePos(t.Decl, t.Name)))
 		for _, v := range t.Funcs {

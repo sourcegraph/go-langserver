@@ -349,6 +349,10 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
 	for _, field := range list {
 		if len(field.Names) == 0 {
 			r.recordAnonymousField(typ, field.Type)
+		} else {
+			for _, n := range field.Names {
+				AcceptFieldNode(n.Name, typ.name, n.NamePos, n.Obj.Kind)
+			}
 		}
 	}
 }
