@@ -80,7 +80,7 @@ var pkgCache = make(map[string]map[string]*ast.Package)
 
 // DefaultImporter looks for the package; if it finds it,
 // it parses and returns it. If no package was found, it returns nil.
-func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.Package {
+func DefaultImporter(fset *token.FileSet, name string) func(path string, srcDir string) *ast.Package {
 	return func(path string, srcDir string) *ast.Package {
 		var pkgs map[string]*ast.Package
 
@@ -89,7 +89,8 @@ func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.
 			return nil
 		}
 
-		cache, ok := pkgCache[srcDir+path]
+		hashName := srcDir + name + path
+		cache, ok := pkgCache[hashName]
 		if ok {
 			pkgs = cache
 		} else {
@@ -117,7 +118,7 @@ func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.
 				}
 				return nil
 			}
-			pkgCache[srcDir+path] = pkgs
+			pkgCache[hashName] = pkgs
 		}
 
 		if pkg := pkgs[bpkg.Name]; pkg != nil {

@@ -124,7 +124,7 @@ func Godef(offset int, filename string, src []byte, fset **token.FileSet) (*Resu
 			}
 			return r, nil
 		}
-		importer := types.DefaultImporter(*fset)
+		importer := types.DefaultImporter(*fset, pkgName[filename])
 
 		if obj, _ := types.ExprType(e, importer, *fset); obj != nil {
 			return result(obj)
