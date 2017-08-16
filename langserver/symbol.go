@@ -447,7 +447,9 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 	var pkgSyms []symbolPair
 
 	for _, node := range fileNodes {
-		pkgSyms = append(pkgSyms, toSym(node.Name, buildPkg, node.Recv, lsp.SKField, fs, node.Pos))
+		if node.Recv != "" {
+			pkgSyms = append(pkgSyms, toSym(node.Name, buildPkg, node.Recv, lsp.SKField, fs, node.Pos))
+		}
 	}
 
 	// Emit decls
@@ -465,8 +467,19 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 			}
 		}
 		for _, v := range t.Vars {
-			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, declNamePos(v.Decl, name)))
+			if len(v.Decl.Specs) == 1 {
+				for _, name := range v.Names {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+				}
+			} else {
+				len := len(v.Decl.Specs)
+				for i, name := range v.Names {
+					if i < len {
+						pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[i].Pos()))
+					} else {
+						pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+					}
+				}
 			}
 		}
 	}
