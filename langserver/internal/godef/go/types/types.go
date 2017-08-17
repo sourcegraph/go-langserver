@@ -222,6 +222,14 @@ func (t Type) Iter() <-chan *ast.Object {
 // the source location of the definition of the object.
 //
 func ExprType(e ast.Expr, importer Importer, fs *token.FileSet) (obj *ast.Object, typ Type) {
+	defer func() {
+		if x := recover(); x != nil {
+			obj = nil
+			typ = badType
+			debugp("panic recover")
+		}
+	}()
+
 	ctxt := &exprTypeContext{
 		importer: importer,
 		fileSet:  fs,
@@ -235,12 +243,9 @@ type exprTypeContext struct {
 }
 
 func (ctxt *exprTypeContext) exprType(n ast.Node, expectTuple bool, pkg string) (xobj *ast.Object, typ Type) {
-	return ctxt.doExprType(n, expectTuple, pkg)
-}
-
-func (ctxt *exprTypeContext) doExprType(n ast.Node, expectTuple bool, pkg string) (xobj *ast.Object, typ Type) {
 	debugp("exprType tuple:%v pkg:%s %T %v [", expectTuple, pkg, n, pretty{ctxt.fileSet, n})
 	defer func() {
+		recover()
 		debugp("] -> %p, %v", xobj, typ)
 	}()
 	switch n := n.(type) {
