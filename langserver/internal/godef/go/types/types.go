@@ -235,6 +235,10 @@ type exprTypeContext struct {
 }
 
 func (ctxt *exprTypeContext) exprType(n ast.Node, expectTuple bool, pkg string) (xobj *ast.Object, typ Type) {
+	return ctxt.doExprType(n, expectTuple, pkg)
+}
+
+func (ctxt *exprTypeContext) doExprType(n ast.Node, expectTuple bool, pkg string) (xobj *ast.Object, typ Type) {
 	debugp("exprType tuple:%v pkg:%s %T %v [", expectTuple, pkg, n, pretty{ctxt.fileSet, n})
 	defer func() {
 		debugp("] -> %p, %v", xobj, typ)
@@ -265,13 +269,16 @@ func (ctxt *exprTypeContext) exprType(n ast.Node, expectTuple bool, pkg string) 
 			return obj, t
 
 		case expr != nil:
-			_, t := ctxt.exprType(expr, false, pkg)
-			if t.Kind == ast.Typ {
-				debugp("expected value, got type %v", t)
-				t = badType
+			if expr != n {
+				_, t := ctxt.exprType(expr, false, pkg)
+				if t.Kind == ast.Typ {
+					debugp("expected value, got type %v", t)
+					t = badType
+				}
+				return obj, t
+			} else {
+				return obj, badType
 			}
-			return obj, t
-
 		default:
 			switch n.Obj {
 			case falseIdent.Obj, trueIdent.Obj:
