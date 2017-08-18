@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"go/ast"
 	"go/build"
 	"go/format"
@@ -17,6 +18,8 @@ import (
 	doc "github.com/slimsag/godocmd"
 	"github.com/lambdalab/go-langserver/langserver/internal/godef"
 	"github.com/lambdalab/go-langserver/langserver/util"
+	"go/doc"
+	doccmd "github.com/slimsag/godocmd"
 	"github.com/lambdalab/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -169,7 +172,7 @@ func maybeAddComments(comments string, contents []lsp.MarkedString) []lsp.Marked
 		return contents
 	}
 	var b bytes.Buffer
-	doc.ToMarkdown(&b, comments, nil)
+	doccmd.ToMarkdown(&b, comments, nil)
 	return append(contents, lsp.RawMarkedString(b.String()))
 }
 
@@ -256,7 +259,57 @@ func prettyPrintTypesString(s string) string {
 	return b.String()
 }
 
+var fileCache = make(map[string][]byte)
+
+func line2offset(filename string, pos lsp.Position) int {
+	line := 0
+	content := []byte{0}
+	c, ok := fileCache[filename]
+	if ok {
+		content = c
+	} else {
+		content, _ = ioutil.ReadFile(filename)
+		fileCache[filename] = content
+	}
+	
+	for offset, b := range content {
+		if line == pos.Line {
+			return offset + pos.Character
+		}
+		if b == '\n' {
+			line = line + 1
+		}
+	}
+	return 0
+}
+
 func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
+	filename := uriToFilePath(params.TextDocument.URI)
+	cache := GetHoverPkgCache(filename)
+	if cache.DocPkg != nil {
+		fset := cache.Fset
+		// Locate the target in the docs.
+		offset := line2offset(filename, params.Position)
+		target := token.Position{
+			filename,
+			offset,
+			params.Position.Line+1,
+			params.Position.Character+1 }
+		docObject := findDocTarget(fset, target, cache.DocPkg)
+		if docObject == nil {
+			return nil, fmt.Errorf("failed to find doc object for %s", target)
+		}
+
+		contents, node := fmtDocObject(fset, docObject, target)
+		r := rangeForNode(fset, node)
+		return &lsp.Hover{
+			Contents: contents,
+			Range:    &r,
+		}, nil
+	}
+
+	return nil, nil
+
 	// First perform the equivalent of a textDocument/definition request in
 	// order to resolve the definition position.
 	fset, res, _, err := h.definitionGodef(ctx, params)
@@ -310,9 +363,13 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 		return &lsp.Hover{}, nil
 	}
 
+<<<<<<< HEAD
 	// convert the path into a real path because 3rd party tools
 	// might load additional code based on the file's package
 	filename := util.UriToRealPath(loc.URI)
+=======
+	filename = uriToFilePath(loc.URI)
+>>>>>>> feat(go): add hover info
 
 	// Parse the entire dir into its respective AST packages.
 	pkgs, err := parser.ParseDir(fset, filepath.Dir(filename), nil, parser.ParseComments)
@@ -327,7 +384,7 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 	}
 
 	// Create documentation for the package.
-	docPkg := doc.New(foundPackage, foundImportPath, doc.AllDecls)
+	docPkg := doccmd.New(foundPackage, foundImportPath, doccmd.AllDecls)
 
 	// Locate the target in the docs.
 	target := fset.Position(res.Start)

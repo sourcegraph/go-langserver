@@ -35,9 +35,9 @@ type packageCache struct {
 	scope *ast.Scope
 }
 
-var pkgCache map[string]packageCache
-var pkgName  map[string]string
-var identMap map[int]ast.Node
+var pkgCache = make(map[string]packageCache)
+var pkgName = make(map[string]string)
+var identMap = make(map[int]ast.Node)
 
 var prevDirectory string = ""
 var prevFilename string = ""
@@ -64,9 +64,10 @@ func Godef(offset int, filename string, src []byte, fset **token.FileSet) (*Resu
 
 	name, ok := pkgName[filename]
 	if ok {
-		*fset = pkgCache[name].fset
-		pkgScope = pkgCache[name].scope
-		f = pkgCache[name].f[filename]
+		pkgCacheHash := filepath.Dir(filename) + "/" + name
+		*fset = pkgCache[pkgCacheHash].fset
+		pkgScope = pkgCache[pkgCacheHash].scope
+		f = pkgCache[pkgCacheHash].f[filename]
 	} else {
 		clearCache(filename)
 
@@ -80,8 +81,9 @@ func Godef(offset int, filename string, src []byte, fset **token.FileSet) (*Resu
 		name := f.Name.Name
 		pkgName[filename] = name
 
-		pkgCache[name] = packageCache{make(map[string]*ast.File),*fset,pkgScope}
-		pkgCache[name].f[filename] = f
+		pkgCacheHash := filepath.Dir(filename) + "/" + name
+		pkgCache[pkgCacheHash] = packageCache{make(map[string]*ast.File),*fset,pkgScope}
+		pkgCache[pkgCacheHash].f[filename] = f
 
 		parseLocalPackage(*fset, filename, name, pkgScope, types.DefaultImportPathToName)
 	}
@@ -239,7 +241,8 @@ func parseLocalPackage(fset *token.FileSet, filename string, name string, pkgSco
 		src, _ := parser.ParseFile(nset, file, nil, parser.PackageClauseOnly, nil, pathToName)
 		if src != nil && src.Name.Name == name {
 			src, _ := parser.ParseFile(fset, file, nil, 0, pkgScope, pathToName)
-			pkgCache[name].f[file] = src
+			pkgCacheHash := filepath.Dir(filename) + "/" + name
+			pkgCache[pkgCacheHash].f[file] = src
 			pkgName[file] = name
 		}
 	}

@@ -295,7 +295,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 
 	fset := token.NewFileSet()
 	bctx := h.BuildContext(ctx)
-	src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Dir(path), filepath.Base(path), 0)
+	src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Dir(path), filepath.Base(path), parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +305,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	}
 	pkg.Files[filepath.Base(path)] = src
 
-	symbols := astPkgToSymbols(fset, pkg, &build.Package{})
+	symbols := astPkgToSymbols(fset, pkg, &build.Package{}, path)
 	size := len(symbols)
 	res := make([]lsp.SymbolInformation, size+1)
 	for i, s := range symbols {
@@ -424,7 +424,7 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 			return nil
 		}
 
-		return astPkgToSymbols(fs, astPkg, buildPkg)
+		return astPkgToSymbols(fs, astPkg, buildPkg, "")
 	})
 
 	if symbols == nil {
@@ -439,10 +439,32 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 	}
 }
 
+type HoverInfoCache struct {
+	DocPkg *doc.Package
+	Fset *token.FileSet
+}
+
+var docPkgCache = make(map[string]HoverInfoCache)
+
+func AddHoverPkgCache(docPkg *doc.Package, fset *token.FileSet, filename string) {
+	docPkgCache[filename] = HoverInfoCache{docPkg, fset }
+}
+
+func GetHoverPkgCache(filename string) HoverInfoCache {
+	v, ok := docPkgCache[filename]
+	if ok {
+		return v
+	} else {
+		return HoverInfoCache{nil,nil}
+	}
+}
+
 // astToSymbols returns a slice of LSP symbols from an AST.
-func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Package) []symbolPair {
+func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Package, filename string) []symbolPair {
 	// TODO(keegancsmith) Remove vendored doc/go once https://github.com/golang/go/issues/17788 is shipped
 	docPkg, fileNodes := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
+
+	AddHoverPkgCache(docPkg, fs, filename)
 
 	var pkgSyms []symbolPair
 
