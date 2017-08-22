@@ -420,6 +420,22 @@ func inRange(x, a, b token.Position) bool {
 	return x.Offset >= a.Offset && x.Offset <= b.Offset
 }
 
+// find struct.func
+func findDocTargetInTypes(target token.Position, docType *doc.Type) interface{} {
+	for _, v := range docType.Funcs {
+		if int(v.Decl.Name.NamePos) == target.Offset {
+			return v
+		}
+	}
+	for _, v := range docType.Methods {
+		x := int(v.Decl.Name.NamePos)
+		if x == target.Offset + 1{
+			return v
+		}
+	}
+	return nil
+}
+
 // findDocTarget walks an input *doc.Package and locates the *doc.Value,
 // *doc.Type, or *doc.Func for the given target position.
 func findDocTarget(fset *token.FileSet, target token.Position, in interface{}) interface{} {
@@ -432,6 +448,9 @@ func findDocTarget(fset *token.FileSet, target token.Position, in interface{}) i
 		}
 		for _, x := range v.Types {
 			if r := findDocTarget(fset, target, x); r != nil {
+				return r
+			}
+			if r := findDocTargetInTypes(target, x); r != nil {
 				return r
 			}
 		}
