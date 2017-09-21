@@ -928,6 +928,25 @@ type Header struct {
 				},
 			},
 		},
+		"recv in different file": {
+			rootURI: "file:///src/test/pkg",
+			fs: map[string]string{
+				"abc.go": `package a
+
+type XYZ struct {}
+`,
+				"bcd.go": `package a
+
+func (x XYZ) ABC() {}
+`,
+			},
+			cases: lspTestCases{
+				wantSymbols: map[string][]string{
+					"abc.go": []string{"/src/test/pkg/abc.go:class:XYZ:3:6"},
+					"bcd.go": []string{"/src/test/pkg/bcd.go:method:XYZ.ABC:3:14"},
+				},
+			},
+		},
 	}
 	for label, test := range tests {
 		t.Run(label, func(t *testing.T) {
