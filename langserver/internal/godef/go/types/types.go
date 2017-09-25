@@ -78,6 +78,8 @@ type Importer func(path string, srcDir string) *ast.Package
 
 var pkgCache = make(map[string]map[string]*ast.Package)
 
+var prevPkgPath = ""
+
 // DefaultImporter looks for the package; if it finds it,
 // it parses and returns it. If no package was found, it returns nil.
 func DefaultImporter(fset *token.FileSet, name string) func(path string, srcDir string) *ast.Package {
@@ -94,6 +96,11 @@ func DefaultImporter(fset *token.FileSet, name string) func(path string, srcDir 
 		if ok {
 			pkgs = cache
 		} else {
+			if prevPkgPath != srcDir {
+				prevPkgPath = srcDir
+				pkgCache = make(map[string]map[string]*ast.Package)
+			}
+
 			goFiles := make(map[string]bool)
 			for _, f := range bpkg.GoFiles {
 				goFiles[f] = true
