@@ -202,7 +202,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			}()
 		}
 
-		kind := lsp.TDSKFull
+		kind := lsp.TDSKIncremental
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync: lsp.TextDocumentSyncOptionsOrKind{
