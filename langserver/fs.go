@@ -133,7 +133,7 @@ func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
 		}
 		var end int
 		if change.RangeLength != 0 {
-			end = start + int(change.RangeLength) - 1
+			end = start + int(change.RangeLength)
 		} else {
 			// RangeLength not specified, work it out from Range.End
 			end, ok, why = offsetForPosition(contents, change.Range.End)
@@ -146,10 +146,10 @@ func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
 		}
 		// Try avoid doing too many allocations, so use bytes.Buffer
 		b := &bytes.Buffer{}
-		b.Grow(start + len(change.Text) + len(contents) - end - 1)
+		b.Grow(start + len(change.Text) + len(contents) - end)
 		b.Write(contents[:start])
 		b.WriteString(change.Text)
-		b.Write(contents[end+1:])
+		b.Write(contents[end:])
 		contents = b.Bytes()
 	}
 	h.set(params.TextDocument.URI, contents)
