@@ -92,4 +92,46 @@ func TestIntegration_FileSystem(t *testing.T) {
 		},
 	}
 	lspTests(t, ctx, nil, conn, rootURI, cases)
+
+	// Test incremental sync
+	if err := conn.Call(ctx, "textDocument/didChange", lsp.DidChangeTextDocumentParams{
+		TextDocument: lsp.VersionedTextDocumentIdentifier{
+			TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriJoin(rootURI, "a.go")},
+			Version:                1,
+		},
+		ContentChanges: []lsp.TextDocumentContentChangeEvent{
+			{
+				Range: &lsp.Range{
+					Start: lsp.Position{Line: 0, Character: 18},
+					End:   lsp.Position{Line: 0, Character: 18},
+				},
+				RangeLength: 0,
+				Text:        "i int",
+			},
+			{
+				Range: &lsp.Range{
+					Start: lsp.Position{Line: 0, Character: 25},
+					End:   lsp.Position{Line: 0, Character: 29},
+				},
+				Text: "",
+			},
+			{
+				Range: &lsp.Range{
+					Start: lsp.Position{Line: 0, Character: 27},
+					End:   lsp.Position{Line: 0, Character: 35},
+				},
+				Text: "A(i)",
+			},
+		},
+	}, nil); err != nil {
+		t.Fatal("textDocument/didChange:", err)
+	}
+	cases = lspTestCases{
+		wantHover: map[string]string{
+			"a.go:1:28":    "func A(i int)",
+			"b.go:1:20":    "func A(i int)",
+			"p2/c.go:1:40": "func A(i int)",
+		},
+	}
+	lspTests(t, ctx, nil, conn, rootURI, cases)
 }
