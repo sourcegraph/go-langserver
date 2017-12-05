@@ -950,7 +950,7 @@ type Header struct {
 				wantDefinition: map[string]string{
 					"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
 					"b.go:1:17": "/src/test/pkg/b.go:1:17-1:18",
-					//"b.go:1:20": "", // Currently panics
+					"b.go:1:20": "",
 					//"b.go:1:21": "/src/test/pkg/a.go:1:17-1:18", // Currently fails with no identifier found
 				},
 			},
@@ -1262,9 +1262,11 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition = uriToFilePath(lsp.DocumentURI(definition))
-	if trimPrefix != "" {
-		definition = strings.TrimPrefix(definition, trimPrefix)
+	if definition != "" {
+		definition = uriToFilePath(lsp.DocumentURI(definition))
+		if trimPrefix != "" {
+			definition = strings.TrimPrefix(definition, trimPrefix)
+		}
 	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
