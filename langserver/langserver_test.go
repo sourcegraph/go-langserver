@@ -938,7 +938,7 @@ type Header struct {
 				overrideGodefHover: map[string]string{
 					"a.go:1:17": "type A struct; struct{ a int }",
 					"b.go:1:17": "type B A",
-					//"b.go:1:20": "", // Currently fails with "no identifier found"
+					"b.go:1:20": "",
 					//"b.go:1:21": "/src/test/pkg/a.go:1:17-1:18",
 				},
 				wantHover: map[string]string{

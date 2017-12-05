@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	doc "github.com/slimsag/godocmd"
+	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -259,6 +260,11 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 	// order to resolve the definition position.
 	fset, res, _, err := h.definitionGodef(ctx, params)
 	if err != nil {
+		if err == godef.ErrNoIdentifierFound {
+			// This is expected to happen when hovering over
+			// comments/strings/whitespace/etc), just return no info.
+			return nil, nil
+		}
 		return nil, err
 	}
 
