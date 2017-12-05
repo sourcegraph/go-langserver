@@ -14,7 +14,7 @@ func init() {
 				"a.go:1:17": "type A struct; struct{ a int }",
 				"b.go:1:17": "type B A",
 				"b.go:1:20": "",
-				//"b.go:1:21": "/src/test/pkg/a.go:1:17-1:18",
+				"b.go:1:21": "type A struct; struct{ a int }",
 			},
 			wantHover: map[string]string{
 				"a.go:1:17": "type A struct; struct {\n    a int\n}",
@@ -26,7 +26,7 @@ func init() {
 				"a.go:1:17": "/src/test/pkg/a.go:1:17-1:18",
 				"b.go:1:17": "/src/test/pkg/b.go:1:17-1:18",
 				"b.go:1:20": "",
-				//"b.go:1:21": "/src/test/pkg/a.go:1:17-1:18", // Currently fails with no identifier found
+				"b.go:1:21": "/src/test/pkg/a.go:1:17-1:18",
 			},
 		},
 	}
