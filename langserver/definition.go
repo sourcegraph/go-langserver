@@ -23,6 +23,11 @@ var UseBinaryPkgCache = false
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
 	if UseBinaryPkgCache {
 		_, _, locs, err := h.definitionGodef(ctx, params)
+		if err == godef.ErrNoIdentifierFound {
+			// This is expected to happen when j2d over
+			// comments/strings/whitespace/etc), just return no info.
+			return []lsp.Location{}, nil
+		}
 		return locs, err
 	}
 

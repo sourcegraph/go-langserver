@@ -51,7 +51,7 @@ func pathToURI(path string) lsp.DocumentURI {
 // uri does not begin with "file:///".
 func uriToFilePath(uri lsp.DocumentURI) string {
 	if !isFileURI(uri) {
-		panic("not an absolute file URI: " + uri)
+		panic(fmt.Sprintf("not an absolute file URI: %q", string(uri)))
 	}
 	return strings.TrimPrefix(string(uri), "file://")
 }
