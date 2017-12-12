@@ -11,7 +11,7 @@ for Go projects.
 To build and install the standalone `go-langserver` run
 
 ```
-go get github.com/sourcegraph/go-langserver
+go get -u github.com/sourcegraph/go-langserver
 ```
 
 # Support
