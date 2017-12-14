@@ -974,6 +974,8 @@ type Header struct {
 }
 
 func TestServer(t *testing.T) {
+	GocodeCompletionEnabled = true
+
 	for label, test := range serverTestCases {
 		t.Run(label, func(t *testing.T) {
 			h := &LangHandler{HandlerShared: &HandlerShared{}}

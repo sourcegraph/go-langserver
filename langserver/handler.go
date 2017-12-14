@@ -15,6 +15,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
+	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -72,6 +73,13 @@ type LangHandler struct {
 
 // reset clears all internal state in h.
 func (h *LangHandler) reset(init *InitializeParams) error {
+	for _, k := range init.Capabilities.TextDocument.Completion.CompletionItemKind.ValueSet {
+		if k == lsp.CIKConstant {
+			CIKConstantSupported = lsp.CIKConstant
+			break
+		}
+	}
+
 	if isFileURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
 		log.Printf("Passing an initialize rootPath URI (%q) is deprecated. Use rootUri instead.", init.InitializeParams.RootPath)
 	}
@@ -189,6 +197,9 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
+		if GocodeCompletionEnabled {
+			gocode.InitDaemon(h.BuildContext(ctx))
+		}
 
 		// PERF: Kick off a workspace/symbol in the background to warm up the server
 		if yes, _ := strconv.ParseBool(envWarmupOnInitialize); yes {
@@ -203,11 +214,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		}
 
 		kind := lsp.TDSKIncremental
+		var completionOp *lsp.CompletionOptions
+		if GocodeCompletionEnabled {
+			completionOp = &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
+		}
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync: lsp.TextDocumentSyncOptionsOrKind{
 					Kind: &kind,
 				},
+				CompletionProvider:           completionOp,
 				DefinitionProvider:           true,
 				DocumentFormattingProvider:   true,
 				DocumentSymbolProvider:       true,
@@ -283,6 +299,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			return nil, err
 		}
 		return h.handleXDefinition(ctx, conn, req, params)
+
+	case "textDocument/completion":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.CompletionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTextDocumentCompletion(ctx, conn, req, params)
 
 	case "textDocument/references":
 		if req.Params == nil {
