@@ -215,6 +215,38 @@ const (
 	CIKTypeParameter
 )
 
+func (c CompletionItemKind) String() string {
+	return completionItemKindName[c]
+}
+
+var completionItemKindName = map[CompletionItemKind]string{
+	CIKText:          "text",
+	CIKMethod:        "method",
+	CIKFunction:      "function",
+	CIKConstructor:   "constructor",
+	CIKField:         "field",
+	CIKVariable:      "variable",
+	CIKClass:         "class",
+	CIKInterface:     "interface",
+	CIKModule:        "module",
+	CIKProperty:      "property",
+	CIKUnit:          "unit",
+	CIKValue:         "value",
+	CIKEnum:          "enum",
+	CIKKeyword:       "keyword",
+	CIKSnippet:       "snippet",
+	CIKColor:         "color",
+	CIKFile:          "file",
+	CIKReference:     "reference",
+	CIKFolder:        "folder",
+	CIKEnumMember:    "enumMember",
+	CIKConstant:      "constant",
+	CIKStruct:        "struct",
+	CIKEvent:         "event",
+	CIKOperator:      "operator",
+	CIKTypeParameter: "typeParameter",
+}
+
 type CompletionItem struct {
 	Label         string             `json:"label"`
 	Kind          CompletionItemKind `json:"kind,omitempty"`
