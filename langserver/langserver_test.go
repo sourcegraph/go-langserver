@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/sourcegraph/ctxvfs"
+	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -66,6 +67,10 @@ var serverTestCases = map[string]serverTestCase{
 				"a.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
 				"b.go:1:17": "/src/test/pkg/b.go:1:17 id:test/pkg/-/B name:B package:test/pkg packageName:p recv: vendor:false",
 				"b.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
+			},
+			wantCompletion: map[string]string{
+				//"a.go:1:24": "1:23-1:24 A function func()", // returns empty list for unknown reason. Works if the two statements are in seperate lines
+				"b.go:1:24": "1:23-1:24 A function func()",
 			},
 			wantReferences: map[string][]string{
 				"a.go:1:17": []string{
@@ -200,6 +205,11 @@ var serverTestCases = map[string]serverTestCase{
 				"a_test.go:1:16": "var X int",
 				"a_test.go:1:20": "var A int",
 			},
+			wantCompletion: map[string]string{
+				"x_test.go:1:45": "1:44-1:45 p module ",
+				"x_test.go:1:46": "1:46-1:46 A variable int",
+				"b_test.go:1:35": "1:34-1:35 X variable int",
+			},
 			wantSymbols: map[string][]string{
 				"y_test.go": []string{"/src/test/pkg/y_test.go:function:Y:1:22"},
 				"b_test.go": []string{"/src/test/pkg/b_test.go:function:Y:1:17"},
@@ -300,6 +310,10 @@ var serverTestCases = map[string]serverTestCase{
 				"d2/b.go:1:39": "/src/test/pkg/d/d2/b.go:1:39 id:test/pkg/d/d2/-/B name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
 				"d2/b.go:1:47": "/src/test/pkg/d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
 				"d2/b.go:1:52": "/src/test/pkg/d/d2/b.go:1:39 id:test/pkg/d/d2/-/B name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
+			},
+			wantCompletion: map[string]string{
+				"d2/b.go:1:47": "1:47-1:47 A function func()",
+				//"d2/b.go:1:52": "1:52-1:52 d module , B function func()", // B not presented, see test case "go simple"
 			},
 			wantSymbols: map[string][]string{
 				"a.go":    []string{"/src/test/pkg/d/a.go:function:A:1:17"},
@@ -443,6 +457,11 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantXDefinition: map[string]string{
 				"a.go:1:40": "/goroot/src/fmt/print.go:1:19 id:fmt/-/Println name:Println package:fmt packageName:fmt recv: vendor:false",
 			},
+			wantCompletion: map[string]string{
+				// use default GOROOT, since gocode needs package binaries
+				"a.go:1:21": "1:20-1:21 flag module , fmt module ",
+				"a.go:1:44": "1:38-1:44 Println function func(a ...interface{}) (n int, err error)",
+			},
 			wantSymbols: map[string][]string{
 				"a.go": []string{
 					"/src/test/pkg/a.go:variable:_:1:26",
@@ -485,6 +504,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantXDefinition: map[string]string{
 				"a/a.go:1:17": "/src/test/pkg/a/a.go:1:17 id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
 				"b/b.go:1:43": "/src/test/pkg/a/a.go:1:17 id:test/pkg/a/-/A name:A package:test/pkg/a packageName:a recv: vendor:false",
+			},
+			wantCompletion: map[string]string{
+				"b/b.go:1:26": "1:20-1:26 test/pkg/a module , test/pkg/b module ",
+				"b/b.go:1:43": "1:43-1:43 A function func()",
 			},
 			wantReferences: map[string][]string{
 				"a/a.go:1:17": []string{
@@ -532,6 +555,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantXDefinition: map[string]string{
 				"a.go:1:61": "/src/test/pkg/vendor/github.com/v/vendored/v.go:1:24 id:test/pkg/vendor/github.com/v/vendored/-/V name:V package:test/pkg/vendor/github.com/v/vendored packageName:vendored recv: vendor:true",
+			},
+			wantCompletion: map[string]string{
+				"a.go:1:34": "1:20-1:34 github.com/v/vendored module ",
+				"a.go:1:61": "1:61-1:61 V function func()",
 			},
 			wantReferences: map[string][]string{
 				"vendor/github.com/v/vendored/v.go:1:24": []string{
@@ -616,6 +643,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantXDefinition: map[string]string{
 				"a.go:1:51": "/src/github.com/d/dep/d.go:1:19 id:github.com/d/dep/-/D name:D package:github.com/d/dep packageName:dep recv: vendor:false",
 			},
+			wantCompletion: map[string]string{
+				"a.go:1:34": "1:20-1:34 github.com/d/dep module ",
+				"a.go:1:51": "1:51-1:51 D function func()",
+			},
 			wantReferences: map[string][]string{
 				"a.go:1:51": []string{
 					"/src/test/pkg/a.go:1:51",
@@ -652,6 +683,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantXDefinition: map[string]string{
 				"a.go:1:55": "/src/github.com/d/dep/vendor/vendp/vp.go:1:32 id:github.com/d/dep/vendor/vendp/-/V/F name:F package:github.com/d/dep/vendor/vendp packageName:vendp recv:V vendor:true",
 			},
+			wantCompletion: map[string]string{
+				"a.go:1:55": "1:55-1:55 F variable int",
+			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: []string{
 					"/src/test/pkg/a.go:1:19-1:37 -> id:github.com/d/dep name: package:github.com/d/dep packageName:dep recv: vendor:false",
@@ -680,6 +714,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantXDefinition: map[string]string{
 				"a.go:1:57": "/src/github.com/d/dep/subp/d.go:1:20 id:github.com/d/dep/subp/-/D name:D package:github.com/d/dep/subp packageName:subp recv: vendor:false",
+			},
+			wantCompletion: map[string]string{
+				"a.go:1:34": "1:20-1:34 github.com/d/dep/subp module ",
+				"a.go:1:57": "1:57-1:57 D function func()",
 			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: []string{
@@ -718,6 +756,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantXDefinition: map[string]string{
 				"a.go:1:53": "/src/github.com/d/dep1/d1.go:1:48 id:github.com/d/dep1/-/D1 name:D1 package:github.com/d/dep1 packageName:dep1 recv: vendor:false",
 				"a.go:1:58": "/src/github.com/d/dep2/d2.go:1:32 id:github.com/d/dep2/-/D2/D2 name:D2 package:github.com/d/dep2 packageName:dep2 recv:D2 vendor:false",
+			},
+			wantCompletion: map[string]string{
+				//"a.go:1:53": "1:53-1:53 D1 function func() D2", // gocode does not handle D2 correctly
+				"a.go:1:58": "1:58-1:58 D2 variable int",
 			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: []string{
@@ -883,16 +925,16 @@ type Header struct {
 			"a.go": `package p
 
 				// Comments for A
-				func A(foo int, bar func(baz int) int) int { 
-					return bar(foo) 
+				func A(foo int, bar func(baz int) int) int {
+					return bar(foo)
 				}
 
-				
+
 				func B() {}
 
 				// Comments for C
-				func C(x int, y int) int { 
-					return x+y 
+				func C(x int, y int) int {
+					return x+y
 				}`,
 			"b.go": "package p; func main() { B(); A(); A(0,); A(0); C(1,2) }",
 		},
@@ -1024,6 +1066,7 @@ type lspTestCases struct {
 	wantHover, overrideGodefHover           map[string]string
 	wantDefinition, overrideGodefDefinition map[string]string
 	wantXDefinition                         map[string]string
+	wantCompletion                          map[string]string
 	wantReferences                          map[string][]string
 	wantSymbols                             map[string][]string
 	wantWorkspaceSymbols                    map[*lspext.WorkspaceSymbolParams][]string
@@ -1094,7 +1137,7 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		wantGodefHover = cases.wantHover
 	}
 
-	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && fs != nil) {
+	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && fs != nil) || len(cases.wantCompletion) > 0 {
 		UseBinaryPkgCache = true
 
 		// Copy the VFS into a temp directory, which will be our $GOPATH.
@@ -1112,6 +1155,7 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		// look for $GOPATH/pkg .a files inside the $GOPATH that was set during
 		// 'go test' instead of our tmp directory.
 		build.Default.GOPATH = tmpDir
+		gocode.SetBuildContext(&build.Default)
 		tmpRootPath := filepath.Join(tmpDir, uriToFilePath(rootURI))
 
 		// Install all Go packages in the $GOPATH.
@@ -1140,6 +1184,11 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		for pos, want := range wantGodefHover {
 			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 				hoverTest(t, ctx, c, pathToURI(tmpRootPath), pos, want)
+			})
+		}
+		for pos, want := range cases.wantCompletion {
+			tbRun(t, fmt.Sprintf("completion-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
+				completionTest(t, ctx, c, pathToURI(tmpRootPath), pos, want)
 			})
 		}
 
@@ -1261,6 +1310,20 @@ func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootUR
 	xdefinition = uriToFilePath(lsp.DocumentURI(xdefinition))
 	if xdefinition != want {
 		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
+	}
+}
+
+func completionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want string) {
+	file, line, char, err := parsePos(pos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	completion, err := callCompletion(ctx, c, uriJoin(rootURI, file), line, char)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if completion != want {
+		t.Fatalf("got %q, want %q", completion, want)
 	}
 }
 
@@ -1438,6 +1501,28 @@ func callXDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI,
 			str += ", "
 		}
 		str += fmt.Sprintf("%s:%d:%d %s", loc.Location.URI, loc.Location.Range.Start.Line+1, loc.Location.Range.Start.Character+1, loc.Symbol)
+	}
+	return str, nil
+}
+
+func callCompletion(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
+	var res lsp.CompletionList
+	err := c.Call(ctx, "textDocument/completion", lsp.CompletionParams{TextDocumentPositionParams: lsp.TextDocumentPositionParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+		Position:     lsp.Position{Line: line, Character: char},
+	}}, &res)
+	if err != nil {
+		return "", err
+	}
+	var str string
+	for i, it := range res.Items {
+		if i != 0 {
+			str += ", "
+		} else {
+			e := it.TextEdit.Range
+			str += fmt.Sprintf("%d:%d-%d:%d ", e.Start.Line+1, e.Start.Character+1, e.End.Line+1, e.End.Character+1)
+		}
+		str += fmt.Sprintf("%s %s %s", it.Label, it.Kind, it.Detail)
 	}
 	return str, nil
 }
