@@ -206,7 +206,7 @@ var serverTestCases = map[string]serverTestCase{
 				"a_test.go:1:20": "var A int",
 			},
 			wantCompletion: map[string]string{
-				"x_test.go:1:45": "1:44-1:45 p module ",
+				"x_test.go:1:45": "1:44-1:45 panic function func(interface{}), print function func(...interface{}), println function func(...interface{}), p module ",
 				"x_test.go:1:46": "1:46-1:46 A variable int",
 				"b_test.go:1:35": "1:34-1:35 X variable int",
 			},
@@ -950,6 +950,31 @@ type Header struct {
 			},
 		},
 	},
+	"completion": {
+		rootURI: "file:///src/test/pkg",
+		fs: map[string]string{
+			"a.go": `package p
+
+import "strings"
+
+func s2() {
+	_ = strings.Title("s")
+	_ = new(strings.Replacer)
+}
+
+const s1 = 42
+
+var s3 int
+var s4 func()`,
+		},
+		cases: lspTestCases{
+			wantCompletion: map[string]string{
+				"a.go:6:7":   "6:6-6:7 s1 constant , s2 function func(), strings module , string class built-in, s3 variable int, s4 variable func()",
+				"a.go:7:7":   "7:6-7:7 nil constant , new function func(type) *type",
+				"a.go:12:11": "12:8-12:11 int class built-in, int16 class built-in, int32 class built-in, int64 class built-in, int8 class built-in",
+			},
+		},
+	},
 	"unexpected paths": {
 		// notice the : and @ symbol
 		rootURI: "file:///src/t:est/@hello/pkg",
@@ -993,8 +1018,13 @@ func TestServer(t *testing.T) {
 
 			// Prepare the connection.
 			ctx := context.Background()
+			tdCap := lsp.TextDocumentClientCapabilities{}
+			tdCap.Completion.CompletionItemKind.ValueSet = []lsp.CompletionItemKind{lsp.CIKConstant}
 			if err := conn.Call(ctx, "initialize", InitializeParams{
-				InitializeParams:     lsp.InitializeParams{RootURI: test.rootURI},
+				InitializeParams: lsp.InitializeParams{
+					RootURI:      test.rootURI,
+					Capabilities: lsp.ClientCapabilities{TextDocument: tdCap},
+				},
 				NoOSFileSystemAccess: true,
 				RootImportPath:       strings.TrimPrefix(rootFSPath, "/src/"),
 				BuildContext: &InitializeBuildContextParams{
