@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -195,6 +196,10 @@ func score(q Query, s symbolPair) (scor int) {
 		return -1
 	}
 	name, container := strings.ToLower(s.Name), strings.ToLower(s.ContainerName)
+	if !utils.IsURI(s.Location.URI) {
+		log.Printf("unexpectedly saw symbol defined at a non-file URI: %q", s.Location.URI)
+		return 0
+	}
 	filename := utils.UriToPath(s.Location.URI)
 	isVendor := strings.HasPrefix(filename, "vendor/") || strings.Contains(filename, "/vendor/")
 	if q.Filter == FilterExported && isVendor {
@@ -280,8 +285,32 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	f := utils.UriToPath(params.TextDocument.URI)
-	return h.handleSymbol(ctx, conn, req, Query{File: f}, 0)
+	if !utils.IsURI(params.TextDocument.URI) {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("textDocument/documentSymbol not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
+		}
+	}
+	path := utils.UriToPath(params.TextDocument.URI)
+
+	fset := token.NewFileSet()
+	bctx := h.BuildContext(ctx)
+	src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Dir(path), filepath.Base(path), 0)
+	if err != nil {
+		return nil, err
+	}
+	pkg := &ast.Package{
+		Name:  src.Name.Name,
+		Files: map[string]*ast.File{},
+	}
+	pkg.Files[filepath.Base(path)] = src
+
+	symbols := astPkgToSymbols(fset, pkg, &build.Package{})
+	res := make([]lsp.SymbolInformation, len(symbols))
+	for i, s := range symbols {
+		res[i] = s.SymbolInformation
+	}
+	return res, nil
 }
 
 // handleSymbol handles `workspace/symbol` requests for the Go
@@ -303,13 +332,25 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 		}
 		q.Filter = FilterDir
 	}
+	if params.Limit == 0 {
+		// If no limit is specified, default to a reasonable number
+		// for a user to look at. If they want more, they should
+		// refine the query.
+		params.Limit = 50
+	}
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
+
+// MaxParallelism controls the maximum number of goroutines that should be used
+// to fulfill requests. This is useful in editor environments where users do
+// not want results ASAP, but rather just semi quickly without eating all of
+// their CPU.
+var MaxParallelism = 8
 
 func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
 	{
-		rootPath := h.FilePath(h.init.RootPath)
+		rootPath := h.FilePath(h.init.Root())
 		bctx := h.BuildContext(ctx)
 
 		par := parallel.NewRun(8)
@@ -390,53 +431,8 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 		if astPkg == nil {
 			return nil
 		}
-		// TODO(keegancsmith) Remove vendored doc/go once https://github.com/golang/go/issues/17788 is shipped
-		docPkg := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
 
-		// Emit decls
-		var pkgSyms []symbolPair
-		for _, t := range docPkg.Types {
-			if len(t.Decl.Specs) == 1 { // the type name is the first spec in type declarations
-				pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.Specs[0].Pos()))
-			} else { // in case there's some edge case where there's not 1 spec, fall back to the start of the declaration
-				pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.TokPos))
-			}
-
-			for _, v := range t.Funcs {
-				pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
-			}
-			for _, v := range t.Methods {
-				if results.Query.Filter == FilterExported && (!ast.IsExported(v.Name) || !ast.IsExported(t.Name)) {
-					continue
-				}
-				pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, t.Name, lsp.SKMethod, fs, v.Decl.Name.NamePos))
-			}
-			for _, v := range t.Consts {
-				for _, name := range v.Names {
-					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
-				}
-			}
-			for _, v := range t.Vars {
-				for _, name := range v.Names {
-					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, v.Decl.TokPos))
-				}
-			}
-		}
-		for _, v := range docPkg.Consts {
-			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
-			}
-		}
-		for _, v := range docPkg.Vars {
-			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.TokPos))
-			}
-		}
-		for _, v := range docPkg.Funcs {
-			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
-		}
-
-		return pkgSyms
+		return astPkgToSymbols(fs, astPkg, buildPkg)
 	})
 
 	if symbols == nil {
@@ -444,11 +440,59 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 	}
 
 	for _, sym := range symbols.([]symbolPair) {
-		if results.Query.Filter == FilterExported && !ast.IsExported(sym.Name) {
+		if results.Query.Filter == FilterExported && !isExported(&sym) {
 			continue
 		}
 		results.Collect(sym)
 	}
+}
+
+// astToSymbols returns a slice of LSP symbols from an AST.
+func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Package) []symbolPair {
+	// TODO(keegancsmith) Remove vendored doc/go once https://github.com/golang/go/issues/17788 is shipped
+	docPkg := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
+
+	// Emit decls
+	var pkgSyms []symbolPair
+	for _, t := range docPkg.Types {
+		if len(t.Decl.Specs) == 1 { // the type name is the first spec in type declarations
+			pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.Specs[0].Pos()))
+		} else { // in case there's some edge case where there's not 1 spec, fall back to the start of the declaration
+			pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.TokPos))
+		}
+
+		for _, v := range t.Funcs {
+			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
+		}
+		for _, v := range t.Methods {
+			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, t.Name, lsp.SKMethod, fs, v.Decl.Name.NamePos))
+		}
+		for _, v := range t.Consts {
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
+			}
+		}
+		for _, v := range t.Vars {
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, v.Decl.TokPos))
+			}
+		}
+	}
+	for _, v := range docPkg.Consts {
+		for _, name := range v.Names {
+			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
+		}
+	}
+	for _, v := range docPkg.Vars {
+		for _, name := range v.Names {
+			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.TokPos))
+		}
+	}
+	for _, v := range docPkg.Funcs {
+		pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
+	}
+
+	return pkgSyms
 }
 
 // parseDir mirrors parser.ParseDir, but uses the passed in build context's VFS. In other words,
@@ -481,6 +525,13 @@ func parseDir(fset *token.FileSet, bctx *build.Context, path string, filter func
 	}
 
 	return
+}
+
+func isExported(sym *symbolPair) bool {
+	if sym.ContainerName == "" {
+		return ast.IsExported(sym.Name)
+	}
+	return ast.IsExported(sym.ContainerName) && ast.IsExported(sym.Name)
 }
 
 func maybeLogImportError(pkg string, err error) {

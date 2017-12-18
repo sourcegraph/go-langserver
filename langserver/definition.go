@@ -3,15 +3,35 @@ package langserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go/ast"
+	"go/build"
+	"go/token"
 	"log"
+	"path/filepath"
 
+	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+// UseBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
+// be used.
+var UseBinaryPkgCache = false
+
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
+	if UseBinaryPkgCache {
+		_, _, locs, err := h.definitionGodef(ctx, params)
+		if err == godef.ErrNoIdentifierFound {
+			// This is expected to happen when j2d over
+			// comments/strings/whitespace/etc), just return no info.
+			return []lsp.Location{}, nil
+		}
+		return locs, err
+	}
+
 	res, err := h.handleXDefinition(ctx, conn, req, params)
 	if err != nil {
 		return nil, err
@@ -23,8 +43,61 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRP
 	return locs, nil
 }
 
+var testOSToVFSPath func(osPath string) string
+
+func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocumentPositionParams) (*token.FileSet, *godef.Result, []lsp.Location, error) {
+	// In the case of testing, our OS paths and VFS paths do not match. In the
+	// real world, this is never the case. Give the test suite the opportunity
+	// to correct the path now.
+	vfsURI := params.TextDocument.URI
+	if testOSToVFSPath != nil {
+		vfsURI = utils.PathToURI(testOSToVFSPath(utils.UriToPath(vfsURI)))
+	}
+
+	// Read file contents and calculate byte offset.
+	contents, err := h.readFile(ctx, vfsURI)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	filename := h.FilePath(params.TextDocument.URI)
+	offset, valid, why := offsetForPosition(contents, params.Position)
+	if !valid {
+		return nil, nil, nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
+	}
+
+	// Invoke godef to determine the position of the definition.
+	fset := token.NewFileSet()
+	res, err := godef.Godef(fset, offset, filename, contents)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if res.Package != nil {
+		// TODO: return directory location. This right now at least matches our
+		// other implementation.
+		return fset, res, []lsp.Location{}, nil
+	}
+	loc := goRangeToLSPLocation(fset, res.Start, res.End)
+
+	if loc.URI == "file://" {
+		// TODO: builtins do not have valid URIs or locations, so we emit a
+		// phony location here instead. This is better than our other
+		// implementation.
+		loc.URI = utils.PathToURI(filepath.Join(build.Default.GOROOT, "/src/builtin/builtin.go"))
+		loc.Range = lsp.Range{}
+	}
+
+	return fset, res, []lsp.Location{loc}, nil
+}
+
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
-	rootPath := h.FilePath(h.init.RootPath)
+	if !utils.IsURI(params.TextDocument.URI) {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("%s not yet supported for out-of-workspace URI (%q)", req.Method, params.TextDocument.URI),
+		}
+	}
+
+	rootPath := h.FilePath(h.init.Root())
 	bctx := h.BuildContext(ctx)
 
 	fset, node, pathEnclosingInterval, _, pkg, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)

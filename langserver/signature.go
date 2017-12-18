@@ -2,15 +2,24 @@ package langserver
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 func (h *LangHandler) handleTextDocumentSignatureHelp(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.SignatureHelp, error) {
+	if !utils.IsURI(params.TextDocument.URI) {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("textDocument/signatureHelp not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
+		}
+	}
+
 	fset, _, nodes, prog, pkg, start, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		if _, ok := err.(*invalidNodeError); !ok {

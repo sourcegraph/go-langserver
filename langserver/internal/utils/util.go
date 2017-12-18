@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+
+	"github.com/sourcegraph/go-langserver/pkg/lsp"
 )
 
 func PathHasPrefix(s, prefix string) bool {
@@ -40,24 +42,24 @@ func IsVendorDir(dir string) bool {
 }
 
 // IsURI tells if s denotes an URI
-func IsURI(s string) bool {
-	return strings.HasPrefix(s, "file:///")
+func IsURI(s lsp.DocumentURI) bool {
+	return strings.HasPrefix(string(s), "file:///")
 }
 
 // PathToURI converts given absolute path to file URI
-func PathToURI(path string) string {
+func PathToURI(path string) lsp.DocumentURI {
 	path = virtualPath(path)
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	return "file://" + path
+	return lsp.DocumentURI("file://" + path)
 }
 
 // UriToPath converts given file URI to path
-func UriToPath(uri string) string {
-	u, err := url.Parse(uri)
+func UriToPath(uri lsp.DocumentURI) string {
+	u, err := url.Parse(string(uri))
 	if err != nil {
-		return strings.TrimPrefix(uri, "file://")
+		return strings.TrimPrefix(string(uri), "file://")
 	} else {
 		return u.Path
 	}

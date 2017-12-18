@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"go/types"
 	"math"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -27,9 +26,14 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-var streamExperiment = len(os.Getenv("STREAM_EXPERIMENT")) > 0
-
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
+	if !utils.IsURI(params.TextDocument.URI) {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("textDocument/references not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
+		}
+	}
+
 	// Begin computing the reverse import graph immediately, as this
 	// occurs in the background and is IO-bound.
 	reverseImportGraphC := h.reverseImportGraph(ctx, conn)
@@ -188,7 +192,7 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 		// import graph across commits. We want this behaviour since
 		// we assume that they don't change drastically across
 		// commits.
-		cacheKey := "importgraph:" + h.init.RootPath
+		cacheKey := "importgraph:" + string(h.init.Root())
 
 		h.mu.Lock()
 		tryCache := h.importGraph == nil
@@ -216,7 +220,7 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
 				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
 			}
-			g := tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.RootPath))
+			g := tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.Root()))
 			h.mu.Lock()
 			h.importGraph = g
 			h.mu.Unlock()
@@ -243,17 +247,6 @@ func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonr
 	if limit == 0 {
 		// If we don't have a limit, just set it to a value we should never exceed
 		limit = math.MaxInt32
-	}
-
-	if !streamExperiment {
-		var locs []lsp.Location
-		for n := range refs {
-			locs = append(locs, goRangeToLSPLocation(fset, n.Pos(), n.End()))
-		}
-		if len(locs) > limit {
-			locs = locs[:limit]
-		}
-		return locs
 	}
 
 	id := lsp.ID{

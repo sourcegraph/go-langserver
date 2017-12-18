@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -28,17 +29,22 @@ func isFileSystemRequest(method string) bool {
 		method == "textDocument/didSave"
 }
 
-// handleFileSystemRequest handles textDocument/did* requests. The path the
+// handleFileSystemRequest handles textDocument/did* requests. The URI the
 // request is for is returned. true is returned if a file was modified.
-func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (string, bool, error) {
+func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrpc2.Request) (lsp.DocumentURI, bool, error) {
 	span := opentracing.SpanFromContext(ctx)
 	h.Mu.Lock()
 	overlay := h.overlay
 	h.Mu.Unlock()
 
-	do := func(uri string, op func() error) (string, bool, error) {
+	do := func(uri lsp.DocumentURI, op func() error) (lsp.DocumentURI, bool, error) {
 		span.SetTag("uri", uri)
 		before, beforeErr := h.readFile(ctx, uri)
+		if beforeErr != nil && !os.IsNotExist(beforeErr) {
+			// There is no op that could succeed in this case. (Most
+			// commonly occurs when uri refers to a dir, not a file.)
+			return uri, false, beforeErr
+		}
 		err := op()
 		after, afterErr := h.readFile(ctx, uri)
 		if os.IsNotExist(beforeErr) && os.IsNotExist(afterErr) {
@@ -97,16 +103,10 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 type overlay struct {
 	mu sync.Mutex
 	m  map[string][]byte
-	// v is contains the versions of m. Version is controlled by the LS
-	// client.
-	v map[string]int
 }
 
 func newOverlay() *overlay {
-	return &overlay{
-		m: make(map[string][]byte),
-		v: make(map[string]int),
-	}
+	return &overlay{m: make(map[string][]byte)}
 }
 
 // FS returns a vfs for the overlay.
@@ -115,7 +115,7 @@ func (h *overlay) FS() ctxvfs.FileSystem {
 }
 
 func (h *overlay) didOpen(params *lsp.DidOpenTextDocumentParams) {
-	h.set(params.TextDocument.URI, params.TextDocument.Version, []byte(params.TextDocument.Text))
+	h.set(params.TextDocument.URI, []byte(params.TextDocument.Text))
 }
 
 func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
@@ -135,7 +135,7 @@ func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
 		}
 		var end int
 		if change.RangeLength != 0 {
-			end = start + int(change.RangeLength) - 1
+			end = start + int(change.RangeLength)
 		} else {
 			// RangeLength not specified, work it out from Range.End
 			end, ok, why = offsetForPosition(contents, change.Range.End)
@@ -148,13 +148,13 @@ func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
 		}
 		// Try avoid doing too many allocations, so use bytes.Buffer
 		b := &bytes.Buffer{}
-		b.Grow(start + len(change.Text) + len(contents) - end - 1)
+		b.Grow(start + len(change.Text) + len(contents) - end)
 		b.Write(contents[:start])
 		b.WriteString(change.Text)
-		b.Write(contents[end+1:])
+		b.Write(contents[end:])
 		contents = b.Bytes()
 	}
-	h.set(params.TextDocument.URI, params.TextDocument.Version, contents)
+	h.set(params.TextDocument.URI, contents)
 	return nil
 }
 
@@ -162,14 +162,14 @@ func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
 	h.del(params.TextDocument.URI)
 }
 
-func uriToOverlayPath(uri string) string {
+func uriToOverlayPath(uri lsp.DocumentURI) string {
 	if utils.IsURI(uri) {
 		return strings.TrimPrefix(utils.UriToPath(uri), "/")
 	}
-	return uri
+	return string(uri)
 }
 
-func (h *overlay) get(uri string) (contents []byte, found bool) {
+func (h *overlay) get(uri lsp.DocumentURI) (contents []byte, found bool) {
 	path := uriToOverlayPath(uri)
 	h.mu.Lock()
 	contents, found = h.m[path]
@@ -177,30 +177,21 @@ func (h *overlay) get(uri string) (contents []byte, found bool) {
 	return
 }
 
-func (h *overlay) set(uri string, version int, contents []byte) {
+func (h *overlay) set(uri lsp.DocumentURI, contents []byte) {
 	path := uriToOverlayPath(uri)
 	h.mu.Lock()
-	// Until we correctly synchronise TextDocumentSync notification, we
-	// suffer from a race condition on mutations. So we can rely on the
-	// version number to prevent an older request overwriting a later
-	// one. The version is a strictly increasing number and is managed by
-	// the client.
-	if version >= h.v[path] {
-		h.v[path] = version
-		h.m[path] = contents
-	}
+	h.m[path] = contents
 	h.mu.Unlock()
 }
 
-func (h *overlay) del(uri string) {
+func (h *overlay) del(uri lsp.DocumentURI) {
 	path := uriToOverlayPath(uri)
 	h.mu.Lock()
 	delete(h.m, path)
-	delete(h.v, path)
 	h.mu.Unlock()
 }
 
-func (h *HandlerShared) FilePath(uri string) string {
+func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
 	path := utils.UriToPath(uri)
 	if !strings.HasPrefix(path, "/") {
 		panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
@@ -208,7 +199,10 @@ func (h *HandlerShared) FilePath(uri string) string {
 	return path
 }
 
-func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error) {
+func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]byte, error) {
+	if !utils.IsURI(uri) {
+		return nil, &os.PathError{Op: "Open", Path: string(uri), Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
+	}
 	h.Mu.Lock()
 	fs := h.FS
 	h.Mu.Unlock()

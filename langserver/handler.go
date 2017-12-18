@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -73,9 +74,13 @@ type LangHandler struct {
 
 // reset clears all internal state in h.
 func (h *LangHandler) reset(init *InitializeParams) error {
+	if utils.IsURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
+		log.Printf("Passing an initialize rootPath URI (%q) is deprecated. Use rootUri instead.", init.InitializeParams.RootPath)
+	}
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if err := h.HandlerCommon.Reset(init.RootPath); err != nil {
+	if err := h.HandlerCommon.Reset(init.Root()); err != nil {
 		return err
 	}
 	if !h.HandlerShared.Shared {
@@ -185,8 +190,8 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		// HACK: RootPath is not a URI, but historically we treated it
 		// as such. Convert it to a file URI
-		if !utils.IsURI(params.RootPath) {
-			params.RootPath = utils.PathToURI(params.RootPath)
+		if !utils.IsURI(lsp.DocumentURI(params.RootPath)) {
+			params.RootPath = string(utils.PathToURI(params.RootPath))
 		}
 
 		if err := h.reset(&params); err != nil {
@@ -205,7 +210,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			}()
 		}
 
-		kind := lsp.TDSKFull
+		kind := lsp.TDSKIncremental
 		return lsp.InitializeResult{
 			Capabilities: lsp.ServerCapabilities{
 				TextDocumentSync: lsp.TextDocumentSyncOptionsOrKind{
@@ -356,7 +361,11 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			}
 			if uri != "" {
 				// a user is viewing this path, hint to add it to the cache
-				go h.typecheck(ctx, conn, uri, lsp.Position{})
+				// (unless we're primarily using binary package cache .a
+				// files).
+				if !UseBinaryPkgCache {
+					go h.typecheck(ctx, conn, uri, lsp.Position{})
+				}
 			}
 			return nil, err
 		}
