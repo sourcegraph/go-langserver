@@ -29,6 +29,7 @@ var (
 	freeosmemory      = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
 	usebinarypkgcache = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
 	maxparallelism    = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests")
+	gocodecompletion  = flag.Bool("gocodecompletion", false, "enable completion (extra memory burden)")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -62,6 +63,8 @@ func main() {
 		}
 	}
 	langserver.MaxParallelism = *maxparallelism
+
+	langserver.GocodeCompletionEnabled = *gocodecompletion
 
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
