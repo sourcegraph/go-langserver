@@ -3,6 +3,8 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
@@ -12,6 +14,7 @@ import (
 var (
 	GocodeCompletionEnabled = false
 	CIKConstantSupported    = lsp.CIKVariable // or lsp.CIKConstant if client supported
+	funcArgsRegexp          = regexp.MustCompile("func\\(([^)]+)\\)")
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
@@ -59,7 +62,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		case "var":
 			kind = lsp.CIKVariable
 		}
-		citems[i] = lsp.CompletionItem{
+		item := lsp.CompletionItem{
 			Label:  it.Name,
 			Kind:   kind,
 			Detail: it.Type,
@@ -71,9 +74,45 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 				NewText: it.Name,
 			},
 		}
+		item = h.addInsertText(item)
+		citems[i] = item
 	}
 	return &lsp.CompletionList{
 		IsIncomplete: false,
 		Items:        citems,
 	}, nil
+}
+
+func (h *LangHandler) addInsertText(item lsp.CompletionItem) lsp.CompletionItem {
+    item.InsertTextFormat = lsp.ITFPlainText
+	if item.Kind == lsp.CIKFunction {
+		args := parseFuncArgs(item.Detail)
+        suffix := ""
+		if h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport {
+			item.InsertTextFormat = lsp.ITFSnippet
+			args = genSnippetArgs(args)
+            suffix = "$0"
+		}
+		item.InsertText = fmt.Sprintf("%s(%s)%s", item.Label, strings.Join(args, ", "), suffix)
+	}
+	return item
+}
+
+func parseFuncArgs(def string) []string {
+	m := funcArgsRegexp.FindStringSubmatch(def)
+	var args []string
+	if len(m) > 1 {
+		args = strings.Split(m[1], ", ")
+	}
+	return args
+}
+
+func genSnippetArgs(args []string) []string {
+    newArgs := make([]string, len(args))
+    for i, a := range args {
+        // Closing curly braces must be escaped
+        a = strings.Replace(a, "}", "\\}", -1)
+        newArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
+    }
+    return newArgs
 }
