@@ -57,6 +57,9 @@ type TextDocumentClientCapabilities struct {
 		CompletionItemKind struct {
 			ValueSet []CompletionItemKind `json:"valueSet,omitempty"`
 		} `json:"completionItemKind,omitempty"`
+		CompletionItem struct {
+			SnippetSupport bool `json:"snippetSupport,omitempty"`
+		} `json:"completionItem,omitempty"`
 	} `json:"completion,omitempty"`
 }
 
@@ -248,15 +251,16 @@ var completionItemKindName = map[CompletionItemKind]string{
 }
 
 type CompletionItem struct {
-	Label         string             `json:"label"`
-	Kind          CompletionItemKind `json:"kind,omitempty"`
-	Detail        string             `json:"detail,omitempty"`
-	Documentation string             `json:"documentation,omitempty"`
-	SortText      string             `json:"sortText,omitempty"`
-	FilterText    string             `json:"filterText,omitempty"`
-	InsertText    string             `json:"insertText,omitempty"`
-	TextEdit      *TextEdit          `json:"textEdit,omitempty"`
-	Data          interface{}        `json:"data,omitempty"`
+	Label            string             `json:"label"`
+	Kind             CompletionItemKind `json:"kind,omitempty"`
+	Detail           string             `json:"detail,omitempty"`
+	Documentation    string             `json:"documentation,omitempty"`
+	SortText         string             `json:"sortText,omitempty"`
+	FilterText       string             `json:"filterText,omitempty"`
+	InsertText       string             `json:"insertText,omitempty"`
+	InsertTextFormat InsertTextFormat   `json:"insertTextFormat,omitempty"`
+	TextEdit         *TextEdit          `json:"textEdit,omitempty"`
+	Data             interface{}        `json:"data,omitempty"`
 }
 
 type CompletionList struct {
@@ -269,6 +273,13 @@ type CompletionTriggerKind int
 const (
 	CTKInvoked          CompletionTriggerKind = 1
 	CTKTriggerCharacter                       = 2
+)
+
+type InsertTextFormat int
+
+const (
+	ITFPlainText InsertTextFormat = 1
+	ITFSnippet                    = 2
 )
 
 type CompletionContext struct {
