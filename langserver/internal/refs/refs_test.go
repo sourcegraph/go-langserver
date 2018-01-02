@@ -78,7 +78,7 @@ func TestParseFile(t *testing.T) {
 		{
 			Filename: "testdata/imports.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Start: pos("testdata/imports.go:3:8 (offset 21)"), End: pos("testdata/imports.go:3:18 (offset 31)")},
+				&posRef{Def: Def{ImportPath: "net/http", PackageName: "http", Path: ""}, Start: pos("testdata/imports.go:3:8 (offset 21)"), End: pos("testdata/imports.go:3:20 (offset 33)")},
 			},
 		},
 		{

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/sourcegraph/ctxvfs"
 
@@ -38,5 +39,12 @@ func PrepareContext(bctx *build.Context, ctx context.Context, fs ctxvfs.FileSyst
 	bctx.IsAbsPath = func(path string) bool {
 		return IsAbs(path)
 	}
-	bctx.JoinPath = path.Join
+	bctx.JoinPath = func(elem ...string) string {
+		// convert all backslashes to slashes to avoid
+		// weird paths like C:\mygopath\/src/github.com/...
+		for i, el := range elem {
+			elem[i] = filepath.ToSlash(el)
+		}
+		return path.Join(elem...)
+	}
 }

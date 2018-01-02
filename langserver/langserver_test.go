@@ -29,6 +29,7 @@ import (
 )
 
 type serverTestCase struct {
+	skip    bool
 	rootURI lsp.DocumentURI
 	fs      map[string]string
 	mountFS map[string]map[string]string // mount dir -> map VFS
@@ -979,6 +980,7 @@ var s4 func()`,
 	"unexpected paths": {
 		// notice the : and @ symbol
 		rootURI: "file:///src/t:est/@hello/pkg",
+		skip:    runtime.GOOS == "windows", // this test is not supported on windows
 		fs: map[string]string{
 			"a.go": "package p; func A() { A() }",
 		},
@@ -1004,6 +1006,11 @@ func TestServer(t *testing.T) {
 
 	for label, test := range serverTestCases {
 		t.Run(label, func(t *testing.T) {
+			if test.skip {
+				t.Skip()
+				return
+			}
+
 			h := &LangHandler{HandlerShared: &HandlerShared{}}
 
 			addr, done := startServer(t, jsonrpc2.HandlerWithError(h.handle))
@@ -1204,13 +1211,13 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		t.Logf("$ go install -v ...\n%s", out)
 
 		testOSToVFSPath = func(osPath string) string {
-			return strings.TrimPrefix(osPath, tmpDir)
+			return strings.TrimPrefix(osPath, utils.UriToPath(utils.PathToURI(tmpDir)))
 		}
 
 		// Run the tests.
 		for pos, want := range wantGodefDefinition {
-			if strings.HasPrefix(want, "/goroot") {
-				want = strings.Replace(want, "/goroot", build.Default.GOROOT, 1)
+			if strings.HasPrefix(want, "/goroot/") {
+				want = strings.Replace(want, "/goroot/", utils.UriToPath(utils.PathToURI(build.Default.GOROOT)), 1)
 			}
 			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 				definitionTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want, tmpDir)
@@ -1325,7 +1332,7 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	if definition != "" {
 		definition = utils.UriToPath(lsp.DocumentURI(definition))
 		if trimPrefix != "" {
-			definition = strings.TrimPrefix(definition, trimPrefix)
+			definition = strings.TrimPrefix(definition, utils.UriToPath(utils.PathToURI(trimPrefix)))
 		}
 	}
 	if definition != want {

@@ -1,3 +1,3 @@
 package main
 
-import "net/http" // "net/http"
+import _ "net/http" // "net/http"

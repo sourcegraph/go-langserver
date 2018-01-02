@@ -17,7 +17,9 @@ func virtualPath(path string) string {
 	return strings.ToLower(path)
 }
 
-func IsAbs(path string) bool {
-	// Windows implementation accepts path-like and filepath-like arguments
-	return strings.HasPrefix(path, "/") || filepath.IsAbs(path)
+func realPath(path string) string {
+	// Windows implementation converts path to back slashes and removes a prefix slash
+	path = filepath.FromSlash(strings.TrimPrefix(path, "/"))
+	// Also, on Windows paths are case-insensitive
+	return strings.ToLower(path)
 }

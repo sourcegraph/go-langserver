@@ -36,7 +36,9 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	if err != nil {
 		return nil, err
 	}
-	filename := h.FilePath(params.TextDocument.URI)
+	// convert the path into a real path because 3rd party tools
+	// might load additional code based on the file's package
+	filename := utils.UriToRealPath(params.TextDocument.URI)
 	offset, valid, why := offsetForPosition(contents, params.Position)
 	if !valid {
 		return nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
