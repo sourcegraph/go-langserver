@@ -1216,8 +1216,8 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 
 		// Run the tests.
 		for pos, want := range wantGodefDefinition {
-			if strings.HasPrefix(want, "/goroot/") {
-				want = strings.Replace(want, "/goroot/", utils.UriToPath(utils.PathToURI(build.Default.GOROOT)), 1)
+			if strings.HasPrefix(want, "/goroot") {
+				want = strings.Replace(want, "/goroot", path.Clean(utils.UriToPath(utils.PathToURI(build.Default.GOROOT))), 1)
 			}
 			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 				definitionTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want, tmpDir)
