@@ -24,6 +24,9 @@ func (p *InitializeParams) Root() DocumentURI {
 	if p.RootURI != "" {
 		return p.RootURI
 	}
+	if strings.HasPrefix(p.RootPath, "file://") {
+		return DocumentURI(p.RootPath)
+	}
 	return DocumentURI("file://" + p.RootPath)
 }
 
