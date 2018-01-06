@@ -20,16 +20,17 @@ import (
 )
 
 var (
-	mode              = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr              = flag.String("addr", ":4389", "server listen address (tcp)")
-	trace             = flag.Bool("trace", false, "print all requests and responses")
-	logfile           = flag.String("logfile", "", "also log to this file (in addition to stderr)")
-	printVersion      = flag.Bool("version", false, "print version and exit")
-	pprof             = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
-	freeosmemory      = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
-	usebinarypkgcache = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
-	maxparallelism    = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests")
-	gocodecompletion  = flag.Bool("gocodecompletion", false, "enable completion (extra memory burden)")
+	mode               = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
+	addr               = flag.String("addr", ":4389", "server listen address (tcp)")
+	trace              = flag.Bool("trace", false, "print all requests and responses")
+	logfile            = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	printVersion       = flag.Bool("version", false, "print version and exit")
+	pprof              = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
+	freeosmemory       = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
+	maxparallelism     = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests")
+	gocodecompletion   = flag.Bool("gocodecompletion", false, "enable completion (extra memory burden)")
+	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -65,6 +66,8 @@ func main() {
 	langserver.MaxParallelism = *maxparallelism
 
 	langserver.GocodeCompletionEnabled = *gocodecompletion
+
+	langserver.FuncSnippetEnabled = *funcSnippetEnabled
 
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
