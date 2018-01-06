@@ -62,20 +62,23 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		case "var":
 			kind = lsp.CIKVariable
 		}
-		item := lsp.CompletionItem{
-			Label:  it.Name,
-			Kind:   kind,
-			Detail: it.Type,
+
+		itf, newText := h.getNewText(kind, it.Name, it.Type)
+		citems[i] = lsp.CompletionItem{
+			Label:            it.Name,
+			Kind:             kind,
+			Detail:           it.Type,
+			InsertTextFormat: itf,
+			// InsertText is deprecated in favour of TextEdit, but added here for legacy client support
+			InsertText: newText,
 			TextEdit: &lsp.TextEdit{
 				Range: lsp.Range{
 					Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangelen},
 					End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
 				},
-				NewText: it.Name,
+				NewText: newText,
 			},
 		}
-		item = h.addInsertText(item)
-		citems[i] = item
 	}
 	return &lsp.CompletionList{
 		IsIncomplete: false,
@@ -83,19 +86,13 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	}, nil
 }
 
-func (h *LangHandler) addInsertText(item lsp.CompletionItem) lsp.CompletionItem {
-    item.InsertTextFormat = lsp.ITFPlainText
-	if item.Kind == lsp.CIKFunction {
-		args := parseFuncArgs(item.Detail)
-        suffix := ""
-		if h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport {
-			item.InsertTextFormat = lsp.ITFSnippet
-			args = genSnippetArgs(args)
-            suffix = "$0"
-		}
-		item.InsertText = fmt.Sprintf("%s(%s)%s", item.Label, strings.Join(args, ", "), suffix)
+func (h *LangHandler) getNewText(kind lsp.CompletionItemKind, name, detail string) (lsp.InsertTextFormat, string) {
+	if kind == lsp.CIKFunction && h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport {
+		args := genSnippetArgs(parseFuncArgs(detail))
+		text := fmt.Sprintf("%s(%s)$0", name, strings.Join(args, ", "))
+		return lsp.ITFSnippet, text
 	}
-	return item
+	return lsp.ITFPlainText, name
 }
 
 func parseFuncArgs(def string) []string {
@@ -108,11 +105,11 @@ func parseFuncArgs(def string) []string {
 }
 
 func genSnippetArgs(args []string) []string {
-    newArgs := make([]string, len(args))
-    for i, a := range args {
-        // Closing curly braces must be escaped
-        a = strings.Replace(a, "}", "\\}", -1)
-        newArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
-    }
-    return newArgs
+	newArgs := make([]string, len(args))
+	for i, a := range args {
+		// Closing curly braces must be escaped
+		a = strings.Replace(a, "}", "\\}", -1)
+		newArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
+	}
+	return newArgs
 }
