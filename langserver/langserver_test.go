@@ -996,6 +996,42 @@ var s4 func()`,
 			},
 		},
 	},
+	"hover fail issue 223": {
+		rootURI: "file:///src/test/pkg",
+		fs: map[string]string{
+			"main.go": `package main
+
+import (
+	"fmt"
+)
+
+func main() {
+
+	b := &Hello{
+		a: 1,
+	}
+
+	fmt.Println(b.Bye())
+}
+
+type Hello struct {
+	a int
+}
+
+func (h *Hello) Bye() int {
+	return h.a
+}
+`,
+		},
+		cases: lspTestCases{
+			overrideGodefHover: map[string]string{
+				"main.go:13:17": "func (h *Hello) Bye() int",
+			},
+			wantHover: map[string]string{
+				"main.go:13:17": "func (*Hello).Bye() int",
+			},
+		},
+	},
 }
 
 func TestServer(t *testing.T) {
