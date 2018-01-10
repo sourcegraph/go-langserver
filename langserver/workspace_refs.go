@@ -49,7 +49,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		unvendoredPackages = map[string]struct{}{}
 	)
 	for _, pkg := range tools.ListPkgsUnderDir(bctx, rootPath) {
-		bpkg, err := findPackage(ctx, bctx, pkg, rootPath, build.FindOnly)
+		bpkg, err := findPackage(ctx, bctx, pkg, rootPath, build.FindOnly, true)
 		if err != nil && !isMultiplePackageError(err) {
 			log.Printf("skipping possible package %s: %s", pkg, err)
 			continue
@@ -233,7 +233,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 			// MultipleGoErrors. This occurs, e.g., when you have a
 			// main.go with "// +build ignore" that imports the
 			// non-main package in the same dir.
-			bpkg, err := findPackage(ctx, bctx, importPath, fromDir, mode)
+			bpkg, err := findPackage(ctx, bctx, importPath, fromDir, mode, true)
 			if err != nil && !isMultiplePackageError(err) {
 				return bpkg, err
 			}
@@ -334,7 +334,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 }
 
 func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath string, def refs.Def, findPackage FindPackageFunc) (*symbolDescriptor, error) {
-	defPkg, err := findPackage(ctx, bctx, def.ImportPath, rootPath, build.FindOnly)
+	defPkg, err := findPackage(ctx, bctx, def.ImportPath, rootPath, build.FindOnly, false)
 	if err != nil {
 		return nil, err
 	}
