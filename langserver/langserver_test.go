@@ -22,12 +22,14 @@ import (
 
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 type serverTestCase struct {
+	skip    bool
 	rootURI lsp.DocumentURI
 	fs      map[string]string
 	mountFS map[string]map[string]string // mount dir -> map VFS
@@ -978,6 +980,7 @@ var s4 func()`,
 	"unexpected paths": {
 		// notice the : and @ symbol
 		rootURI: "file:///src/t:est/@hello/pkg",
+		skip:    runtime.GOOS == "windows", // this test is not supported on windows
 		fs: map[string]string{
 			"a.go": "package p; func A() { A() }",
 		},
@@ -1039,6 +1042,11 @@ func TestServer(t *testing.T) {
 
 	for label, test := range serverTestCases {
 		t.Run(label, func(t *testing.T) {
+			if test.skip {
+				t.Skip()
+				return
+			}
+
 			h := &LangHandler{HandlerShared: &HandlerShared{}}
 
 			addr, done := startServer(t, jsonrpc2.HandlerWithError(h.handle))
@@ -1050,7 +1058,7 @@ func TestServer(t *testing.T) {
 				}
 			}()
 
-			rootFSPath := uriToFilePath(test.rootURI)
+			rootFSPath := utils.UriToPath(test.rootURI)
 
 			// Prepare the connection.
 			ctx := context.Background()
@@ -1088,9 +1096,11 @@ func TestServer(t *testing.T) {
 
 func startServer(t testing.TB, h jsonrpc2.Handler) (addr string, done func()) {
 	bindAddr := ":0"
-	if os.Getenv("CI") != "" {
+	if os.Getenv("CI") != "" || runtime.GOOS == "windows" {
 		// CircleCI has issues with IPv6 (e.g., "dial tcp [::]:39984:
 		// connect: network is unreachable").
+		// Similar error is happens on Windows:
+		// "dial tcp [::]:61898: connectex: The requested address is not valid in its context."
 		bindAddr = "127.0.0.1:0"
 	}
 	l, err := net.Listen("tcp", bindAddr)
@@ -1224,7 +1234,7 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		// 'go test' instead of our tmp directory.
 		build.Default.GOPATH = tmpDir
 		gocode.SetBuildContext(&build.Default)
-		tmpRootPath := filepath.Join(tmpDir, uriToFilePath(rootURI))
+		tmpRootPath := filepath.Join(tmpDir, utils.UriToPath(rootURI))
 
 		// Install all Go packages in the $GOPATH.
 		oldGOPATH := os.Getenv("GOPATH")
@@ -1237,26 +1247,26 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		t.Logf("$ go install -v ...\n%s", out)
 
 		testOSToVFSPath = func(osPath string) string {
-			return strings.TrimPrefix(osPath, tmpDir)
+			return strings.TrimPrefix(osPath, utils.UriToPath(utils.PathToURI(tmpDir)))
 		}
 
 		// Run the tests.
 		for pos, want := range wantGodefDefinition {
 			if strings.HasPrefix(want, "/goroot") {
-				want = strings.Replace(want, "/goroot", build.Default.GOROOT, 1)
+				want = strings.Replace(want, "/goroot", path.Clean(utils.UriToPath(utils.PathToURI(build.Default.GOROOT))), 1)
 			}
 			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				definitionTest(t, ctx, c, pathToURI(tmpRootPath), pos, want, tmpDir)
+				definitionTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want, tmpDir)
 			})
 		}
 		for pos, want := range wantGodefHover {
 			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				hoverTest(t, ctx, c, pathToURI(tmpRootPath), pos, want)
+				hoverTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want)
 			})
 		}
 		for pos, want := range cases.wantCompletion {
 			tbRun(t, fmt.Sprintf("completion-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				completionTest(t, ctx, c, pathToURI(tmpRootPath), pos, want)
+				completionTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want)
 			})
 		}
 
@@ -1356,9 +1366,9 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		t.Fatal(err)
 	}
 	if definition != "" {
-		definition = uriToFilePath(lsp.DocumentURI(definition))
+		definition = utils.UriToPath(lsp.DocumentURI(definition))
 		if trimPrefix != "" {
-			definition = strings.TrimPrefix(definition, trimPrefix)
+			definition = strings.TrimPrefix(definition, utils.UriToPath(utils.PathToURI(trimPrefix)))
 		}
 	}
 	if definition != want {
@@ -1375,7 +1385,7 @@ func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootUR
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition = uriToFilePath(lsp.DocumentURI(xdefinition))
+	xdefinition = utils.UriToPath(lsp.DocumentURI(xdefinition))
 	if xdefinition != want {
 		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
 	}
@@ -1405,7 +1415,7 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		t.Fatal(err)
 	}
 	for i := range references {
-		references[i] = uriToFilePath(lsp.DocumentURI(references[i]))
+		references[i] = utils.UriToPath(lsp.DocumentURI(references[i]))
 	}
 	sort.Strings(references)
 	sort.Strings(want)
@@ -1420,7 +1430,7 @@ func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI ls
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = uriToFilePath(lsp.DocumentURI(symbols[i]))
+		symbols[i] = utils.UriToPath(lsp.DocumentURI(symbols[i]))
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %q, want %q", symbols, want)
@@ -1433,7 +1443,7 @@ func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = uriToFilePath(lsp.DocumentURI(symbols[i]))
+		symbols[i] = utils.UriToPath(lsp.DocumentURI(symbols[i]))
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %#v, want %q", symbols, want)
@@ -1657,7 +1667,7 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 	}
 	refs := make([]string, len(references))
 	for i, r := range references {
-		locationURI := uriToFilePath(r.Reference.URI)
+		locationURI := utils.UriToPath(r.Reference.URI)
 		start := r.Reference.Range.Start
 		end := r.Reference.Range.End
 		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)

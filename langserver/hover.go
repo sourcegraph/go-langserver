@@ -16,6 +16,7 @@ import (
 
 	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -25,7 +26,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return h.handleHoverGodef(ctx, conn, req, params)
 	}
 
-	if !isFileURI(params.TextDocument.URI) {
+	if !utils.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
 			Message: fmt.Sprintf("textDocument/hover not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
@@ -309,7 +310,9 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 		return &lsp.Hover{}, nil
 	}
 
-	filename := uriToFilePath(loc.URI)
+	// convert the path into a real path because 3rd party tools
+	// might load additional code based on the file's package
+	filename := utils.UriToRealPath(loc.URI)
 
 	// Parse the entire dir into its respective AST packages.
 	pkgs, err := parser.ParseDir(fset, filepath.Dir(filename), nil, parser.ParseComments)
@@ -356,7 +359,7 @@ func packageForFile(pkgs map[string]*ast.Package, filename string) (string, *ast
 
 // inRange tells if x is in the range of a-b inclusive.
 func inRange(x, a, b token.Position) bool {
-	if x.Filename != a.Filename || x.Filename != b.Filename {
+	if !utils.PathEqual(x.Filename, a.Filename) || !utils.PathEqual(x.Filename, b.Filename) {
 		return false
 	}
 	return x.Offset >= a.Offset && x.Offset <= b.Offset

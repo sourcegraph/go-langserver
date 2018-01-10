@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -19,7 +20,7 @@ var (
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
-	if !isFileURI(params.TextDocument.URI) {
+	if !utils.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
 			Message: fmt.Sprintf("textDocument/completion not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
@@ -31,7 +32,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	// to correct the path now.
 	vfsURI := params.TextDocument.URI
 	if testOSToVFSPath != nil {
-		vfsURI = pathToURI(testOSToVFSPath(uriToFilePath(vfsURI)))
+		vfsURI = utils.PathToURI(testOSToVFSPath(utils.UriToPath(vfsURI)))
 	}
 
 	// Read file contents and calculate byte offset.
@@ -39,7 +40,9 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	if err != nil {
 		return nil, err
 	}
-	filename := h.FilePath(params.TextDocument.URI)
+	// convert the path into a real path because 3rd party tools
+	// might load additional code based on the file's package
+	filename := utils.UriToRealPath(params.TextDocument.URI)
 	offset, valid, why := offsetForPosition(contents, params.Position)
 	if !valid {
 		return nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)

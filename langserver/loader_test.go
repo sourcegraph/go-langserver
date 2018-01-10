@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	opentracing "github.com/opentracing/opentracing-go"
+
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -46,11 +48,9 @@ func TestLoader(t *testing.T) {
 			p, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc)
 			if err != nil {
 				t.Error(err)
-			}
-			if len(p.Created) == 0 {
+			} else if len(p.Created) == 0 {
 				t.Error("Expected to loader to create a package")
-			}
-			if len(p.Created[0].Files) == 0 {
+			} else if len(p.Created[0].Files) == 0 {
 				t.Error("did not load any files")
 			}
 		})
@@ -139,7 +139,7 @@ func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context, *bui
 	for filename, contents := range fs {
 		r := &jsonrpc2.Request{Method: "textDocument/didOpen"}
 		r.SetParams(&lsp.DidOpenTextDocumentParams{TextDocument: lsp.TextDocumentItem{
-			URI:  pathToURI(filename),
+			URI:  utils.PathToURI(filename),
 			Text: contents,
 		}})
 		_, _, err := h.handleFileSystemRequest(ctx, r)

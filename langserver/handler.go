@@ -19,6 +19,8 @@ import (
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
 )
 
 // NewHandler creates a Go language server handler.
@@ -80,7 +82,7 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 		}
 	}
 
-	if isFileURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
+	if utils.IsURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
 		log.Printf("Passing an initialize rootPath URI (%q) is deprecated. Use rootUri instead.", init.InitializeParams.RootPath)
 	}
 
@@ -139,7 +141,7 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
 	defer func() {
-		if perr := panicf(recover(), "%v", req.Method); perr != nil {
+		if perr := utils.Panicf(recover(), "%v", req.Method); perr != nil {
 			err = perr
 		}
 	}()
@@ -192,6 +194,12 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		var params InitializeParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
+		}
+
+		// HACK: RootPath is not a URI, but historically we treated it
+		// as such. Convert it to a file URI
+		if !utils.IsURI(lsp.DocumentURI(params.RootPath)) {
+			params.RootPath = string(utils.PathToURI(params.RootPath))
 		}
 
 		if err := h.reset(&params); err != nil {
