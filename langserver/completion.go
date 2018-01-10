@@ -3,6 +3,8 @@ package langserver
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
@@ -12,6 +14,8 @@ import (
 var (
 	GocodeCompletionEnabled = false
 	CIKConstantSupported    = lsp.CIKVariable // or lsp.CIKConstant if client supported
+	FuncSnippetEnabled      = false
+	funcArgsRegexp          = regexp.MustCompile("func\\(([^)]+)\\)")
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
@@ -59,16 +63,21 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		case "var":
 			kind = lsp.CIKVariable
 		}
+
+		itf, newText := h.getNewText(kind, it.Name, it.Type)
 		citems[i] = lsp.CompletionItem{
-			Label:  it.Name,
-			Kind:   kind,
-			Detail: it.Type,
+			Label:            it.Name,
+			Kind:             kind,
+			Detail:           it.Type,
+			InsertTextFormat: itf,
+			// InsertText is deprecated in favour of TextEdit, but added here for legacy client support
+			InsertText: newText,
 			TextEdit: &lsp.TextEdit{
 				Range: lsp.Range{
 					Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangelen},
 					End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
 				},
-				NewText: it.Name,
+				NewText: newText,
 			},
 		}
 	}
@@ -76,4 +85,34 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		IsIncomplete: false,
 		Items:        citems,
 	}, nil
+}
+
+func (h *LangHandler) getNewText(kind lsp.CompletionItemKind, name, detail string) (lsp.InsertTextFormat, string) {
+	if FuncSnippetEnabled &&
+		kind == lsp.CIKFunction &&
+		h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport {
+		args := genSnippetArgs(parseFuncArgs(detail))
+		text := fmt.Sprintf("%s(%s)$0", name, strings.Join(args, ", "))
+		return lsp.ITFSnippet, text
+	}
+	return lsp.ITFPlainText, name
+}
+
+func parseFuncArgs(def string) []string {
+	m := funcArgsRegexp.FindStringSubmatch(def)
+	var args []string
+	if len(m) > 1 {
+		args = strings.Split(m[1], ", ")
+	}
+	return args
+}
+
+func genSnippetArgs(args []string) []string {
+	newArgs := make([]string, len(args))
+	for i, a := range args {
+		// Closing curly braces must be escaped
+		a = strings.Replace(a, "}", "\\}", -1)
+		newArgs[i] = fmt.Sprintf("${%d:%s}", i+1, a)
+	}
+	return newArgs
 }
