@@ -63,12 +63,11 @@ func main() {
 		}
 	}
 
-	cfg := langserver.Config{
-		FuncSnippetEnabled:      *funcSnippetEnabled,
-		GocodeCompletionEnabled: *gocodecompletion,
-		MaxParallelism:          *maxparallelism,
-		UseBinaryPkgCache:       *usebinarypkgcache,
-	}
+	cfg := langserver.NewDefaultConfig()
+	cfg.FuncSnippetEnabled = *funcSnippetEnabled
+	cfg.GocodeCompletionEnabled = *gocodecompletion
+	cfg.MaxParallelism = *maxparallelism
+	cfg.UseBinaryPkgCache = *usebinarypkgcache
 
 	if err := run(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)

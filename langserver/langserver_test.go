@@ -1045,11 +1045,12 @@ func TestServer(t *testing.T) {
 				return
 			}
 
+			cfg := NewDefaultConfig()
+			cfg.FuncSnippetEnabled = true
+			cfg.GocodeCompletionEnabled = true
+
 			h := &LangHandler{
-				config: Config{
-					FuncSnippetEnabled:      true,
-					GocodeCompletionEnabled: true,
-				},
+				config:        cfg,
 				HandlerShared: &HandlerShared{},
 			}
 

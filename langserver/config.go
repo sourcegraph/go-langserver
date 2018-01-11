@@ -27,3 +27,9 @@ type Config struct {
 	// be used.
 	UseBinaryPkgCache bool
 }
+
+func NewDefaultConfig() Config {
+	return Config{
+		MaxParallelism: 8,
+	}
+}
