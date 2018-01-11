@@ -1038,8 +1038,6 @@ func (h *Hello) Bye() int {
 }
 
 func TestServer(t *testing.T) {
-	GocodeCompletionEnabled = true
-
 	for label, test := range serverTestCases {
 		t.Run(label, func(t *testing.T) {
 			if test.skip {
@@ -1047,7 +1045,10 @@ func TestServer(t *testing.T) {
 				return
 			}
 
-			h := &LangHandler{HandlerShared: &HandlerShared{}}
+			h := &LangHandler{
+				config:        Config{GocodeCompletionEnabled: true},
+				HandlerShared: &HandlerShared{},
+			}
 
 			addr, done := startServer(t, jsonrpc2.HandlerWithError(h.handle))
 			defer done()

@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	GocodeCompletionEnabled = false
 	CIKConstantSupported    = lsp.CIKVariable // or lsp.CIKConstant if client supported
 	FuncSnippetEnabled      = false
 	funcArgsRegexp          = regexp.MustCompile(`func\(([^)]+)\)`)

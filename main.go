@@ -64,12 +64,11 @@ func main() {
 		}
 	}
 
-	langserver.GocodeCompletionEnabled = *gocodecompletion
-
 	langserver.FuncSnippetEnabled = *funcSnippetEnabled
 
 	cfg := langserver.Config{
-		MaxParallelism: *maxparallelism,
+		GocodeCompletionEnabled: *gocodecompletion,
+		MaxParallelism:          *maxparallelism,
 	}
 
 	if err := run(cfg); err != nil {

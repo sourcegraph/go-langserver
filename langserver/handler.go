@@ -208,7 +208,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
-		if GocodeCompletionEnabled {
+		if h.config.GocodeCompletionEnabled {
 			gocode.InitDaemon(h.BuildContext(ctx))
 		}
 
@@ -226,7 +226,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		kind := lsp.TDSKIncremental
 		var completionOp *lsp.CompletionOptions
-		if GocodeCompletionEnabled {
+		if h.config.GocodeCompletionEnabled {
 			completionOp = &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
 		}
 		return lsp.InitializeResult{
