@@ -17,12 +17,8 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
-// UseBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
-// be used.
-var UseBinaryPkgCache = false
-
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
-	if UseBinaryPkgCache {
+	if h.config.UseBinaryPkgCache {
 		_, _, locs, err := h.definitionGodef(ctx, params)
 		if err == godef.ErrNoIdentifierFound {
 			// This is expected to happen when j2d over

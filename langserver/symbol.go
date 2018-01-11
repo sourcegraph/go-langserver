@@ -336,19 +336,13 @@ func (h *LangHandler) handleWorkspaceSymbol(ctx context.Context, conn jsonrpc2.J
 	return h.handleSymbol(ctx, conn, req, q, params.Limit)
 }
 
-// MaxParallelism controls the maximum number of goroutines that should be used
-// to fulfill requests. This is useful in editor environments where users do
-// not want results ASAP, but rather just semi quickly without eating all of
-// their CPU.
-var MaxParallelism = 8
-
 func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, query Query, limit int) ([]lsp.SymbolInformation, error) {
 	results := resultSorter{Query: query, results: make([]scoredSymbol, 0)}
 	{
 		rootPath := h.FilePath(h.init.Root())
 		bctx := h.BuildContext(ctx)
 
-		par := parallel.NewRun(8)
+		par := parallel.NewRun(h.config.MaxParallelism)
 		for _, pkg := range tools.ListPkgsUnderDir(bctx, rootPath) {
 			// If we're restricting results to a single file or dir, ensure the
 			// package dir matches to avoid doing unnecessary work.

@@ -1038,8 +1038,6 @@ func (h *Hello) Bye() int {
 }
 
 func TestServer(t *testing.T) {
-	GocodeCompletionEnabled = true
-
 	for label, test := range serverTestCases {
 		t.Run(label, func(t *testing.T) {
 			if test.skip {
@@ -1047,7 +1045,14 @@ func TestServer(t *testing.T) {
 				return
 			}
 
-			h := &LangHandler{HandlerShared: &HandlerShared{}}
+			cfg := NewDefaultConfig()
+			cfg.FuncSnippetEnabled = true
+			cfg.GocodeCompletionEnabled = true
+
+			h := &LangHandler{
+				config:        cfg,
+				HandlerShared: &HandlerShared{},
+			}
 
 			addr, done := startServer(t, jsonrpc2.HandlerWithError(h.handle))
 			defer done()
@@ -1089,7 +1094,7 @@ func TestServer(t *testing.T) {
 			}
 			h.Mu.Unlock()
 
-			lspTests(t, ctx, h.FS, conn, test.rootURI, test.cases)
+			lspTests(t, ctx, h, conn, test.rootURI, test.cases)
 		})
 	}
 }
@@ -1198,7 +1203,7 @@ func copyDirToOS(ctx context.Context, fs *AtomicFS, targetDir, srcDir string) er
 }
 
 // lspTests runs all test suites for LSP functionality.
-func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, cases lspTestCases) {
+func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, cases lspTestCases) {
 	for pos, want := range cases.wantHover {
 		tbRun(t, fmt.Sprintf("hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 			hoverTest(t, ctx, c, rootURI, pos, want)
@@ -1215,8 +1220,8 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		wantGodefHover = cases.wantHover
 	}
 
-	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && fs != nil) || len(cases.wantCompletion) > 0 {
-		UseBinaryPkgCache = true
+	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && h != nil) || len(cases.wantCompletion) > 0 {
+		h.config.UseBinaryPkgCache = true
 
 		// Copy the VFS into a temp directory, which will be our $GOPATH.
 		tmpDir, err := ioutil.TempDir("", "godef-definition")
@@ -1224,7 +1229,7 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 			t.Fatal(err)
 		}
 		defer os.RemoveAll(tmpDir)
-		if err := copyDirToOS(ctx, fs, tmpDir, "/"); err != nil {
+		if err := copyDirToOS(ctx, h.FS, tmpDir, "/"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1270,7 +1275,7 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 			})
 		}
 
-		UseBinaryPkgCache = false
+		h.config.UseBinaryPkgCache = false
 	}
 
 	for pos, want := range cases.wantDefinition {
