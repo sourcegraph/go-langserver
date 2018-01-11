@@ -16,7 +16,7 @@ var (
 	GocodeCompletionEnabled = false
 	CIKConstantSupported    = lsp.CIKVariable // or lsp.CIKConstant if client supported
 	FuncSnippetEnabled      = false
-	funcArgsRegexp          = regexp.MustCompile("func\\(([^)]+)\\)")
+	funcArgsRegexp          = regexp.MustCompile(`func\(([^)]+)\)`)
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
