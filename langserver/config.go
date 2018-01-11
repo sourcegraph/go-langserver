@@ -10,3 +10,6 @@ var (
 	// worth it.
 	envWarmupOnInitialize = os.Getenv("GOLSP_WARMUP_ON_INITIALIZE")
 )
+
+type Config struct {
+}

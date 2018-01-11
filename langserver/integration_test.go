@@ -29,7 +29,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 		build.Default = orig
 	}()
 
-	h := NewHandler()
+	h := NewHandler(Config{})
 
 	addr, done := startServer(t, h)
 	defer done()

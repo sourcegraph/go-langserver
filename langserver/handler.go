@@ -24,8 +24,9 @@ import (
 )
 
 // NewHandler creates a Go language server handler.
-func NewHandler() jsonrpc2.Handler {
+func NewHandler(cfg Config) jsonrpc2.Handler {
 	return lspHandler{jsonrpc2.HandlerWithError((&LangHandler{
+		config:        cfg,
 		HandlerShared: &HandlerShared{},
 	}).handle)}
 }
@@ -71,6 +72,8 @@ type LangHandler struct {
 	importGraph     importgraph.Graph
 
 	cancel *cancel
+
+	config Config
 }
 
 // reset clears all internal state in h.

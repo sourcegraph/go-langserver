@@ -69,13 +69,15 @@ func main() {
 
 	langserver.FuncSnippetEnabled = *funcSnippetEnabled
 
-	if err := run(); err != nil {
+	cfg := langserver.Config{}
+
+	if err := run(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(cfg langserver.Config) error {
 	if *printVersion {
 		fmt.Println(version)
 		return nil
@@ -99,6 +101,8 @@ func run() error {
 		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
 	}
 
+	handler := langserver.NewHandler(cfg)
+
 	switch *mode {
 	case "tcp":
 		lis, err := net.Listen("tcp", *addr)
@@ -113,12 +117,12 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), langserver.NewHandler(), connOpt...)
+			jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
 		}
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
-		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), langserver.NewHandler(), connOpt...).DisconnectNotify()
+		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...).DisconnectNotify()
 		log.Println("connection closed")
 		return nil
 
