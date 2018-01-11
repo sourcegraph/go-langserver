@@ -54,7 +54,6 @@ func main() {
 	if *freeosmemory {
 		go freeOSMemory()
 	}
-	langserver.UseBinaryPkgCache = *usebinarypkgcache
 
 	// Default max parallelism to half the CPU cores, but at least always one.
 	if *maxparallelism <= 0 {
@@ -68,6 +67,7 @@ func main() {
 		FuncSnippetEnabled:      *funcSnippetEnabled,
 		GocodeCompletionEnabled: *gocodecompletion,
 		MaxParallelism:          *maxparallelism,
+		UseBinaryPkgCache:       *usebinarypkgcache,
 	}
 
 	if err := run(cfg); err != nil {

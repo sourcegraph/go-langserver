@@ -22,7 +22,7 @@ import (
 )
 
 func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
-	if UseBinaryPkgCache {
+	if h.config.UseBinaryPkgCache {
 		return h.handleHoverGodef(ctx, conn, req, params)
 	}
 

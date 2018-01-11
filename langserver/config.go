@@ -23,4 +23,7 @@ type Config struct {
 	// not want results ASAP, but rather just semi quickly without eating all of
 	// their CPU.
 	MaxParallelism int
+	// UseBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
+	// be used.
+	UseBinaryPkgCache bool
 }
