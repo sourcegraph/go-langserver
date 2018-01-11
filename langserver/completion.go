@@ -14,7 +14,6 @@ import (
 
 var (
 	CIKConstantSupported    = lsp.CIKVariable // or lsp.CIKConstant if client supported
-	FuncSnippetEnabled      = false
 	funcArgsRegexp          = regexp.MustCompile(`func\(([^)]+)\)`)
 )
 
@@ -90,7 +89,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 }
 
 func (h *LangHandler) getNewText(kind lsp.CompletionItemKind, name, detail string) (lsp.InsertTextFormat, string) {
-	if FuncSnippetEnabled &&
+	if h.config.FuncSnippetEnabled &&
 		kind == lsp.CIKFunction &&
 		h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport {
 		args := genSnippetArgs(parseFuncArgs(detail))

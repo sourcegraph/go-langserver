@@ -64,9 +64,8 @@ func main() {
 		}
 	}
 
-	langserver.FuncSnippetEnabled = *funcSnippetEnabled
-
 	cfg := langserver.Config{
+		FuncSnippetEnabled:      *funcSnippetEnabled,
 		GocodeCompletionEnabled: *gocodecompletion,
 		MaxParallelism:          *maxparallelism,
 	}

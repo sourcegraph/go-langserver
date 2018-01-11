@@ -12,6 +12,10 @@ var (
 )
 
 type Config struct {
+	// FuncSnippetEnabled enables the returning of enable argument snippets
+	// on `func` completions, eg. func(foo string, arg2 bar).
+	// Requires code completion to be enabled.
+	FuncSnippetEnabled bool
 	// GocodeCompletionEnabled enables code completion feature (using gocode)
 	GocodeCompletionEnabled bool
 	// MaxParallelism controls the maximum number of goroutines that should be used
