@@ -63,13 +63,14 @@ func main() {
 			*maxparallelism = 1
 		}
 	}
-	langserver.MaxParallelism = *maxparallelism
 
 	langserver.GocodeCompletionEnabled = *gocodecompletion
 
 	langserver.FuncSnippetEnabled = *funcSnippetEnabled
 
-	cfg := langserver.Config{}
+	cfg := langserver.Config{
+		MaxParallelism: *maxparallelism,
+	}
 
 	if err := run(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)

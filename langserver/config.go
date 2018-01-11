@@ -12,4 +12,9 @@ var (
 )
 
 type Config struct {
+	// MaxParallelism controls the maximum number of goroutines that should be used
+	// to fulfill requests. This is useful in editor environments where users do
+	// not want results ASAP, but rather just semi quickly without eating all of
+	// their CPU.
+	MaxParallelism int
 }
