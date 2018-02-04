@@ -18,7 +18,7 @@ import (
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
-	if h.config.UseBinaryPkgCache {
+	if h.Config.UseBinaryPkgCache {
 		_, _, locs, err := h.definitionGodef(ctx, params)
 		if err == godef.ErrNoIdentifierFound {
 			// This is expected to happen when j2d over

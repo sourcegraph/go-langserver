@@ -26,7 +26,7 @@ import (
 // NewHandler creates a Go language server handler.
 func NewHandler(cfg Config) jsonrpc2.Handler {
 	return lspHandler{jsonrpc2.HandlerWithError((&LangHandler{
-		config:        cfg,
+		Config:        cfg,
 		HandlerShared: &HandlerShared{},
 	}).handle)}
 }
@@ -73,7 +73,7 @@ type LangHandler struct {
 
 	cancel *cancel
 
-	config Config
+	Config Config // language handler configuration; must not change after handling has begun
 }
 
 // reset clears all internal state in h.
@@ -208,7 +208,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
-		if h.config.GocodeCompletionEnabled {
+		if h.Config.GocodeCompletionEnabled {
 			gocode.InitDaemon(h.BuildContext(ctx))
 		}
 
@@ -226,7 +226,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		kind := lsp.TDSKIncremental
 		var completionOp *lsp.CompletionOptions
-		if h.config.GocodeCompletionEnabled {
+		if h.Config.GocodeCompletionEnabled {
 			completionOp = &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
 		}
 		return lsp.InitializeResult{
@@ -392,7 +392,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				// a user is viewing this path, hint to add it to the cache
 				// (unless we're primarily using binary package cache .a
 				// files).
-				if !h.config.UseBinaryPkgCache {
+				if !h.Config.UseBinaryPkgCache {
 					go h.typecheck(ctx, conn, uri, lsp.Position{})
 				}
 			}
