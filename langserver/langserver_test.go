@@ -1639,7 +1639,7 @@ func callSymbols(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) ([]
 	}
 	syms := make([]string, len(symbols))
 	for i, s := range symbols {
-		syms[i] = fmt.Sprintf("%s:%s:%s:%d:%d", s.Location.URI, s.Kind, qualifiedName(s), s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
+		syms[i] = fmt.Sprintf("%s:%s:%s:%d:%d", s.Location.URI, strings.ToLower(s.Kind.String()), qualifiedName(s), s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
 	}
 	return syms, nil
 }
@@ -1652,7 +1652,7 @@ func callWorkspaceSymbols(ctx context.Context, c *jsonrpc2.Conn, params lspext.W
 	}
 	syms := make([]string, len(symbols))
 	for i, s := range symbols {
-		syms[i] = fmt.Sprintf("%s:%s:%s:%d:%d", s.Location.URI, s.Kind, qualifiedName(s), s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
+		syms[i] = fmt.Sprintf("%s:%s:%s:%d:%d", s.Location.URI, strings.ToLower(s.Kind.String()), qualifiedName(s), s.Location.Range.Start.Line+1, s.Location.Range.Start.Character+1)
 	}
 	return syms, nil
 }
