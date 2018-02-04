@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 )
 
@@ -60,7 +60,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	rootURI := utils.PathToURI(rootFSPath)
+	rootURI := util.PathToURI(rootFSPath)
 	if err := conn.Call(ctx, "initialize", lsp.InitializeParams{RootURI: rootURI}, nil); err != nil {
 		t.Fatal("initialize:", err)
 	}

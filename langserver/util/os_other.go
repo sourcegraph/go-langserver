@@ -1,6 +1,6 @@
 // +build !windows
 
-package utils
+package util
 
 func virtualPath(path string) string {
 	// non-Windows implementation does nothing

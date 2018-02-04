@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 )
 
 // BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.
@@ -42,7 +42,7 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 	fs := h.FS
 	h.Mu.Unlock()
 
-	utils.PrepareContext(bctx, ctx, fs)
+	util.PrepareContext(bctx, ctx, fs)
 	return bctx
 }
 
@@ -68,19 +68,19 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 		pkgDir = path.Dir(filename)
 	}
 	var srcDir string
-	if utils.PathHasPrefix(filename, bctx.GOROOT) {
+	if util.PathHasPrefix(filename, bctx.GOROOT) {
 		srcDir = bctx.GOROOT // if workspace is Go stdlib
 	} else {
 		srcDir = "" // with no GOPATH, only stdlib will work
 		for _, gopath := range gopaths {
-			if utils.PathHasPrefix(pkgDir, gopath) {
+			if util.PathHasPrefix(pkgDir, gopath) {
 				srcDir = gopath
 				break
 			}
 		}
 	}
 	srcDir = path.Join(filepath.ToSlash(srcDir), "src")
-	importPath := utils.PathTrimPrefix(pkgDir, srcDir)
+	importPath := util.PathTrimPrefix(pkgDir, srcDir)
 	var xtest bool
 	pkg, err := bctx.Import(importPath, pkgDir, 0)
 	if pkg != nil {

@@ -22,7 +22,7 @@ import (
 
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -1063,7 +1063,7 @@ func TestServer(t *testing.T) {
 				}
 			}()
 
-			rootFSPath := utils.UriToPath(test.rootURI)
+			rootFSPath := util.UriToPath(test.rootURI)
 
 			// Prepare the connection.
 			ctx := context.Background()
@@ -1239,7 +1239,7 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		// 'go test' instead of our tmp directory.
 		build.Default.GOPATH = tmpDir
 		gocode.SetBuildContext(&build.Default)
-		tmpRootPath := filepath.Join(tmpDir, utils.UriToPath(rootURI))
+		tmpRootPath := filepath.Join(tmpDir, util.UriToPath(rootURI))
 
 		// Install all Go packages in the $GOPATH.
 		oldGOPATH := os.Getenv("GOPATH")
@@ -1252,26 +1252,26 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		t.Logf("$ go install -v ...\n%s", out)
 
 		testOSToVFSPath = func(osPath string) string {
-			return strings.TrimPrefix(osPath, utils.UriToPath(utils.PathToURI(tmpDir)))
+			return strings.TrimPrefix(osPath, util.UriToPath(util.PathToURI(tmpDir)))
 		}
 
 		// Run the tests.
 		for pos, want := range wantGodefDefinition {
 			if strings.HasPrefix(want, "/goroot") {
-				want = strings.Replace(want, "/goroot", path.Clean(utils.UriToPath(utils.PathToURI(build.Default.GOROOT))), 1)
+				want = strings.Replace(want, "/goroot", path.Clean(util.UriToPath(util.PathToURI(build.Default.GOROOT))), 1)
 			}
 			tbRun(t, fmt.Sprintf("godef-definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				definitionTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want, tmpDir)
+				definitionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want, tmpDir)
 			})
 		}
 		for pos, want := range wantGodefHover {
 			tbRun(t, fmt.Sprintf("godef-hover-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				hoverTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want)
+				hoverTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
 			})
 		}
 		for pos, want := range cases.wantCompletion {
 			tbRun(t, fmt.Sprintf("completion-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-				completionTest(t, ctx, c, utils.PathToURI(tmpRootPath), pos, want)
+				completionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
 			})
 		}
 
@@ -1371,9 +1371,9 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		t.Fatal(err)
 	}
 	if definition != "" {
-		definition = utils.UriToPath(lsp.DocumentURI(definition))
+		definition = util.UriToPath(lsp.DocumentURI(definition))
 		if trimPrefix != "" {
-			definition = strings.TrimPrefix(definition, utils.UriToPath(utils.PathToURI(trimPrefix)))
+			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
 		}
 	}
 	if definition != want {
@@ -1390,7 +1390,7 @@ func xdefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootUR
 	if err != nil {
 		t.Fatal(err)
 	}
-	xdefinition = utils.UriToPath(lsp.DocumentURI(xdefinition))
+	xdefinition = util.UriToPath(lsp.DocumentURI(xdefinition))
 	if xdefinition != want {
 		t.Errorf("\ngot  %q\nwant %q", xdefinition, want)
 	}
@@ -1420,7 +1420,7 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		t.Fatal(err)
 	}
 	for i := range references {
-		references[i] = utils.UriToPath(lsp.DocumentURI(references[i]))
+		references[i] = util.UriToPath(lsp.DocumentURI(references[i]))
 	}
 	sort.Strings(references)
 	sort.Strings(want)
@@ -1435,7 +1435,7 @@ func symbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI ls
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = utils.UriToPath(lsp.DocumentURI(symbols[i]))
+		symbols[i] = util.UriToPath(lsp.DocumentURI(symbols[i]))
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %q, want %q", symbols, want)
@@ -1448,7 +1448,7 @@ func workspaceSymbolsTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, r
 		t.Fatal(err)
 	}
 	for i := range symbols {
-		symbols[i] = utils.UriToPath(lsp.DocumentURI(symbols[i]))
+		symbols[i] = util.UriToPath(lsp.DocumentURI(symbols[i]))
 	}
 	if !reflect.DeepEqual(symbols, want) {
 		t.Errorf("got %#v, want %q", symbols, want)
@@ -1672,7 +1672,7 @@ func callWorkspaceReferences(ctx context.Context, c *jsonrpc2.Conn, params lspex
 	}
 	refs := make([]string, len(references))
 	for i, r := range references {
-		locationURI := utils.UriToPath(r.Reference.URI)
+		locationURI := util.UriToPath(r.Reference.URI)
 		start := r.Reference.Range.Start
 		end := r.Reference.Range.End
 		refs[i] = fmt.Sprintf("%s:%d:%d-%d:%d -> %v", locationURI, start.Line+1, start.Character+1, end.Line+1, end.Character+1, r.Symbol)

@@ -20,7 +20,7 @@ import (
 
 	"github.com/neelance/parallel"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -196,11 +196,11 @@ func score(q Query, s symbolPair) (scor int) {
 		return -1
 	}
 	name, container := strings.ToLower(s.Name), strings.ToLower(s.ContainerName)
-	if !utils.IsURI(s.Location.URI) {
+	if !util.IsURI(s.Location.URI) {
 		log.Printf("unexpectedly saw symbol defined at a non-file URI: %q", s.Location.URI)
 		return 0
 	}
-	filename := utils.UriToPath(s.Location.URI)
+	filename := util.UriToPath(s.Location.URI)
 	isVendor := strings.HasPrefix(filename, "vendor/") || strings.Contains(filename, "/vendor/")
 	if q.Filter == FilterExported && isVendor {
 		// is:exported excludes vendor symbols always.
@@ -272,7 +272,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 		},
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
 		desc: symbolDescriptor{
-			Vendor:      utils.IsVendorDir(bpkg.Dir),
+			Vendor:      util.IsVendorDir(bpkg.Dir),
 			Package:     path.Clean(bpkg.ImportPath),
 			PackageName: bpkg.Name,
 			Recv:        recv,
@@ -285,13 +285,13 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	if !utils.IsURI(params.TextDocument.URI) {
+	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
 			Message: fmt.Sprintf("textDocument/documentSymbol not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
 		}
 	}
-	path := utils.UriToPath(params.TextDocument.URI)
+	path := util.UriToPath(params.TextDocument.URI)
 
 	fset := token.NewFileSet()
 	bctx := h.BuildContext(ctx)
@@ -348,17 +348,17 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
 				filePkgPath := path.Dir(results.Query.File)
-				if utils.PathHasPrefix(filePkgPath, bctx.GOROOT) {
-					filePkgPath = utils.PathTrimPrefix(filePkgPath, bctx.GOROOT)
+				if util.PathHasPrefix(filePkgPath, bctx.GOROOT) {
+					filePkgPath = util.PathTrimPrefix(filePkgPath, bctx.GOROOT)
 				} else {
-					filePkgPath = utils.PathTrimPrefix(filePkgPath, bctx.GOPATH)
+					filePkgPath = util.PathTrimPrefix(filePkgPath, bctx.GOPATH)
 				}
-				filePkgPath = utils.PathTrimPrefix(filePkgPath, "src")
-				if !utils.PathEqual(pkg, filePkgPath) {
+				filePkgPath = util.PathTrimPrefix(filePkgPath, "src")
+				if !util.PathEqual(pkg, filePkgPath) {
 					continue
 				}
 			}
-			if results.Query.Filter == FilterDir && !utils.PathEqual(pkg, results.Query.Dir) {
+			if results.Query.Filter == FilterDir && !util.PathEqual(pkg, results.Query.Dir) {
 				continue
 			}
 
@@ -378,7 +378,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 				// https://github.com/golang/go/issues/17788
 				defer func() {
 					par.Release()
-					_ = utils.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
+					_ = util.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
 				}()
 				h.collectFromPkg(ctx, bctx, pkg, rootPath, &results)
 			}(pkg)
