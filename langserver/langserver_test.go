@@ -466,17 +466,17 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantSymbols: map[string][]string{
 				"a.go": []string{
-					"/src/test/pkg/a.go:variable:_:1:26",
-					"/src/test/pkg/a.go:variable:x:1:47",
+					"/src/test/pkg/a.go:variable:_:1:30",
+					"/src/test/pkg/a.go:variable:x:1:51",
 				},
 			},
 			wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
 				{Query: ""}: []string{
-					"/src/test/pkg/a.go:variable:_:1:26",
-					"/src/test/pkg/a.go:variable:x:1:47",
+					"/src/test/pkg/a.go:variable:_:1:30",
+					"/src/test/pkg/a.go:variable:x:1:51",
 				},
 				{Query: "is:exported"}: []string{},
-				{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:variable:x:1:47"},
+				{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "x", "packageName": "p", "recv": "", "vendor": false}}: []string{"/src/test/pkg/a.go:variable:x:1:51"},
 			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
 				{Query: lspext.SymbolDescriptor{}}: []string{
@@ -527,10 +527,10 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantSymbols: map[string][]string{
 				"a/a.go": []string{"/src/test/pkg/a/a.go:function:A:1:17"},
-				"b/b.go": []string{"/src/test/pkg/b/b.go:variable:_:1:33"},
+				"b/b.go": []string{"/src/test/pkg/b/b.go:variable:_:1:37"},
 			},
 			wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-				{Query: ""}:            []string{"/src/test/pkg/a/a.go:function:A:1:17", "/src/test/pkg/b/b.go:variable:_:1:33"},
+				{Query: ""}:            []string{"/src/test/pkg/a/a.go:function:A:1:17", "/src/test/pkg/b/b.go:variable:_:1:37"},
 				{Query: "is:exported"}: []string{"/src/test/pkg/a/a.go:function:A:1:17"},
 			},
 			wantWorkspaceReferences: map[*lspext.WorkspaceReferencesParams][]string{
@@ -569,13 +569,13 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantSymbols: map[string][]string{
-				"a.go": []string{"/src/test/pkg/a.go:variable:_:1:44"},
+				"a.go": []string{"/src/test/pkg/a.go:variable:_:1:48"},
 				"vendor/github.com/v/vendored/v.go": []string{"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
 			},
 			wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-				{Query: ""}:            []string{"/src/test/pkg/a.go:variable:_:1:44", "/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
+				{Query: ""}:            []string{"/src/test/pkg/a.go:variable:_:1:48", "/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
 				{Query: "is:exported"}: []string{},
-				{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "_", "packageName": "a", "recv": "", "vendor": false}}:                                     []string{"/src/test/pkg/a.go:variable:_:1:44"},
+				{Symbol: lspext.SymbolDescriptor{"package": "test/pkg", "name": "_", "packageName": "a", "recv": "", "vendor": false}}:                                     []string{"/src/test/pkg/a.go:variable:_:1:48"},
 				{Symbol: lspext.SymbolDescriptor{"package": "test/pkg/vendor/github.com/v/vendored", "name": "V", "packageName": "vendored", "recv": "", "vendor": true}}:  []string{"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
 				{Symbol: lspext.SymbolDescriptor{"package": "test/pkg/vendor/github.com/v/vendored", "name": "V", "packageName": "vendored", "recv": "", "vendor": false}}: []string{},
 			},
@@ -780,6 +780,19 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 type XYZ struct {}
 
 func (x XYZ) ABC() {}
+
+var (
+	A = 1
+)
+
+const (
+	B = 2
+)
+
+type (
+	_ struct{}
+	C struct{}
+)
 `,
 			"bcd.go": `package a
 
@@ -794,17 +807,17 @@ func yza() {}
 		},
 		cases: lspTestCases{
 			wantSymbols: map[string][]string{
-				"abc.go": []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14"},
+				"abc.go": []string{"/src/test/pkg/abc.go:class:C:17:2", "/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:constant:B:12:2", "/src/test/pkg/abc.go:variable:A:8:2"},
 				"bcd.go": []string{"/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
 				"xyz.go": []string{"/src/test/pkg/xyz.go:function:yza:3:6"},
 			},
 			wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
-				{Query: ""}:            []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/xyz.go:function:yza:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
+				{Query: ""}:            []string{"/src/test/pkg/abc.go:variable:A:8:2", "/src/test/pkg/abc.go:constant:B:12:2", "/src/test/pkg/abc.go:class:C:17:2", "/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/xyz.go:function:yza:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
 				{Query: "xyz"}:         []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/xyz.go:function:yza:3:6"},
 				{Query: "yza"}:         []string{"/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/xyz.go:function:yza:3:6", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
-				{Query: "abc"}:         []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:class:XYZ:3:6"},
+				{Query: "abc"}:         []string{"/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/abc.go:variable:A:8:2", "/src/test/pkg/abc.go:constant:B:12:2", "/src/test/pkg/abc.go:class:C:17:2", "/src/test/pkg/abc.go:class:XYZ:3:6"},
 				{Query: "bcd"}:         []string{"/src/test/pkg/bcd.go:method:YZA.BCD:5:14", "/src/test/pkg/bcd.go:class:YZA:3:6"},
-				{Query: "is:exported"}: []string{"/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
+				{Query: "is:exported"}: []string{"/src/test/pkg/abc.go:variable:A:8:2", "/src/test/pkg/abc.go:constant:B:12:2", "/src/test/pkg/abc.go:class:C:17:2", "/src/test/pkg/abc.go:class:XYZ:3:6", "/src/test/pkg/bcd.go:class:YZA:3:6", "/src/test/pkg/abc.go:method:XYZ.ABC:5:14", "/src/test/pkg/bcd.go:method:YZA.BCD:5:14"},
 			},
 		},
 	},

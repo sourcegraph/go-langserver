@@ -444,12 +444,7 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 	// Emit decls
 	var pkgSyms []symbolPair
 	for _, t := range docPkg.Types {
-		if len(t.Decl.Specs) == 1 { // the type name is the first spec in type declarations
-			pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.Specs[0].Pos()))
-		} else { // in case there's some edge case where there's not 1 spec, fall back to the start of the declaration
-			pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.TokPos))
-		}
-
+		pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, declNamePos(t.Decl, t.Name)))
 		for _, v := range t.Funcs {
 			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
 		}
@@ -458,23 +453,23 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 		}
 		for _, v := range t.Consts {
 			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, declNamePos(v.Decl, name)))
 			}
 		}
 		for _, v := range t.Vars {
 			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, v.Decl.TokPos))
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, declNamePos(v.Decl, name)))
 			}
 		}
 	}
 	for _, v := range docPkg.Consts {
 		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
+			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, declNamePos(v.Decl, name)))
 		}
 	}
 	for _, v := range docPkg.Vars {
 		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.TokPos))
+			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, declNamePos(v.Decl, name)))
 		}
 	}
 	for _, v := range docPkg.Funcs {
@@ -482,6 +477,27 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 	}
 
 	return pkgSyms
+}
+
+func declNamePos(decl *ast.GenDecl, name string) token.Pos {
+	for _, spec := range decl.Specs {
+		switch spec := spec.(type) {
+		case *ast.ImportSpec:
+			if spec.Name != nil {
+				return spec.Name.Pos()
+			}
+			return spec.Path.Pos()
+		case *ast.ValueSpec:
+			for _, specName := range spec.Names {
+				if specName.Name == name {
+					return specName.NamePos
+				}
+			}
+		case *ast.TypeSpec:
+			return spec.Name.Pos()
+		}
+	}
+	return decl.TokPos
 }
 
 // parseDir mirrors parser.ParseDir, but uses the passed in build context's VFS. In other words,
