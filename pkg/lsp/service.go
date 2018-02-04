@@ -386,25 +386,34 @@ type DocumentSymbolParams struct {
 
 type SymbolKind int
 
+// The SymbolKind values are defined at https://microsoft.github.io/language-server-protocol/specification.
 const (
-	SKFile        SymbolKind = 1
-	SKModule      SymbolKind = 2
-	SKNamespace   SymbolKind = 3
-	SKPackage     SymbolKind = 4
-	SKClass       SymbolKind = 5
-	SKMethod      SymbolKind = 6
-	SKProperty    SymbolKind = 7
-	SKField       SymbolKind = 8
-	SKConstructor SymbolKind = 9
-	SKEnum        SymbolKind = 10
-	SKInterface   SymbolKind = 11
-	SKFunction    SymbolKind = 12
-	SKVariable    SymbolKind = 13
-	SKConstant    SymbolKind = 14
-	SKString      SymbolKind = 15
-	SKNumber      SymbolKind = 16
-	SKBoolean     SymbolKind = 17
-	SKArray       SymbolKind = 18
+	SKFile          SymbolKind = 1
+	SKModule        SymbolKind = 2
+	SKNamespace     SymbolKind = 3
+	SKPackage       SymbolKind = 4
+	SKClass         SymbolKind = 5
+	SKMethod        SymbolKind = 6
+	SKProperty      SymbolKind = 7
+	SKField         SymbolKind = 8
+	SKConstructor   SymbolKind = 9
+	SKEnum          SymbolKind = 10
+	SKInterface     SymbolKind = 11
+	SKFunction      SymbolKind = 12
+	SKVariable      SymbolKind = 13
+	SKConstant      SymbolKind = 14
+	SKString        SymbolKind = 15
+	SKNumber        SymbolKind = 16
+	SKBoolean       SymbolKind = 17
+	SKArray         SymbolKind = 18
+	SKObject        SymbolKind = 19
+	SKKey           SymbolKind = 20
+	SKNull          SymbolKind = 21
+	SKEnumMember    SymbolKind = 22
+	SKStruct        SymbolKind = 23
+	SKEvent         SymbolKind = 24
+	SKOperator      SymbolKind = 25
+	SKTypeParameter SymbolKind = 26
 )
 
 func (s SymbolKind) String() string {
@@ -412,24 +421,32 @@ func (s SymbolKind) String() string {
 }
 
 var symbolKindName = map[SymbolKind]string{
-	SKFile:        "file",
-	SKModule:      "module",
-	SKNamespace:   "namespace",
-	SKPackage:     "package",
-	SKClass:       "class",
-	SKMethod:      "method",
-	SKProperty:    "property",
-	SKField:       "field",
-	SKConstructor: "constructor",
-	SKEnum:        "enum",
-	SKInterface:   "interface",
-	SKFunction:    "function",
-	SKVariable:    "variable",
-	SKConstant:    "constant",
-	SKString:      "string",
-	SKNumber:      "number",
-	SKBoolean:     "boolean",
-	SKArray:       "array",
+	SKFile:          "file",
+	SKModule:        "module",
+	SKNamespace:     "namespace",
+	SKPackage:       "package",
+	SKClass:         "class",
+	SKMethod:        "method",
+	SKProperty:      "property",
+	SKField:         "field",
+	SKConstructor:   "constructor",
+	SKEnum:          "enum",
+	SKInterface:     "interface",
+	SKFunction:      "function",
+	SKVariable:      "variable",
+	SKConstant:      "constant",
+	SKString:        "string",
+	SKNumber:        "number",
+	SKBoolean:       "boolean",
+	SKArray:         "array",
+	SKObject:        "object",
+	SKKey:           "key",
+	SKNull:          "null",
+	SKEnumMember:    "enumMember",
+	SKStruct:        "struct",
+	SKEvent:         "event",
+	SKOperator:      "operator",
+	SKTypeParameter: "typeParameter",
 }
 
 type SymbolInformation struct {
