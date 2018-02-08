@@ -25,7 +25,7 @@ var (
 	trace              = flag.Bool("trace", false, "print all requests and responses")
 	logfile            = flag.String("logfile", "", "also log to this file (in addition to stderr)")
 	printVersion       = flag.Bool("version", false, "print version and exit")
-	pprof              = flag.String("pprof", ":6060", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
+	pprof              = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 	freeosmemory       = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
 	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
 	maxparallelism     = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests")
