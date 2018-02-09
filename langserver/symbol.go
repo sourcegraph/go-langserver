@@ -380,7 +380,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 					par.Release()
 					_ = util.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
 				}()
-				h.collectFromPkg(ctx, bctx, pkg, rootPath, &results)
+				h.collectFromPkg(ctx, bctx, conn, pkg, rootPath, &results)
 			}(pkg)
 		}
 		_ = par.Wait()
@@ -401,10 +401,10 @@ type pkgSymResult struct {
 // collectFromPkg collects all the symbols from the specified package
 // into the results. It uses LangHandler's package symbol cache to
 // speed up repeated calls.
-func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
+func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, pkg string, rootPath string, results *resultSorter) {
 	symbols := h.symbolCache.Get(pkg, func() interface{} {
 		findPackage := h.getFindPackageFunc()
-		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
+		buildPkg, err := findPackage(ctx, bctx, conn, pkg, rootPath, 0)
 		if err != nil {
 			maybeLogImportError(pkg, err)
 			return nil

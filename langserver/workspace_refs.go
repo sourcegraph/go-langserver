@@ -49,7 +49,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 		unvendoredPackages = map[string]struct{}{}
 	)
 	for _, pkg := range tools.ListPkgsUnderDir(bctx, rootPath) {
-		bpkg, err := findPackage(ctx, bctx, pkg, rootPath, build.FindOnly)
+		bpkg, err := findPackage(ctx, bctx, conn, pkg, rootPath, build.FindOnly)
 		if err != nil && !isMultiplePackageError(err) {
 			log.Printf("skipping possible package %s: %s", pkg, err)
 			continue
@@ -233,7 +233,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 			// MultipleGoErrors. This occurs, e.g., when you have a
 			// main.go with "// +build ignore" that imports the
 			// non-main package in the same dir.
-			bpkg, err := findPackage(ctx, bctx, importPath, fromDir, mode)
+			bpkg, err := findPackage(ctx, bctx, conn, importPath, fromDir, mode)
 			if err != nil && !isMultiplePackageError(err) {
 				return bpkg, err
 			}
@@ -302,7 +302,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 		Info:     &pkg.Info,
 	}
 	refsErr := cfg.Refs(func(r *refs.Ref) {
-		symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, r.Def, findPackage)
+		symDesc, err := defSymbolDescriptor(ctx, bctx, conn, rootPath, r.Def, findPackage)
 		if err != nil {
 			// Log the error, and flag it as one in the trace -- but do not
 			// halt execution (hopefully, it is limited to a small subset of
@@ -333,8 +333,8 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	return nil
 }
 
-func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath string, def refs.Def, findPackage FindPackageFunc) (*symbolDescriptor, error) {
-	defPkg, err := findPackage(ctx, bctx, def.ImportPath, rootPath, build.FindOnly)
+func defSymbolDescriptor(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, rootPath string, def refs.Def, findPackage FindPackageFunc) (*symbolDescriptor, error) {
+	defPkg, err := findPackage(ctx, bctx, conn, def.ImportPath, rootPath, build.FindOnly)
 	if err != nil {
 		return nil, err
 	}

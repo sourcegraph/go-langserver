@@ -138,7 +138,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 
 		// Determine metadata information for the node.
 		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, node.Pos()); err == nil {
-			symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, *def, findPackage)
+			symDesc, err := defSymbolDescriptor(ctx, bctx, conn, rootPath, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
 				log.Println("refs.DefInfo:", err)

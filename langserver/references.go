@@ -218,7 +218,7 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 			bctx := h.BuildContext(ctx)
 			findPackageWithCtx := h.getFindPackageFunc()
 			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
-				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
+				return findPackageWithCtx(ctx, bctx, conn, importPath, fromDir, mode)
 			}
 			g := tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.Root()))
 			h.mu.Lock()
