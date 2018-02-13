@@ -296,11 +296,19 @@ type CompletionParams struct {
 }
 
 type Hover struct {
-	Contents []MarkedString `json:"contents,omitempty"`
-	Range    *Range         `json:"range,omitempty"`
+	Contents []MarkupContent `json:"contents,omitempty"`
+	Range    *Range          `json:"range,omitempty"`
 }
 
+type MarkupContent interface {
+	UnmarshalJSON(data []byte) error
+	MarshalJSON() ([]byte, error)
+}
+
+//  Deprecated: Use MarkdownString instead.
 type MarkedString markedString
+
+type MarkdownString markdownString
 
 type markedString struct {
 	Language string `json:"language"`
@@ -309,7 +317,7 @@ type markedString struct {
 	isRawString bool
 }
 
-func (m *MarkedString) UnmarshalJSON(data []byte) error {
+func (m MarkedString) UnmarshalJSON(data []byte) error {
 	if d := strings.TrimSpace(string(data)); len(d) > 0 && d[0] == '"' {
 		// Raw string
 		var s string
@@ -321,7 +329,7 @@ func (m *MarkedString) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	// Language string
-	ms := (*markedString)(m)
+	ms := (markedString)(m)
 	return json.Unmarshal(data, ms)
 }
 
@@ -336,6 +344,37 @@ func (m MarkedString) MarshalJSON() ([]byte, error) {
 // string (i.e., "foo" instead of {"value":"foo", "language":"bar"}).
 func RawMarkedString(s string) MarkedString {
 	return MarkedString{Value: s, isRawString: true}
+}
+
+type markdownString struct {
+	//  The markdown string.
+	Value string `json:"value"`
+	// Indicates that this markdown string is from a trusted source. Only *trusted*
+	// markdown supports links that execute commands, e.g. `[Run it](command:myCommandId)`
+	IsTrusted bool `json:"isTrusted"`
+}
+
+func (m MarkdownString) UnmarshalJSON(data []byte) error {
+	if d := strings.TrimSpace(string(data)); len(d) > 0 && d[0] == '"' {
+		// Raw string
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		m.Value = s
+		m.IsTrusted = true
+		return nil
+	}
+	// Language string
+	ms := (markdownString)(m)
+	return json.Unmarshal(data, ms)
+}
+
+func (m MarkdownString) MarshalJSON() ([]byte, error) {
+	if m.IsTrusted {
+		return json.Marshal(m.Value)
+	}
+	return json.Marshal((markdownString)(m))
 }
 
 type SignatureHelp struct {
