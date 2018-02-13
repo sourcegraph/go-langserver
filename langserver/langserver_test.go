@@ -449,7 +449,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "a.go:1:53": "type int int",
 			},
 			overrideGodefDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go:256:6-256:13",  // hitting the real GOROOT
+				"a.go:1:40": "/goroot/src/fmt/print.go",               // hitting the real GOROOT
 				"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
 			},
 			wantDefinition: map[string]string{
@@ -1388,6 +1388,12 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		if trimPrefix != "" {
 			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
 		}
+	}
+	if !strings.Contains(want, ":") {
+		// our want is just a path, so we only check that matches. This is
+		// used by our godef tests into GOROOT. The GOROOT changes over time,
+		// but the file for a symbol is usually pretty stable.
+		definition = strings.Split(definition, ":")[0]
 	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
