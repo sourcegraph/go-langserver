@@ -174,6 +174,10 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		return nil, findRefErr
 	}
 
+	if locs == nil {
+		locs = []lsp.Location{}
+	}
+
 	return locs, nil
 }
 
