@@ -431,7 +431,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 	"goroot": {
 		rootURI: "file:///src/test/pkg",
 		fs: map[string]string{
-			"a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
+			"a.go": `package p; import "fmt"; var _ = fmt.Println; var x int; type _ = fmt.State`,
 		},
 		mountFS: map[string]map[string]string{
 			"/goroot": {
@@ -449,7 +449,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "a.go:1:53": "type int int",
 			},
 			overrideGodefDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go:256:6-256:13",  // hitting the real GOROOT
+				"a.go:1:71": "/goroot/src/fmt/print.go:38:6-38:11",    // hitting the real GOROOT
 				"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
 			},
 			wantDefinition: map[string]string{
