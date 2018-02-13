@@ -351,7 +351,7 @@ type markdownString struct {
 	Value string `json:"value"`
 	// Indicates that this markdown string is from a trusted source. Only *trusted*
 	// markdown supports links that execute commands, e.g. `[Run it](command:myCommandId)`
-	IsTrusted bool `json:"isTrsuted"`
+	IsTrusted bool `json:"isTrusted"`
 }
 
 func (m MarkdownString) UnmarshalJSON(data []byte) error {
