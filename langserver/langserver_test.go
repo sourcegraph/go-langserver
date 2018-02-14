@@ -449,7 +449,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				// "a.go:1:53": "type int int",
 			},
 			overrideGodefDefinition: map[string]string{
-				"a.go:1:40": "/goroot/src/fmt/print.go:256:6-256:13",  // hitting the real GOROOT
+				"a.go:1:40": "/goroot/src/fmt/print.go",               // hitting the real GOROOT
 				"a.go:1:53": "/goroot/src/builtin/builtin.go:1:1-1:1", // TODO: accurate builtin positions
 			},
 			wantDefinition: map[string]string{
@@ -1257,12 +1257,12 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		// Install all Go packages in the $GOPATH.
 		oldGOPATH := os.Getenv("GOPATH")
 		os.Setenv("GOPATH", tmpDir)
-		out, err := exec.Command("go", "install", "-v", "...").CombinedOutput()
+		out, err := exec.Command("go", "install", "-v", "all").CombinedOutput()
 		os.Setenv("GOPATH", oldGOPATH)
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("$ go install -v ...\n%s", out)
+		t.Logf("$ go install -v all\n%s", out)
 
 		testOSToVFSPath = func(osPath string) string {
 			return strings.TrimPrefix(osPath, util.UriToPath(util.PathToURI(tmpDir)))
@@ -1388,6 +1388,14 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		if trimPrefix != "" {
 			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
 		}
+	}
+	if want != "" && !strings.Contains(path.Base(want), ":") {
+		// our want is just a path, so we only check that matches. This is
+		// used by our godef tests into GOROOT. The GOROOT changes over time,
+		// but the file for a symbol is usually pretty stable.
+		dir := path.Dir(definition)
+		base := strings.Split(path.Base(definition), ":")[0]
+		definition = path.Join(dir, base)
 	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
