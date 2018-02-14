@@ -1389,11 +1389,13 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
 		}
 	}
-	if !strings.Contains(want, ":") {
+	if want != "" && !strings.Contains(path.Base(want), ":") {
 		// our want is just a path, so we only check that matches. This is
 		// used by our godef tests into GOROOT. The GOROOT changes over time,
 		// but the file for a symbol is usually pretty stable.
-		definition = strings.Split(definition, ":")[0]
+		dir := path.Dir(definition)
+		base := strings.Split(path.Base(definition), ":")[0]
+		definition = path.Join(dir, base)
 	}
 	if definition != want {
 		t.Errorf("got %q, want %q", definition, want)
