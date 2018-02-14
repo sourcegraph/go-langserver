@@ -1257,12 +1257,12 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		// Install all Go packages in the $GOPATH.
 		oldGOPATH := os.Getenv("GOPATH")
 		os.Setenv("GOPATH", tmpDir)
-		out, err := exec.Command("go", "install", "-v", "...").CombinedOutput()
+		out, err := exec.Command("go", "install", "-v", "all").CombinedOutput()
 		os.Setenv("GOPATH", oldGOPATH)
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("$ go install -v ...\n%s", out)
+		t.Logf("$ go install -v all\n%s", out)
 
 		testOSToVFSPath = func(osPath string) string {
 			return strings.TrimPrefix(osPath, util.UriToPath(util.PathToURI(tmpDir)))
