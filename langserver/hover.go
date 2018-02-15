@@ -59,7 +59,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		r := rangeForNode(fset, node)
 		if pkgName := packageStatementName(fset, pkg.Files, node); pkgName != "" {
 			return &lsp.Hover{
-				Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: "package " + pkgName}}),
+				Contents: maybeAddComments(comments, []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: "package " + pkgName}}),
 				Range:    &r,
 			}, nil
 		}
@@ -137,7 +137,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		return doc.Text()
 	}
 
-	contents := maybeAddComments(findComments(o), []lsp.MarkedString{{Language: "go", Value: s}})
+	contents := maybeAddComments(findComments(o), []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: s}})
 	if extra != "" {
 		// If we have extra info, ensure it comes after the usually
 		// more useful documentation
@@ -164,7 +164,7 @@ func packageStatementName(fset *token.FileSet, files []*ast.File, node *ast.Iden
 
 // maybeAddComments appends the specified comments converted to Markdown godoc
 // form to the specified contents slice, if the comments string is not empty.
-func maybeAddComments(comments string, contents []lsp.MarkedString) []lsp.MarkedString {
+func maybeAddComments(comments string, contents []lsp.MarkupContent) []lsp.MarkupContent {
 	if comments == "" {
 		return contents
 	}
@@ -294,7 +294,7 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 		comments := packageDoc(pkgFiles, bpkg.Name)
 
 		return &lsp.Hover{
-			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: fmt.Sprintf("package %s (%q)", bpkg.Name, bpkg.ImportPath)}}),
+			Contents: maybeAddComments(comments, []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: fmt.Sprintf("package %s (%q)", bpkg.Name, bpkg.ImportPath)}}),
 
 			// TODO(slimsag): I think we can add Range here, but not exactly
 			// sure. res.Start and res.End are only present if it's a package
@@ -437,7 +437,7 @@ func findDocTarget(fset *token.FileSet, target token.Position, in interface{}) i
 // *doc.Type
 // *doc.Func
 //
-func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]lsp.MarkedString, ast.Node) {
+func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]lsp.MarkupContent, ast.Node) {
 	switch v := x.(type) {
 	case *doc.Value: // Vars and Consts
 		// Sort the specs by distance to find the one nearest to target.
@@ -455,7 +455,7 @@ func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]
 		cpy := *spec
 		cpy.Doc = nil
 		value := v.Decl.Tok.String() + " " + fmtNode(fset, &cpy)
-		return maybeAddComments(doc, []lsp.MarkedString{{Language: "go", Value: value}}), spec
+		return maybeAddComments(doc, []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: value}}), spec
 
 	case *doc.Type: // Type declarations
 		spec := v.Decl.Specs[0].(*ast.TypeSpec)
@@ -468,7 +468,7 @@ func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]
 				if fset.Position(field.Pos()).Offset == target.Offset {
 					// An exact match.
 					value := fmt.Sprintf("func (%s).%s%s", spec.Name.Name, field.Names[0].Name, strings.TrimPrefix(fmtNode(fset, field.Type), "func"))
-					return maybeAddComments(field.Doc.Text(), []lsp.MarkedString{{Language: "go", Value: value}}), field
+					return maybeAddComments(field.Doc.Text(), []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: value}}), field
 				}
 			}
 
@@ -478,14 +478,14 @@ func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]
 				if fset.Position(field.Pos()).Offset == target.Offset {
 					// An exact match.
 					value := fmt.Sprintf("struct field %s %s", field.Names[0], fmtNode(fset, field.Type))
-					return maybeAddComments(field.Doc.Text(), []lsp.MarkedString{{Language: "go", Value: value}}), field
+					return maybeAddComments(field.Doc.Text(), []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: value}}), field
 				}
 			}
 		}
 
 		// Formatting of all type declarations: structs, interfaces, integers, etc.
 		name := v.Decl.Tok.String() + " " + spec.Name.Name + " " + typeName(fset, spec.Type)
-		res := []lsp.MarkedString{{Language: "go", Value: name}}
+		res := []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: name}}
 
 		doc := spec.Doc.Text()
 		if doc == "" {
@@ -499,7 +499,7 @@ func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]
 		return res, spec
 
 	case *doc.Func: // Functions
-		return maybeAddComments(v.Doc, []lsp.MarkedString{{Language: "go", Value: fmtNode(fset, v.Decl)}}), v.Decl
+		return maybeAddComments(v.Doc, []lsp.MarkupContent{lsp.MarkedString{Language: "go", Value: fmtNode(fset, v.Decl)}}), v.Decl
 	default:
 		panic("unreachable")
 	}

@@ -98,3 +98,30 @@ func TestMarkedString_MarshalUnmarshalJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkdownString_MarshalUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		data []byte
+		want MarkdownString
+	}{{
+		data: []byte(`{"value":"## h2 heading"}`),
+		want: MarkdownString{Value: "## h2 heading", IsTrusted: false},
+	}, {
+		data: []byte(`"# h1 heading"`),
+		want: MarkdownString{Value: "# h1 heading", IsTrusted: true},
+	},
+	}
+
+	for _, test := range tests {
+		var m MarkdownString
+		if err := json.Unmarshal(test.data, &m); err != nil {
+			t.Errorf("json.Unmarshal error: %s", err)
+			continue
+		}
+		if !reflect.DeepEqual(test.want, m) {
+			t.Errorf("Unmarshaled %q, expected %+v, but got %+v", string(test.data), test.want, m)
+			continue
+		}
+
+	}
+}
