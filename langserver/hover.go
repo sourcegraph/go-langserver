@@ -336,11 +336,9 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 		return nil, fmt.Errorf("failed to find doc object for %s", target)
 	}
 
-	contents, node := fmtDocObject(fset, docObject, target)
-	r := rangeForNode(fset, node)
+	contents, _ := fmtDocObject(fset, docObject, target)
 	return &lsp.Hover{
 		Contents: contents,
-		Range:    &r,
 	}, nil
 }
 
