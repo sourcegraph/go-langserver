@@ -76,6 +76,9 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 
 	bctx := h.BuildContext(ctx)
 	pkgInWorkspace := func(path string) bool {
+		if h.init.RootImportPath == "" {
+			return true
+		}
 		return util.PathHasPrefix(path, h.init.RootImportPath)
 	}
 
