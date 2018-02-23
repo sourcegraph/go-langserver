@@ -17,7 +17,7 @@ import (
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole
@@ -163,8 +163,8 @@ func (h *overlay) didClose(params *lsp.DidCloseTextDocumentParams) {
 }
 
 func uriToOverlayPath(uri lsp.DocumentURI) string {
-	if utils.IsURI(uri) {
-		return strings.TrimPrefix(utils.UriToPath(uri), "/")
+	if util.IsURI(uri) {
+		return strings.TrimPrefix(util.UriToPath(uri), "/")
 	}
 	return string(uri)
 }
@@ -192,7 +192,7 @@ func (h *overlay) del(uri lsp.DocumentURI) {
 }
 
 func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
-	path := utils.UriToPath(uri)
+	path := util.UriToPath(uri)
 	if !strings.HasPrefix(path, "/") {
 		panic(fmt.Sprintf("bad uri %q (path %q MUST have leading slash; it can't be relative)", uri, path))
 	}
@@ -200,7 +200,7 @@ func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
 }
 
 func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]byte, error) {
-	if !utils.IsURI(uri) {
+	if !util.IsURI(uri) {
 		return nil, &os.PathError{Op: "Open", Path: string(uri), Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
 	}
 	h.Mu.Lock()

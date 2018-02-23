@@ -20,7 +20,7 @@ import (
 
 	"github.com/neelance/parallel"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -196,11 +196,11 @@ func score(q Query, s symbolPair) (scor int) {
 		return -1
 	}
 	name, container := strings.ToLower(s.Name), strings.ToLower(s.ContainerName)
-	if !utils.IsURI(s.Location.URI) {
+	if !util.IsURI(s.Location.URI) {
 		log.Printf("unexpectedly saw symbol defined at a non-file URI: %q", s.Location.URI)
 		return 0
 	}
-	filename := utils.UriToPath(s.Location.URI)
+	filename := util.UriToPath(s.Location.URI)
 	isVendor := strings.HasPrefix(filename, "vendor/") || strings.Contains(filename, "/vendor/")
 	if q.Filter == FilterExported && isVendor {
 		// is:exported excludes vendor symbols always.
@@ -272,7 +272,7 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 		},
 		// NOTE: fields must be kept in sync with workspace_refs.go:defSymbolDescriptor
 		desc: symbolDescriptor{
-			Vendor:      utils.IsVendorDir(bpkg.Dir),
+			Vendor:      util.IsVendorDir(bpkg.Dir),
 			Package:     path.Clean(bpkg.ImportPath),
 			PackageName: bpkg.Name,
 			Recv:        recv,
@@ -285,13 +285,13 @@ func toSym(name string, bpkg *build.Package, recv string, kind lsp.SymbolKind, f
 // handleTextDocumentSymbol handles `textDocument/documentSymbol` requests for
 // the Go language server.
 func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentSymbolParams) ([]lsp.SymbolInformation, error) {
-	if !utils.IsURI(params.TextDocument.URI) {
+	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
 			Message: fmt.Sprintf("textDocument/documentSymbol not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
 		}
 	}
-	path := utils.UriToPath(params.TextDocument.URI)
+	path := util.UriToPath(params.TextDocument.URI)
 
 	fset := token.NewFileSet()
 	bctx := h.BuildContext(ctx)
@@ -342,23 +342,23 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 		rootPath := h.FilePath(h.init.Root())
 		bctx := h.BuildContext(ctx)
 
-		par := parallel.NewRun(h.config.MaxParallelism)
+		par := parallel.NewRun(h.Config.MaxParallelism)
 		for _, pkg := range tools.ListPkgsUnderDir(bctx, rootPath) {
 			// If we're restricting results to a single file or dir, ensure the
 			// package dir matches to avoid doing unnecessary work.
 			if results.Query.File != "" {
 				filePkgPath := path.Dir(results.Query.File)
-				if utils.PathHasPrefix(filePkgPath, bctx.GOROOT) {
-					filePkgPath = utils.PathTrimPrefix(filePkgPath, bctx.GOROOT)
+				if util.PathHasPrefix(filePkgPath, bctx.GOROOT) {
+					filePkgPath = util.PathTrimPrefix(filePkgPath, bctx.GOROOT)
 				} else {
-					filePkgPath = utils.PathTrimPrefix(filePkgPath, bctx.GOPATH)
+					filePkgPath = util.PathTrimPrefix(filePkgPath, bctx.GOPATH)
 				}
-				filePkgPath = utils.PathTrimPrefix(filePkgPath, "src")
-				if !utils.PathEqual(pkg, filePkgPath) {
+				filePkgPath = util.PathTrimPrefix(filePkgPath, "src")
+				if !util.PathEqual(pkg, filePkgPath) {
 					continue
 				}
 			}
-			if results.Query.Filter == FilterDir && !utils.PathEqual(pkg, results.Query.Dir) {
+			if results.Query.Filter == FilterDir && !util.PathEqual(pkg, results.Query.Dir) {
 				continue
 			}
 
@@ -378,7 +378,7 @@ func (h *LangHandler) handleSymbol(ctx context.Context, conn jsonrpc2.JSONRPC2, 
 				// https://github.com/golang/go/issues/17788
 				defer func() {
 					par.Release()
-					_ = utils.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
+					_ = util.Panicf(recover(), "%v for pkg %v", req.Method, pkg)
 				}()
 				h.collectFromPkg(ctx, bctx, pkg, rootPath, &results)
 			}(pkg)
@@ -444,12 +444,7 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 	// Emit decls
 	var pkgSyms []symbolPair
 	for _, t := range docPkg.Types {
-		if len(t.Decl.Specs) == 1 { // the type name is the first spec in type declarations
-			pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.Specs[0].Pos()))
-		} else { // in case there's some edge case where there's not 1 spec, fall back to the start of the declaration
-			pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, t.Decl.TokPos))
-		}
-
+		pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, declNamePos(t.Decl, t.Name)))
 		for _, v := range t.Funcs {
 			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
 		}
@@ -458,23 +453,23 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 		}
 		for _, v := range t.Consts {
 			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, declNamePos(v.Decl, name)))
 			}
 		}
 		for _, v := range t.Vars {
 			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, v.Decl.TokPos))
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, declNamePos(v.Decl, name)))
 			}
 		}
 	}
 	for _, v := range docPkg.Consts {
 		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.TokPos))
+			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, declNamePos(v.Decl, name)))
 		}
 	}
 	for _, v := range docPkg.Vars {
 		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.TokPos))
+			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, declNamePos(v.Decl, name)))
 		}
 	}
 	for _, v := range docPkg.Funcs {
@@ -482,6 +477,27 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 	}
 
 	return pkgSyms
+}
+
+func declNamePos(decl *ast.GenDecl, name string) token.Pos {
+	for _, spec := range decl.Specs {
+		switch spec := spec.(type) {
+		case *ast.ImportSpec:
+			if spec.Name != nil {
+				return spec.Name.Pos()
+			}
+			return spec.Path.Pos()
+		case *ast.ValueSpec:
+			for _, specName := range spec.Names {
+				if specName.Name == name {
+					return specName.NamePos
+				}
+			}
+		case *ast.TypeSpec:
+			return spec.Name.Pos()
+		}
+	}
+	return decl.TokPos
 }
 
 // parseDir mirrors parser.ParseDir, but uses the passed in build context's VFS. In other words,

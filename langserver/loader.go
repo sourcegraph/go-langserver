@@ -15,7 +15,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -33,7 +33,7 @@ func (h *LangHandler) typecheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fil
 	ctx = opentracing.ContextWithSpan(ctx, span)
 	defer span.Finish()
 
-	if !utils.IsURI(fileURI) {
+	if !util.IsURI(fileURI) {
 		return nil, nil, nil, nil, nil, nil, fmt.Errorf("typechecking of out-of-workspace URI (%q) is not yet supported", fileURI)
 	}
 
@@ -109,7 +109,7 @@ func (e *invalidNodeError) Error() string {
 func posForFileOffset(fset *token.FileSet, filename string, offset int) token.Pos {
 	var f *token.File
 	fset.Iterate(func(ff *token.File) bool {
-		if utils.PathEqual(ff.Name(), filename) {
+		if util.PathEqual(ff.Name(), filename) {
 			f = ff
 			return false // break out of loop
 		}

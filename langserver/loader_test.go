@@ -12,7 +12,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -90,7 +90,9 @@ func TestLoaderDiagnostics(t *testing.T) {
 	cases := []struct {
 		Name string
 		FS   map[string]string
-		Want diagnostics
+		// Want is a slice to cater for slight changes in error messages
+		// across go versions.
+		Want []diagnostics
 	}{
 		{
 			Name: "none",
@@ -99,12 +101,17 @@ func TestLoaderDiagnostics(t *testing.T) {
 		{
 			Name: "malformed",
 			FS:   map[string]string{"/src/p/f.go": `234ljsdfjb2@#%$`},
-			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"severity":1,"source":"go","message":"expected 'package', found 'INT' 234 (and 4 more errors)"}]}`),
+			Want: []diagnostics{
+				m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"severity":1,"source":"go","message":"expected 'package', found 'INT' 234 (and 4 more errors)"}]}`),
+				m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}},"severity":1,"source":"go","message":"expected 'package', found 234 (and 4 more errors)"}]}`),
+			},
 		},
 		{
 			Name: "undeclared",
 			FS:   map[string]string{"/src/p/f.go": `package p; var _ = http.Get`},
-			Want: m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":19},"end":{"line":0,"character":23}},"severity":1,"source":"go","message":"undeclared name: http"}]}`),
+			Want: []diagnostics{
+				m(`{"/src/p/f.go":[{"range":{"start":{"line":0,"character":19},"end":{"line":0,"character":23}},"severity":1,"source":"go","message":"undeclared name: http"}]}`),
+			},
 		},
 	}
 	ctx := context.Background()
@@ -115,10 +122,21 @@ func TestLoaderDiagnostics(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			if !reflect.DeepEqual(diag, tc.Want) {
+			found := false
+			for _, want := range tc.Want {
+				found = found || reflect.DeepEqual(diag, want)
+			}
+			if found {
+				return
+			}
+			var want diagnostics
+			if len(tc.Want) > 0 {
+				want = tc.Want[0]
+			}
+			if !reflect.DeepEqual(diag, want) {
 				got, _ := json.Marshal(diag)
-				want, _ := json.Marshal(tc.Want)
-				t.Errorf("got %s\nwant %s", string(got), string(want))
+				wantS, _ := json.Marshal(want)
+				t.Errorf("got %s\nwant %s", string(got), string(wantS))
 			}
 		})
 	}
@@ -139,7 +157,7 @@ func setUpLoaderTest(fs map[string]string) (*token.FileSet, *build.Context, *bui
 	for filename, contents := range fs {
 		r := &jsonrpc2.Request{Method: "textDocument/didOpen"}
 		r.SetParams(&lsp.DidOpenTextDocumentParams{TextDocument: lsp.TextDocumentItem{
-			URI:  utils.PathToURI(filename),
+			URI:  util.PathToURI(filename),
 			Text: contents,
 		}})
 		_, _, err := h.handleFileSystemRequest(ctx, r)

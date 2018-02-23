@@ -84,8 +84,8 @@ func TestParseFile(t *testing.T) {
 		{
 			Filename: "testdata/unmatching-imports.go",
 			Want: []*posRef{
-				&posRef{Def: Def{ImportPath: "gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: ""}, Start: pos("testdata/unmatching-imports.go:3:8 (offset 21)"), End: pos("testdata/unmatching-imports.go:3:49 (offset 62)")},
-				&posRef{Def: Def{ImportPath: "gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: "Crit"}, Start: pos("testdata/unmatching-imports.go:6:8 (offset 124)"), End: pos("testdata/unmatching-imports.go:6:12 (offset 128)")},
+				&posRef{Def: Def{ImportPath: "github.com/sourcegraph/go-langserver/vendor/gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: ""}, Start: pos("testdata/unmatching-imports.go:3:8 (offset 21)"), End: pos("testdata/unmatching-imports.go:3:49 (offset 62)")},
+				&posRef{Def: Def{ImportPath: "github.com/sourcegraph/go-langserver/vendor/gopkg.in/inconshreveable/log15.v2", PackageName: "log15", Path: "Crit"}, Start: pos("testdata/unmatching-imports.go:6:8 (offset 124)"), End: pos("testdata/unmatching-imports.go:6:12 (offset 128)")},
 			},
 		},
 		{

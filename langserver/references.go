@@ -20,14 +20,14 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/sourcegraph/go-langserver/langserver/internal/tools"
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.ReferenceParams) ([]lsp.Location, error) {
-	if !utils.IsURI(params.TextDocument.URI) {
+	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
 			Message: fmt.Sprintf("textDocument/references not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
@@ -79,7 +79,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 		if h.init.RootImportPath == "" {
 			return true
 		}
-		return utils.PathHasPrefix(path, h.init.RootImportPath)
+		return util.PathHasPrefix(path, h.init.RootImportPath)
 	}
 
 	// findRefCtx is used in the findReferences function. It has its own
@@ -110,7 +110,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	}()
 
 	// Don't include decl if it is outside of workspace.
-	if params.Context.IncludeDeclaration && utils.PathHasPrefix(defpkg, h.init.RootImportPath) {
+	if params.Context.IncludeDeclaration && util.PathHasPrefix(defpkg, h.init.RootImportPath) {
 		refs <- &ast.Ident{NamePos: obj.Pos(), Name: obj.Name()}
 	}
 
@@ -175,6 +175,10 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 	// the def.
 	if len(locs) == 0 && findRefErr != nil {
 		return nil, findRefErr
+	}
+
+	if locs == nil {
+		locs = []lsp.Location{}
 	}
 
 	return locs, nil
@@ -412,7 +416,7 @@ func findReferences(ctx context.Context, lconf loader.Config, pkgInWorkspace fun
 		// Prevent any uncaught panics from taking the entire server down.
 		defer func() {
 			close(done)
-			_ = utils.Panicf(recover(), "findReferences")
+			_ = util.Panicf(recover(), "findReferences")
 		}()
 
 		lconf.Load() // ignore error

@@ -20,13 +20,13 @@ import (
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 )
 
 // NewHandler creates a Go language server handler.
 func NewHandler(cfg Config) jsonrpc2.Handler {
 	return lspHandler{jsonrpc2.HandlerWithError((&LangHandler{
-		config:        cfg,
+		Config:        cfg,
 		HandlerShared: &HandlerShared{},
 	}).handle)}
 }
@@ -73,7 +73,7 @@ type LangHandler struct {
 
 	cancel *cancel
 
-	config Config
+	Config Config // language handler configuration; must not change after handling has begun
 }
 
 // reset clears all internal state in h.
@@ -85,7 +85,7 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 		}
 	}
 
-	if utils.IsURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
+	if util.IsURI(lsp.DocumentURI(init.InitializeParams.RootPath)) {
 		log.Printf("Passing an initialize rootPath URI (%q) is deprecated. Use rootUri instead.", init.InitializeParams.RootPath)
 	}
 
@@ -144,7 +144,7 @@ func (h *LangHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *json
 func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
 	defer func() {
-		if perr := utils.Panicf(recover(), "%v", req.Method); perr != nil {
+		if perr := util.Panicf(recover(), "%v", req.Method); perr != nil {
 			err = perr
 		}
 	}()
@@ -201,14 +201,14 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		// HACK: RootPath is not a URI, but historically we treated it
 		// as such. Convert it to a file URI
-		if !utils.IsURI(lsp.DocumentURI(params.RootPath)) {
-			params.RootPath = string(utils.PathToURI(params.RootPath))
+		if !util.IsURI(lsp.DocumentURI(params.RootPath)) {
+			params.RootPath = string(util.PathToURI(params.RootPath))
 		}
 
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
-		if h.config.GocodeCompletionEnabled {
+		if h.Config.GocodeCompletionEnabled {
 			gocode.InitDaemon(h.BuildContext(ctx))
 		}
 
@@ -226,7 +226,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		kind := lsp.TDSKIncremental
 		var completionOp *lsp.CompletionOptions
-		if h.config.GocodeCompletionEnabled {
+		if h.Config.GocodeCompletionEnabled {
 			completionOp = &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
 		}
 		return lsp.InitializeResult{
@@ -392,7 +392,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				// a user is viewing this path, hint to add it to the cache
 				// (unless we're primarily using binary package cache .a
 				// files).
-				if !h.config.UseBinaryPkgCache {
+				if !h.Config.UseBinaryPkgCache {
 					go h.typecheck(ctx, conn, uri, lsp.Position{})
 				}
 			}

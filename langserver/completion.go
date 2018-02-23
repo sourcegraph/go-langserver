@@ -7,18 +7,18 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
-	"github.com/sourcegraph/go-langserver/langserver/internal/utils"
+	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
 var (
-	CIKConstantSupported    = lsp.CIKVariable // or lsp.CIKConstant if client supported
-	funcArgsRegexp          = regexp.MustCompile(`func\(([^)]+)\)`)
+	CIKConstantSupported = lsp.CIKVariable // or lsp.CIKConstant if client supported
+	funcArgsRegexp       = regexp.MustCompile(`func\(([^)]+)\)`)
 )
 
 func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.CompletionParams) (*lsp.CompletionList, error) {
-	if !utils.IsURI(params.TextDocument.URI) {
+	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
 			Code:    jsonrpc2.CodeInvalidParams,
 			Message: fmt.Sprintf("textDocument/completion not yet supported for out-of-workspace URI (%q)", params.TextDocument.URI),
@@ -30,7 +30,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	// to correct the path now.
 	vfsURI := params.TextDocument.URI
 	if testOSToVFSPath != nil {
-		vfsURI = utils.PathToURI(testOSToVFSPath(utils.UriToPath(vfsURI)))
+		vfsURI = util.PathToURI(testOSToVFSPath(util.UriToPath(vfsURI)))
 	}
 
 	// Read file contents and calculate byte offset.
@@ -40,7 +40,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 	}
 	// convert the path into a real path because 3rd party tools
 	// might load additional code based on the file's package
-	filename := utils.UriToRealPath(params.TextDocument.URI)
+	filename := util.UriToRealPath(params.TextDocument.URI)
 	offset, valid, why := offsetForPosition(contents, params.Position)
 	if !valid {
 		return nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
@@ -89,7 +89,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 }
 
 func (h *LangHandler) getNewText(kind lsp.CompletionItemKind, name, detail string) (lsp.InsertTextFormat, string) {
-	if h.config.FuncSnippetEnabled &&
+	if h.Config.FuncSnippetEnabled &&
 		kind == lsp.CIKFunction &&
 		h.init.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport {
 		args := genSnippetArgs(parseFuncArgs(detail))
