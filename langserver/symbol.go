@@ -444,7 +444,7 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 	// Emit decls
 	var pkgSyms []symbolPair
 	for _, t := range docPkg.Types {
-		pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", lsp.SKClass, fs, declNamePos(t.Decl, t.Name)))
+		pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", typeSpecSym(t), fs, declNamePos(t.Decl, t.Name)))
 		for _, v := range t.Funcs {
 			pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
 		}
@@ -477,6 +477,23 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 	}
 
 	return pkgSyms
+}
+
+func typeSpecSym(t *doc.Type) lsp.SymbolKind {
+	// This usually has one, but we're running through a for loop in case it has
+	// none. In either case, the default is an SKClass.
+
+	// NOTE: coincidentally, doing this gives access to the methods for an
+	// interface and fields for a struct. Possible solution to Github issue #36?
+	for _, s := range t.Decl.Specs {
+		if v, ok := s.(*ast.TypeSpec); ok {
+			if _, ok := v.Type.(*ast.InterfaceType); ok {
+				return lsp.SKInterface
+			}
+		}
+	}
+
+	return lsp.SKClass
 }
 
 func declNamePos(decl *ast.GenDecl, name string) token.Pos {
