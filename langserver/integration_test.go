@@ -22,13 +22,8 @@ func TestIntegration_FileSystem(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	orig := build.Default
-	build.Default.GOPATH = filepath.Join(tmpDir, "gopath")
-	build.Default.GOROOT = filepath.Join(tmpDir, "goroot")
-	defer func() {
-		build.Default = orig
-	}()
-
+	gopath := filepath.Join(tmpDir, "gopath")
+	goroot := filepath.Join(tmpDir, "goroot")
 	h := NewHandler(NewDefaultConfig())
 
 	addr, done := startServer(t, h)
@@ -40,7 +35,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 		}
 	}()
 
-	rootFSPath := filepath.Join(build.Default.GOPATH, "src/test/p")
+	rootFSPath := filepath.Join(gopath, "src/test/p")
 	if err := os.MkdirAll(rootFSPath, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +56,19 @@ func TestIntegration_FileSystem(t *testing.T) {
 
 	ctx := context.Background()
 	rootURI := util.PathToURI(rootFSPath)
-	if err := conn.Call(ctx, "initialize", lsp.InitializeParams{RootURI: rootURI}, nil); err != nil {
+	if err := conn.Call(ctx, "initialize", InitializeParams{
+		InitializeParams: lsp.InitializeParams{RootURI: rootURI},
+		BuildContext: &InitializeBuildContextParams{
+			GOOS:        build.Default.GOOS,
+			GOARCH:      build.Default.GOARCH,
+			GOPATH:      gopath,
+			GOROOT:      goroot,
+			CgoEnabled:  build.Default.CgoEnabled,
+			UseAllFiles: build.Default.UseAllFiles,
+			Compiler:    build.Default.Compiler,
+			BuildTags:   build.Default.BuildTags,
+		},
+	}, nil); err != nil {
 		t.Fatal("initialize:", err)
 	}
 
