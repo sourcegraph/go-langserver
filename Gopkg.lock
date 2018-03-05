@@ -97,7 +97,7 @@
     "internal/bitbucket.org/ww/goautoneg",
     "model"
   ]
-  revision = "89604d197083d4781071d3c65855d24ecfb0a563"
+  revision = "6fb6fce6f8b75884b92e1889c150403fc0872c5e"
 
 [[projects]]
   branch = "master"
@@ -108,7 +108,7 @@
     "nfs",
     "xfs"
   ]
-  revision = "282c8707aa210456a825798969cc27edda34992a"
+  revision = "d274e363d5759d1c916232217be421f1cc89c5fe"
 
 [[projects]]
   branch = "master"
@@ -132,13 +132,13 @@
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "f5dfe339be1d06f81b22525fe34671ee7d2c8904"
+  revision = "22ae77b79946ea320088417e4d50825671d82d57"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "37707fdb30a5b38865cfb95e5aab41707daec7fd"
+  revision = "dd2ff4accc098aceecb86b36eaa7829b2a17b1c9"
 
 [[projects]]
   branch = "master"
@@ -150,7 +150,7 @@
     "godoc/vfs",
     "refactor/importgraph"
   ]
-  revision = "f05340fad48926594a3c17968f98ffc30e075b59"
+  revision = "73e16cff9e0d4a802937444bebb562458548241d"
 
 [[projects]]
   name = "gopkg.in/inconshreveable/log15.v2"
