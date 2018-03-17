@@ -44,22 +44,28 @@ func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jso
 		return nil, err
 	}
 
-	b := buf.Bytes()
-	a, err := h.readFile(ctx, params.TextDocument.URI)
+	formatted := buf.Bytes()
+	unformatted, err := h.readFile(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, err
 	}
-	if bytes.Equal(b, a) {
+	if bytes.Equal(formatted, unformatted) {
 		return nil, nil
 	}
 
+	return ComputeTextEdits(string(unformatted), string(formatted)), nil
+}
+
+// ComputeTextEdits computes text edits that are required to
+// change the `unformatted` to the `formatted` text.
+func ComputeTextEdits(unformatted string, formatted string) []lsp.TextEdit {
 	// LSP wants a list of TextEdits. We use difflib to compute a
 	// non-naive TextEdit. Originally we returned an edit which deleted
 	// everything followed by inserting everything. This leads to a poor
 	// experience in vscode.
-	as := strings.Split(string(a), "\n")
-	bs := strings.Split(string(b), "\n")
-	m := difflib.NewMatcher(as, bs)
+	unformattedLines := strings.Split(unformatted, "\n")
+	formattedLines := strings.Split(formatted, "\n")
+	m := difflib.NewMatcher(unformattedLines, formattedLines)
 	var edits []lsp.TextEdit
 	for _, op := range m.GetOpCodes() {
 		switch op.Tag {
@@ -73,7 +79,7 @@ func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jso
 						Line: op.I2,
 					},
 				},
-				NewText: strings.Join(bs[op.J1:op.J2], "\n") + "\n",
+				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
 			})
 		case 'd': // 'd' (delete):   a[i1:i2] should be deleted, j1==j2 in this case.
 			edits = append(edits, lsp.TextEdit{
@@ -96,10 +102,10 @@ func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jso
 						Line: op.I1,
 					},
 				},
-				NewText: strings.Join(bs[op.J1:op.J2], "\n") + "\n",
+				NewText: strings.Join(formattedLines[op.J1:op.J2], "\n") + "\n",
 			})
 		}
 	}
 
-	return edits, nil
+	return edits
 }
