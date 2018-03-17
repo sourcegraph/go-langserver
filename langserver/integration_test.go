@@ -45,9 +45,9 @@ func TestIntegration_FileSystem(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		"a.go":    "package p; func A() {}",
-		"b.go":    "package p; var _ = A",
-		"p2/c.go": `package p2; import "test/p"; var _ = p.A`,
+		"A.go":    "package p; func A() {}",
+		"B.go":    "package p; var _ = A",
+		"P2/C.go": `package p2; import "test/p"; var _ = p.A`,
 	}
 	for filename, contents := range files {
 		path := filepath.Join(rootFSPath, filename)
@@ -68,9 +68,9 @@ func TestIntegration_FileSystem(t *testing.T) {
 	// Test some hovers using files on disk.
 	cases := lspTestCases{
 		wantHover: map[string]string{
-			"a.go:1:17":    "func A()",
-			"b.go:1:20":    "func A()",
-			"p2/c.go:1:40": "func A()",
+			"A.go:1:17":    "func A()",
+			"B.go:1:20":    "func A()",
+			"P2/C.go:1:40": "func A()",
 		},
 	}
 	lspTests(t, ctx, nil, conn, rootURI, cases)
@@ -79,7 +79,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 	// saved. It should re-typecheck using the unsaved file contents.
 	if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 		TextDocument: lsp.TextDocumentItem{
-			URI:  uriJoin(rootURI, "a.go"),
+			URI:  uriJoin(rootURI, "A.go"),
 			Text: "package p; func A() int { return 0 }",
 		},
 	}, nil); err != nil {
@@ -87,9 +87,9 @@ func TestIntegration_FileSystem(t *testing.T) {
 	}
 	cases = lspTestCases{
 		wantHover: map[string]string{
-			"a.go:1:17":    "func A() int",
-			"b.go:1:20":    "func A() int",
-			"p2/c.go:1:40": "func A() int",
+			"A.go:1:17":    "func A() int",
+			"B.go:1:20":    "func A() int",
+			"P2/C.go:1:40": "func A() int",
 		},
 	}
 	lspTests(t, ctx, nil, conn, rootURI, cases)
@@ -97,7 +97,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 	// Test incremental sync
 	if err := conn.Call(ctx, "textDocument/didChange", lsp.DidChangeTextDocumentParams{
 		TextDocument: lsp.VersionedTextDocumentIdentifier{
-			TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriJoin(rootURI, "a.go")},
+			TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriJoin(rootURI, "A.go")},
 			Version:                1,
 		},
 		ContentChanges: []lsp.TextDocumentContentChangeEvent{
@@ -129,9 +129,9 @@ func TestIntegration_FileSystem(t *testing.T) {
 	}
 	cases = lspTestCases{
 		wantHover: map[string]string{
-			"a.go:1:28":    "func A(i int)",
-			"b.go:1:20":    "func A(i int)",
-			"p2/c.go:1:40": "func A(i int)",
+			"A.go:1:28":    "func A(i int)",
+			"B.go:1:20":    "func A(i int)",
+			"P2/C.go:1:40": "func A(i int)",
 		},
 	}
 	lspTests(t, ctx, nil, conn, rootURI, cases)
