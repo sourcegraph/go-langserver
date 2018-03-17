@@ -30,6 +30,7 @@ import (
 
 type serverTestCase struct {
 	skip    bool
+	focus   bool
 	rootURI lsp.DocumentURI
 	fs      map[string]string
 	mountFS map[string]map[string]string // mount dir -> map VFS
@@ -1053,9 +1054,22 @@ func (h *Hello) Bye() int {
 }
 
 func TestServer(t *testing.T) {
+	hasFocus := false
+	for _, test := range serverTestCases {
+		if test.focus {
+			hasFocus = true
+			break
+		}
+	}
+
 	for label, test := range serverTestCases {
 		t.Run(label, func(t *testing.T) {
 			if test.skip {
+				t.Skip()
+				return
+			}
+
+			if hasFocus && !test.focus {
 				t.Skip()
 				return
 			}
