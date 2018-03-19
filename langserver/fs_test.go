@@ -41,12 +41,22 @@ var applyContentChangesTestCases = map[string]applyContentChangesTestCase{
 		},
 		expected: "package langserver\n\n// my terrible comment\n",
 	},
+	"complete replace and change afterwards": applyContentChangesTestCase{
+		code: "package langserver\n\n// some code ...\n",
+		changes: []lsp.TextDocumentContentChangeEvent{
+			// complete replace of the contents
+			lsp.TextDocumentContentChangeEvent{Range: nil, RangeLength: 0, Text: "package langserver_2\n"},
+			// with an additional change afterwards
+			toContentChange(toRange(1, 0, 1, 0), 0, "\n// code for langserver_2\n"),
+		},
+		expected: "package langserver_2\n\n// code for langserver_2\n",
+	},
 }
 
 func TestApplyContentChanges(t *testing.T) {
 	for label, test := range applyContentChangesTestCases {
 		t.Run(label, func(t *testing.T) {
-			newCode, err := ApplyContentChanges(lsp.DocumentURI("/src/langserver.go"), []byte(test.code), test.changes)
+			newCode, err := applyContentChanges(lsp.DocumentURI("/src/langserver.go"), []byte(test.code), test.changes)
 			if err != nil {
 				t.Error(err)
 			}

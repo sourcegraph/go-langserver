@@ -124,7 +124,7 @@ func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
 		return fmt.Errorf("received textDocument/didChange for unknown file %q", params.TextDocument.URI)
 	}
 
-	contents, err := ApplyContentChanges(params.TextDocument.URI, contents, params.ContentChanges)
+	contents, err := applyContentChanges(params.TextDocument.URI, contents, params.ContentChanges)
 	if err != nil {
 		return err
 	}
@@ -133,11 +133,12 @@ func (h *overlay) didChange(params *lsp.DidChangeTextDocumentParams) error {
 	return nil
 }
 
-// ApplyContentChanges updates `contents` based on `changes`
-func ApplyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.TextDocumentContentChangeEvent) ([]byte, error) {
+// applyContentChanges updates `contents` based on `changes`
+func applyContentChanges(uri lsp.DocumentURI, contents []byte, changes []lsp.TextDocumentContentChangeEvent) ([]byte, error) {
 	for _, change := range changes {
 		if change.Range == nil && change.RangeLength == 0 {
-			return []byte(change.Text), nil // new full content
+			contents = []byte(change.Text) // new full content
+			continue
 		}
 		start, ok, why := offsetForPosition(contents, change.Range.Start)
 		if !ok {
