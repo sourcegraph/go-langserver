@@ -1450,7 +1450,7 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	sort.Strings(references)
 	sort.Strings(want)
 	if !reflect.DeepEqual(references, want) {
-		t.Errorf("got %q, want %q", references, want)
+		t.Errorf("\ngot\n\t%q\nwant\n\t%q", references, want)
 	}
 }
 
