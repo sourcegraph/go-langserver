@@ -876,6 +876,46 @@ type Header struct {
 				},
 			},
 		},
+		"interfaces and implementations": {
+			rootURI: "file:///src/test/pkg",
+			fs: map[string]string{
+				"i0.go":    "package p; type I0 interface { M0() }",
+				"i1.go":    "package p; type I1 interface { M1() }",
+				"i2.go":    "package p; type I2 interface { M1(); M2() }",
+				"t0.go":    "package p; type T0 struct{}",
+				"t1.go":    "package p; type T1 struct {}; func (T1) M1() {}; func (T1) M3()",
+				"t1e.go":   "package p; type T1E struct { T1 }; var _ = (T1E{}).M1",
+				"t1p.go":   "package p; type T1P struct {}; func (*T1P) M1() {}",
+				"p2/p2.go": "package p2; type T2 struct{}; func (t2) M1() {}",
+			},
+			cases: lspTestCases{
+				wantImplementation: map[string][]string{
+					"i0.go:1:17": []string{}, // I0
+					"i0.go:1:32": []string{}, // (I0).M0
+					"i1.go:1:17": /* I1 */ []string{
+						"/src/test/pkg/i2.go:1:17:to",
+						"/src/test/pkg/t1.go:1:17:to",
+						"/src/test/pkg/t1e.go:1:17:to",
+						"/src/test/pkg/t1p.go:1:17:to",
+					},
+					"i1.go:1:32": /* I1.(M1)*/ []string{
+						"/src/test/pkg/i2.go:1:32:to:method",
+						"/src/test/pkg/t1.go:1:41:to:method",
+						"/src/test/pkg/t1p.go:1:44:to:method",
+					},
+					"i2.go:1:32":/* I2.(M1)*/ []string{"/src/test/pkg/i1.go:1:32:from:method"},
+					"i2.go:1:38":/* I2.(M2)*/ []string{},
+					"t0.go:1:17":/* T0 */ []string{},
+					"t1.go:1:17":/* T1 */ []string{"/src/test/pkg/i1.go:1:17:from"},
+					"t1.go:1:41":/* (T1).M1 */ []string{"/src/test/pkg/i1.go:1:32:from:method"},
+					"t1.go:1:59":/* (T1).M3 */ []string{},
+					"t1e.go:1:17":/* (T1E) */ []string{"/src/test/pkg/i1.go:1:17:from"},
+					"t1e.go:1:52":/* (T1E).M1 */ []string{"/src/test/pkg/i1.go:1:32:from:method"},
+					"t1p.go:1:17":/* T1P */ []string{"/src/test/pkg/i1.go:1:17:from:ptr"},
+					"t1p.go:1:44":/* (T1P).M1 */ []string{"/src/test/pkg/i1.go:1:32:from:method"},
+				},
+			},
+		},
 		"signatures": {
 			rootURI: "file:///src/test/pkg",
 			fs: map[string]string{
@@ -1022,6 +1062,7 @@ type lspTestCases struct {
 	wantDefinition, overrideGodefDefinition map[string]string
 	wantXDefinition                         map[string]string
 	wantReferences                          map[string][]string
+	wantImplementation                      map[string][]string
 	wantSymbols                             map[string][]string
 	wantWorkspaceSymbols                    map[*lspext.WorkspaceSymbolParams][]string
 	wantSignatures                          map[string]string
@@ -1165,6 +1206,12 @@ func lspTests(t testing.TB, ctx context.Context, fs *AtomicFS, c *jsonrpc2.Conn,
 		})
 	}
 
+	for pos, want := range cases.wantImplementation {
+		tbRun(t, fmt.Sprintf("implementation-%s", pos), func(t testing.TB) {
+			implementationTest(t, ctx, c, rootURI, pos, want)
+		})
+	}
+
 	for file, want := range cases.wantSymbols {
 		tbRun(t, fmt.Sprintf("symbols-%s", file), func(t testing.TB) {
 			symbolsTest(t, ctx, c, rootURI, file, want)
@@ -1275,6 +1322,25 @@ func referencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 	sort.Strings(want)
 	if !reflect.DeepEqual(references, want) {
 		t.Errorf("got %q, want %q", references, want)
+	}
+}
+
+func implementationTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos string, want []string) {
+	file, line, char, err := parsePos(pos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	impls, err := callImplementation(ctx, c, uriJoin(rootURI, file), line, char)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range impls {
+		impls[i] = uriToFilePath(lsp.DocumentURI(impls[i]))
+	}
+	sort.Strings(impls)
+	sort.Strings(want)
+	if !reflect.DeepEqual(impls, want) {
+		t.Errorf("\ngot\n\t%q\nwant\n\t%q", impls, want)
 	}
 }
 
@@ -1452,6 +1518,29 @@ func callReferences(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, 
 	str := make([]string, len(res))
 	for i, loc := range res {
 		str[i] = fmt.Sprintf("%s:%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1)
+	}
+	return str, nil
+}
+
+func callImplementation(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) ([]string, error) {
+	var res []lspext.ImplementationLocation
+	err := c.Call(ctx, "textDocument/implementation", lsp.TextDocumentPositionParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+		Position:     lsp.Position{Line: line, Character: char},
+	}, &res)
+	if err != nil {
+		return nil, err
+	}
+	str := make([]string, len(res))
+	for i, loc := range res {
+		extra := []string{loc.Type}
+		if loc.Ptr {
+			extra = append(extra, "ptr")
+		}
+		if loc.Method {
+			extra = append(extra, "method")
+		}
+		str[i] = fmt.Sprintf("%s:%d:%d:%s", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, strings.Join(extra, ":"))
 	}
 	return str, nil
 }

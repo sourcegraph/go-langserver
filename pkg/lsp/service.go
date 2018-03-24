@@ -46,6 +46,23 @@ type ClientCapabilities struct {
 	XCacheProvider bool `json:"xcacheProvider,omitempty"`
 }
 
+type WorkspaceClientCapabilities struct{}
+
+type TextDocumentClientCapabilities struct {
+	Completion struct {
+		CompletionItemKind struct {
+			ValueSet []CompletionItemKind `json:"valueSet,omitempty"`
+		} `json:"completionItemKind,omitempty"`
+		CompletionItem struct {
+			SnippetSupport bool `json:"snippetSupport,omitempty"`
+		} `json:"completionItem,omitempty"`
+	} `json:"completion,omitempty"`
+
+	Implementation *struct {
+		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+	} `json:"implementation,omitempty"`
+}
+
 type InitializeResult struct {
 	Capabilities ServerCapabilities `json:"capabilities,omitempty"`
 }
@@ -131,6 +148,7 @@ type ServerCapabilities struct {
 	DocumentHighlightProvider        bool                             `json:"documentHighlightProvider,omitempty"`
 	DocumentSymbolProvider           bool                             `json:"documentSymbolProvider,omitempty"`
 	WorkspaceSymbolProvider          bool                             `json:"workspaceSymbolProvider,omitempty"`
+	ImplementationProvider           bool                             `json:"implementationProvider,omitempty"`
 	CodeActionProvider               bool                             `json:"codeActionProvider,omitempty"`
 	CodeLensProvider                 *CodeLensOptions                 `json:"codeLensProvider,omitempty"`
 	DocumentFormattingProvider       bool                             `json:"documentFormattingProvider,omitempty"`
