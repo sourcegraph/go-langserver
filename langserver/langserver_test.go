@@ -1300,11 +1300,7 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 			definitionTest(t, ctx, c, rootURI, pos, want, "")
 		})
 	}
-	for pos, want := range cases.wantDefinition {
-		tbRun(t, fmt.Sprintf("definition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
-			definitionTest(t, ctx, c, rootURI, pos, want, "")
-		})
-	}
+
 	for pos, want := range cases.wantXDefinition {
 		tbRun(t, fmt.Sprintf("xdefinition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 			xdefinitionTest(t, ctx, c, rootURI, pos, want)
