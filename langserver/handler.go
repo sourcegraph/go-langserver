@@ -312,6 +312,10 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		return h.handleXDefinition(ctx, conn, req, params)
 
 	case "textDocument/completion":
+		if !h.Config.GocodeCompletionEnabled {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound,
+				Message: fmt.Sprintf("completion is disabled. Enable with flag `-gocodecompletion`")}
+		}
 		if req.Params == nil {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
 		}
