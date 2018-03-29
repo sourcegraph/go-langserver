@@ -1149,15 +1149,25 @@ func serve(ctx context.Context, lis net.Listener, h jsonrpc2.Handler, opt ...jso
 	}
 }
 
-func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
+func dialServer(t testing.TB, addr string, h ...jsonrpc2.HandlerWithError) *jsonrpc2.Conn {
 	conn, err := (&net.Dialer{}).Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), jsonrpc2.HandlerWithError(func(context.Context, *jsonrpc2.Conn, *jsonrpc2.Request) (interface{}, error) {
+
+	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 		// no-op
 		return nil, nil
-	}))
+	})
+	if len(h) == 1 {
+		handler = h[0]
+	}
+
+	return jsonrpc2.NewConn(
+		context.Background(),
+		jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}),
+		handler,
+	)
 }
 
 type lspTestCases struct {

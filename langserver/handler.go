@@ -62,8 +62,9 @@ type LangHandler struct {
 	*HandlerShared
 	init *InitializeParams // set by "initialize" request
 
-	typecheckCache cache
-	symbolCache    cache
+	typecheckCache   cache
+	symbolCache      cache
+	diagnosticsCache *diagnosticsCache
 
 	// cache the reverse import graph. The sync.Once is a pointer since it
 	// is reset when we reset caches. If it was a value we would racily
@@ -125,6 +126,10 @@ func (h *LangHandler) resetCaches(lock bool) {
 		h.symbolCache = newSymbolCache()
 	} else {
 		h.symbolCache.Purge()
+	}
+
+	if h.diagnosticsCache == nil {
+		h.diagnosticsCache = newDiagnosticsCache()
 	}
 
 	if lock {
@@ -392,7 +397,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				// a user is viewing this path, hint to add it to the cache
 				// (unless we're primarily using binary package cache .a
 				// files).
-				if !h.Config.UseBinaryPkgCache {
+				if !h.Config.UseBinaryPkgCache || req.Method == "textDocument/didSave" {
 					go h.typecheck(ctx, conn, uri, lsp.Position{})
 				}
 			}

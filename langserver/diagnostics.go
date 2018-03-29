@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"go/types"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/loader"
 
@@ -18,17 +19,36 @@ import (
 
 type diagnostics map[string][]*lsp.Diagnostic // map of URI to diagnostics (for PublishDiagnosticParams)
 
+type diagnosticsCache struct {
+	cache diagnostics
+	lock  sync.Mutex
+}
+
+func (p *diagnosticsCache) update(fn func(diagnostics) diagnostics) {
+	p.lock.Lock()
+	if p.cache == nil {
+		p.cache = diagnostics{}
+	}
+	p.cache = fn(p.cache)
+	p.lock.Unlock()
+}
+
+func newDiagnosticsCache() *diagnosticsCache {
+	return &diagnosticsCache{
+		cache: diagnostics{},
+	}
+}
+
 // publishDiagnostics sends diagnostic information (such as compile
 // errors) to the client.
-func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics) error {
-	// Our diagnostics are currently disabled because they behave
-	// incorrectly. We do not keep track of which files have failed /
-	// succeeded, so we do not send empty diagnostics to clear compiler
-	// errors/etc. https://github.com/sourcegraph/go-langserver/issues/23
-	// Leaving the code here for when we do actually fix this.
-	if cake := false; !cake {
-		return nil
+func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, files []string) error {
+	if diags == nil {
+		diags = diagnostics{}
 	}
+
+	h.diagnosticsCache.update(func(cached diagnostics) diagnostics {
+		return updateCachedDiagnostics(cached, diags, files)
+	})
 
 	for filename, diags := range diags {
 		params := lsp.PublishDiagnosticsParams{
@@ -43,6 +63,26 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSON
 		}
 	}
 	return nil
+}
+
+func updateCachedDiagnostics(cachedDiagnostics diagnostics, newDiagnostics diagnostics, files []string) diagnostics {
+	// add/update existing diagnostics
+	for file, diags := range newDiagnostics {
+		cachedDiagnostics[file] = diags
+	}
+
+	// remove all cached diagnostics for each files that is not present in `newDiagnostics`
+	// and add an entry to the output diagnostics for them (to clean the clients)
+	for _, file := range files {
+		if _, ok := newDiagnostics[file]; !ok {
+			if _, ok := cachedDiagnostics[file]; ok {
+				delete(cachedDiagnostics, file)
+				newDiagnostics[file] = nil
+			}
+		}
+	}
+
+	return cachedDiagnostics
 }
 
 func errsToDiagnostics(typeErrs []error, prog *loader.Program) (diagnostics, error) {

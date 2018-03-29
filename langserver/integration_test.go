@@ -2,11 +2,16 @@ package langserver
 
 import (
 	"context"
+	"encoding/json"
 	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
@@ -18,11 +23,11 @@ import (
 // the overlay (textDocument/didOpen unsaved file contents).
 func TestIntegration_FileSystem(t *testing.T) {
 	files := map[string]string{
-		"A.go":    "package p; func A() {}",
+		"A.go":    "package p; func A() int { return 0 }",
 		"B.go":    "package p; var _ = A",
 		"P2/C.go": `package p2; import "test/p"; var _ = p.A`,
 	}
-	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn) {
+	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		// Test some hovers using files on disk.
 		cases := lspTestCases{
 			wantHover: map[string]string{
@@ -38,7 +43,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 		if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 			TextDocument: lsp.TextDocumentItem{
 				URI:  uriJoin(rootURI, "A.go"),
-				Text: "package p; func A() int { return 0 }",
+				Text: files["A.go"],
 			},
 		}, nil); err != nil {
 			t.Fatal("textDocument/didOpen:", err)
@@ -100,11 +105,11 @@ func TestIntegration_FileSystem_Format(t *testing.T) {
 	files := map[string]string{
 		"A.go": "package p; func A() {}",
 	}
-	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn) {
+	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 			TextDocument: lsp.TextDocumentItem{
 				URI:  uriJoin(rootURI, "A.go"),
-				Text: "package p; func A() {}",
+				Text: files["A.go"],
 			},
 		}, nil); err != nil {
 			t.Fatal("textDocument/didOpen:", err)
@@ -139,11 +144,11 @@ func TestIntegration_FileSystem_Format2(t *testing.T) {
 	files := map[string]string{
 		"A.go": "package p;\n\n//   func A() {}\n",
 	}
-	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn) {
+	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 			TextDocument: lsp.TextDocumentItem{
 				URI:  uriJoin(rootURI, "A.go"),
-				Text: "package p;\n\n//   func A() {}\n",
+				Text: files["A.go"],
 			},
 		}, nil); err != nil {
 			t.Fatal("textDocument/didOpen:", err)
@@ -174,10 +179,140 @@ func TestIntegration_FileSystem_Format2(t *testing.T) {
 	})
 }
 
+func TestIntegration_FileSystem_Diagnostics(t *testing.T) {
+	files := map[string]string{
+		"A.go": strings.Join([]string{
+			"package p",
+			"",
+			"func A1(i int) {}",
+			"func A2(i int) {",
+			"	A1(123)",
+			"}",
+		}, "\n"),
+		"B.go": strings.Join([]string{
+			"package p",
+			"",
+			"func B() {",
+			"	A1(123)",
+			"}",
+		}, "\n"),
+	}
+
+	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
+		uriA := uriJoin(rootURI, "A.go")
+		uriB := uriJoin(rootURI, "B.go")
+
+		call := callFn(ctx, t, conn)
+
+		call("textDocument/didOpen", lsp.DidOpenTextDocumentParams{
+			TextDocument: lsp.TextDocumentItem{
+				URI:  uriA,
+				Text: files["A.go"],
+			},
+		})
+		call("textDocument/didOpen", lsp.DidOpenTextDocumentParams{
+			TextDocument: lsp.TextDocumentItem{
+				URI:  uriB,
+				Text: files["B.go"],
+			},
+		})
+
+		// remove "i int" from "func A1(i int)" in A.go
+		call("textDocument/didChange", lsp.DidChangeTextDocumentParams{
+			TextDocument: lsp.VersionedTextDocumentIdentifier{
+				TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriA},
+				Version:                1,
+			},
+			ContentChanges: []lsp.TextDocumentContentChangeEvent{
+				toContentChange(toRange(2, 8, 2, 13), 5, ""),
+			},
+		})
+		call("textDocument/didSave", lsp.DidChangeTextDocumentParams{
+			TextDocument: lsp.VersionedTextDocumentIdentifier{
+				TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriA},
+				Version:                1,
+			},
+		})
+
+		var params1 lsp.PublishDiagnosticsParams
+		var params2 lsp.PublishDiagnosticsParams
+		receiveNotification(t, notifies, &params1)
+		receiveNotification(t, notifies, &params2)
+
+		// expect at least one error in A.go and one in B.go
+		actual := publishedDiagnosticsToMap(params1, params2)
+		expected := map[lsp.DocumentURI]int{
+			uriA: 1,
+			uriB: 1,
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("Expected diagnostics for %v but got diagnostics %v", expected, actual)
+		}
+
+		// fix B.go by removing the 123 from the "A1(123)" call
+		call("textDocument/didChange", lsp.DidChangeTextDocumentParams{
+			TextDocument: lsp.VersionedTextDocumentIdentifier{
+				TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriB},
+				Version:                2,
+			},
+			ContentChanges: []lsp.TextDocumentContentChangeEvent{
+				toContentChange(toRange(3, 4, 3, 7), 3, ""),
+			},
+		})
+		call("textDocument/didSave", lsp.DidChangeTextDocumentParams{
+			TextDocument: lsp.VersionedTextDocumentIdentifier{
+				TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriB},
+				Version:                2,
+			},
+		})
+
+		receiveNotification(t, notifies, &params1)
+		receiveNotification(t, notifies, &params2)
+
+		// expect at least one error in A.go and no diagnostics for B.go
+		actual = publishedDiagnosticsToMap(params1, params2)
+		expected = map[lsp.DocumentURI]int{
+			uriA: 1,
+			uriB: 0,
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("Expected diagnostics for %v but got diagnostics %v", expected, actual)
+		}
+
+		// fix A.go by removing the 123 from the "A1(123)" call too
+		call("textDocument/didChange", lsp.DidChangeTextDocumentParams{
+			TextDocument: lsp.VersionedTextDocumentIdentifier{
+				TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriA},
+				Version:                3,
+			},
+			ContentChanges: []lsp.TextDocumentContentChangeEvent{
+				toContentChange(toRange(4, 4, 4, 7), 3, ""),
+			},
+		})
+		call("textDocument/didSave", lsp.DidChangeTextDocumentParams{
+			TextDocument: lsp.VersionedTextDocumentIdentifier{
+				TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uriA},
+				Version:                3,
+			},
+		})
+
+		receiveNotification(t, notifies, &params1)
+
+		// expect at no diagnostics for A.go and nothing for B.go
+		actual = publishedDiagnosticsToMap(params1)
+		expected = map[lsp.DocumentURI]int{
+			uriA: 0,
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("Expected diagnostics for %v but got diagnostics %v", expected, actual)
+		}
+	})
+}
+
 func integrationTest(
 	t *testing.T,
 	files map[string]string,
-	fn func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn),
+	fn func(context.Context, lsp.DocumentURI, *jsonrpc2.Conn, chan *jsonrpc2.Request),
 ) {
 	tmpDir, err := ioutil.TempDir("", "langserver-go-integration")
 	if err != nil {
@@ -185,25 +320,10 @@ func integrationTest(
 	}
 	defer os.RemoveAll(tmpDir)
 
-	orig := build.Default
-	build.Default.GOPATH = filepath.Join(tmpDir, "gopath")
-	build.Default.GOROOT = filepath.Join(tmpDir, "goroot")
-	defer func() {
-		build.Default = orig
-	}()
+	GOPATH := filepath.Join(tmpDir, "gopath")
+	GOROOT := filepath.Join(tmpDir, "goroot")
 
-	h := NewHandler(NewDefaultConfig())
-
-	addr, done := startServer(t, h)
-	defer done()
-	conn := dialServer(t, addr)
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Fatal("conn.Close:", err)
-		}
-	}()
-
-	rootFSPath := filepath.Join(build.Default.GOPATH, "src/test/p")
+	rootFSPath := filepath.Join(GOPATH, "src/test/p")
 	if err := os.MkdirAll(rootFSPath, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -217,11 +337,74 @@ func integrationTest(
 		}
 	}
 
-	ctx := context.Background()
+	cfg := NewDefaultConfig()
+	cfg.UseBinaryPkgCache = true
+	h := NewHandler(cfg)
+
+	addr, done := startServer(t, h)
+	defer done()
+
+	notifies := make(chan *jsonrpc2.Request, 1)
+	conn := dialServer(t, addr, func(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+		notifies <- req
+		return nil, nil
+	})
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Fatal("conn.Close:", err)
+		}
+	}()
+
 	rootURI := util.PathToURI(rootFSPath)
-	if err := conn.Call(ctx, "initialize", lsp.InitializeParams{RootURI: rootURI}, nil); err != nil {
+	params := InitializeParams{
+		InitializeParams: lsp.InitializeParams{
+			RootURI: rootURI,
+		},
+		BuildContext: &InitializeBuildContextParams{
+			GOOS:     build.Default.GOOS,
+			GOARCH:   build.Default.GOARCH,
+			GOPATH:   GOPATH,
+			GOROOT:   GOROOT,
+			Compiler: runtime.Compiler,
+		},
+	}
+
+	ctx := context.Background()
+	if err := conn.Call(ctx, "initialize", params, nil); err != nil {
 		t.Fatal("initialize:", err)
 	}
 
-	fn(ctx, rootURI, conn)
+	fn(ctx, rootURI, conn, notifies)
+}
+
+func callFn(ctx context.Context, t *testing.T, conn *jsonrpc2.Conn) func(string, interface{}) {
+	return func(m string, v interface{}) {
+		if err := conn.Call(ctx, m, v, nil); err != nil {
+			t.Fatal(m+":", err)
+		}
+	}
+}
+
+func receiveNotification(t *testing.T, ch chan *jsonrpc2.Request, v interface{}) {
+	for {
+		select {
+		case n := <-ch:
+			err := json.Unmarshal(*n.Params, v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return
+
+		case <-time.After(time.Second * 10):
+			t.Fatalf("Timeout while waiting for notification of type %T", v)
+		}
+	}
+}
+
+func publishedDiagnosticsToMap(diags ...lsp.PublishDiagnosticsParams) map[lsp.DocumentURI]int {
+	d := map[lsp.DocumentURI]int{}
+	for _, diag := range diags {
+		d[diag.URI] = len(diag.Diagnostics)
+	}
+	return d
 }
