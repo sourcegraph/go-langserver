@@ -18,7 +18,7 @@ go get -u github.com/sourcegraph/go-langserver
 
 |    | Hover | Jump to def | Find references | Workspace symbols | VFS extension | Isolated | Parallel |
 |----|-------|-------------|-----------------|-------------------|---------------|----------|----------|
-| Go |   x   |      x      |        x        |         x         |       x       |     x    |     x    |
+| Go |   ✔   |      ✔      |        ✔        |         ✔         |       ✔       |     ✔    |     ✔    |
 
 ## Profiling
 
