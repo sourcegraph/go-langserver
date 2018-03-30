@@ -147,6 +147,7 @@
     "go/ast/astutil",
     "go/buildutil",
     "go/loader",
+    "go/types/typeutil",
     "godoc/vfs",
     "refactor/importgraph"
   ]
@@ -161,6 +162,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5d9e488dbd5db1d3cfc94ced377baf2587cb121cba5696b83cf13ccc43994940"
+  inputs-digest = "e8830f6cfe087f738508477fb770e110ae687ceecab49d378669cdda1a8a37cb"
   solver-name = "gps-cdcl"
   solver-version = 1
