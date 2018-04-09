@@ -27,13 +27,13 @@ func TestIntegration_FileSystem(t *testing.T) {
 		"B.go":    "package p; var _ = A",
 		"P2/C.go": `package p2; import "test/p"; var _ = p.A`,
 	}
-	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
+	integrationTest(t, files, nil, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		// Test some hovers using files on disk.
 		cases := lspTestCases{
 			wantHover: map[string]string{
-				"A.go:1:17":    "func A()",
-				"B.go:1:20":    "func A()",
-				"P2/C.go:1:40": "func A()",
+				"A.go:1:17":    "func A() int",
+				"B.go:1:20":    "func A() int",
+				"P2/C.go:1:40": "func A() int",
 			},
 		}
 		lspTests(t, ctx, nil, conn, rootURI, cases)
@@ -105,7 +105,7 @@ func TestIntegration_FileSystem_Format(t *testing.T) {
 	files := map[string]string{
 		"A.go": "package p; func A() {}",
 	}
-	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
+	integrationTest(t, files, nil, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 			TextDocument: lsp.TextDocumentItem{
 				URI:  uriJoin(rootURI, "A.go"),
@@ -144,7 +144,7 @@ func TestIntegration_FileSystem_Format2(t *testing.T) {
 	files := map[string]string{
 		"A.go": "package p;\n\n//   func A() {}\n",
 	}
-	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
+	integrationTest(t, files, nil, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		if err := conn.Call(ctx, "textDocument/didOpen", lsp.DidOpenTextDocumentParams{
 			TextDocument: lsp.TextDocumentItem{
 				URI:  uriJoin(rootURI, "A.go"),
@@ -198,7 +198,10 @@ func TestIntegration_FileSystem_Diagnostics(t *testing.T) {
 		}, "\n"),
 	}
 
-	integrationTest(t, files, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
+	cfg := NewDefaultConfig()
+	cfg.UseBinaryPkgCache = true
+
+	integrationTest(t, files, &cfg, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		uriA := uriJoin(rootURI, "A.go")
 		uriB := uriJoin(rootURI, "B.go")
 
@@ -312,6 +315,7 @@ func TestIntegration_FileSystem_Diagnostics(t *testing.T) {
 func integrationTest(
 	t *testing.T,
 	files map[string]string,
+	cfg *Config,
 	fn func(context.Context, lsp.DocumentURI, *jsonrpc2.Conn, chan *jsonrpc2.Request),
 ) {
 	tmpDir, err := ioutil.TempDir("", "langserver-go-integration")
@@ -337,14 +341,16 @@ func integrationTest(
 		}
 	}
 
-	cfg := NewDefaultConfig()
-	cfg.UseBinaryPkgCache = true
-	h := NewHandler(cfg)
+	if cfg == nil {
+		c := NewDefaultConfig()
+		cfg = &c
+	}
+	h := NewHandler(*cfg)
 
 	addr, done := startServer(t, h)
 	defer done()
 
-	notifies := make(chan *jsonrpc2.Request, 1)
+	notifies := make(chan *jsonrpc2.Request)
 	conn := dialServer(t, addr, func(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 		notifies <- req
 		return nil, nil
@@ -386,18 +392,15 @@ func callFn(ctx context.Context, t *testing.T, conn *jsonrpc2.Conn) func(string,
 }
 
 func receiveNotification(t *testing.T, ch chan *jsonrpc2.Request, v interface{}) {
-	for {
-		select {
-		case n := <-ch:
-			err := json.Unmarshal(*n.Params, v)
-			if err != nil {
-				t.Fatal(err)
-			}
-			return
-
-		case <-time.After(time.Second * 10):
-			t.Fatalf("Timeout while waiting for notification of type %T", v)
+	select {
+	case n := <-ch:
+		err := json.Unmarshal(*n.Params, v)
+		if err != nil {
+			t.Fatal(err)
 		}
+		return
+	case <-time.After(time.Second * 10):
+		t.Fatalf("Timeout while waiting for notification of type %T", v)
 	}
 }
 

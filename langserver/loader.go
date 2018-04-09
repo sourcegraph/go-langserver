@@ -68,11 +68,9 @@ func (h *LangHandler) typecheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fil
 
 	// collect all loaded files, required to remove existing diagnostics from our cache
 	files := fsetToFiles(fset)
-	go func() {
-		if err := h.publishDiagnostics(ctx, conn, diags, files); err != nil {
-			log.Printf("warning: failed to send diagnostics: %s.", err)
-		}
-	}()
+	if err := h.publishDiagnostics(ctx, conn, diags, files); err != nil {
+		log.Printf("warning: failed to send diagnostics: %s.", err)
+	}
 
 	start := posForFileOffset(fset, filename, offset)
 	if start == token.NoPos {
