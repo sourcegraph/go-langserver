@@ -14,15 +14,15 @@ func TestTextDocumentSyncOptionsOrKind_MarshalUnmarshalJSON(t *testing.T) {
 
 	tests := []struct {
 		data []byte
-		want TextDocumentSyncOptionsOrKind
+		want *TextDocumentSyncOptionsOrKind
 	}{
 		{
 			data: []byte(`null`),
-			want: TextDocumentSyncOptionsOrKind{},
+			want: &TextDocumentSyncOptionsOrKind{},
 		},
 		{
 			data: []byte(`2`),
-			want: TextDocumentSyncOptionsOrKind{
+			want: &TextDocumentSyncOptionsOrKind{
 				Options: &TextDocumentSyncOptions{
 					OpenClose: true,
 					Change:    TDSKIncremental,
@@ -32,7 +32,7 @@ func TestTextDocumentSyncOptionsOrKind_MarshalUnmarshalJSON(t *testing.T) {
 		},
 		{
 			data: []byte(`{"openClose":true,"change":1,"save":{"includeText":true}}`),
-			want: TextDocumentSyncOptionsOrKind{
+			want: &TextDocumentSyncOptionsOrKind{
 				Options: &TextDocumentSyncOptions{
 					OpenClose: true,
 					Change:    TDSKFull,
