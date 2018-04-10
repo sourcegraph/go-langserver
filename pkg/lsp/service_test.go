@@ -17,10 +17,6 @@ func TestTextDocumentSyncOptionsOrKind_MarshalUnmarshalJSON(t *testing.T) {
 		want *TextDocumentSyncOptionsOrKind
 	}{
 		{
-			data: []byte(`null`),
-			want: &TextDocumentSyncOptionsOrKind{},
-		},
-		{
 			data: []byte(`2`),
 			want: &TextDocumentSyncOptionsOrKind{
 				Options: &TextDocumentSyncOptions{
@@ -47,11 +43,11 @@ func TestTextDocumentSyncOptionsOrKind_MarshalUnmarshalJSON(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		if !reflect.DeepEqual(got, test.want) {
+		if !reflect.DeepEqual(&got, test.want) {
 			t.Errorf("got %+v, want %+v", got, test.want)
 			continue
 		}
-		data, err := json.Marshal(got)
+		data, err := json.Marshal(&got)
 		if err != nil {
 			t.Error(err)
 			continue
