@@ -108,10 +108,6 @@ type TextDocumentSyncOptionsOrKind struct {
 
 // MarshalJSON implements json.Marshaler.
 func (v TextDocumentSyncOptionsOrKind) MarshalJSON() ([]byte, error) {
-	if v.Kind == nil && v.Options == nil {
-		// Default value according to spec is TDSKNone
-		return json.Marshal(TDSKNone)
-	}
 	if v.Kind != nil {
 		return json.Marshal(v.Kind)
 	}
