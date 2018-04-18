@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/tools/go/loader"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
 
 	"github.com/lambdalab/go-langserver/pkg/lsp"
 

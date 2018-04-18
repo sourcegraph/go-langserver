@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
 )
 
 // BuildContext creates a build.Context which uses the overlay FS and the InitializeParams.BuildContext overrides.

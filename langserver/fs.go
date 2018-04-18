@@ -17,7 +17,7 @@ import (
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/jsonrpc2"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole
@@ -206,12 +206,12 @@ type fileContCache struct {
 
 var contentCache = make(map[string]fileContCache)
 
-func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error) {
-	if !isFileURI(uri) {
-		return nil, &os.PathError{Op: "Open", Path: uri, Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
+func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]byte, error) {
+	if !util.IsURI(uri) {
+		return nil, &os.PathError{Op: "Open", Path: string(uri), Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
 	}
 
-	c, ok := contentCache[uri]
+	c, ok := contentCache[string(uri)]
 	if ok {
 		return c.fileCont, c.fileErr
 	}
@@ -227,7 +227,7 @@ func (h *HandlerShared) readFile(ctx context.Context, uri string) ([]byte, error
 		}
 	}
 
-	contentCache[uri] = fileContCache{contents, err}
+	contentCache[string(uri)] = fileContCache{contents, err}
 	return contents, err
 }
 

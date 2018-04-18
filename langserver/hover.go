@@ -14,8 +14,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	doc "github.com/slimsag/godocmd"
 	"github.com/lambdalab/go-langserver/langserver/internal/godef"
 	"github.com/lambdalab/go-langserver/langserver/util"
 	"go/doc"
@@ -284,7 +282,7 @@ func line2offset(filename string, pos lsp.Position) int {
 }
 
 func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
-	filename := uriToFilePath(params.TextDocument.URI)
+	filename := util.UriToPath(params.TextDocument.URI)
 	cache := GetHoverPkgCache(filename)
 	if cache.DocPkg != nil {
 		fset := cache.Fset
@@ -363,13 +361,7 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 		return &lsp.Hover{}, nil
 	}
 
-<<<<<<< HEAD
-	// convert the path into a real path because 3rd party tools
-	// might load additional code based on the file's package
-	filename := util.UriToRealPath(loc.URI)
-=======
-	filename = uriToFilePath(loc.URI)
->>>>>>> feat(go): add hover info
+	filename = util.UriToPath(loc.URI)
 
 	// Parse the entire dir into its respective AST packages.
 	pkgs, err := parser.ParseDir(fset, filepath.Dir(filename), nil, parser.ParseComments)

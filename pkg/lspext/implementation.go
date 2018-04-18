@@ -1,6 +1,6 @@
 package lspext
 
-import "github.com/sourcegraph/go-langserver/pkg/lsp"
+import "github.com/lambdalab/go-langserver/pkg/lsp"
 
 // ImplementationLocation is a superset of lsp.Location with additional Go-specific information
 // about the implementation.

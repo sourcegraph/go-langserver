@@ -18,6 +18,7 @@ import (
 
 	"github.com/lambdalab/go-langserver/langserver/internal/godef/go/parser"
 	"github.com/lambdalab/go-langserver/langserver/internal/godef/go/types"
+	"errors"
 )
 
 type Result struct {
@@ -28,6 +29,8 @@ type Result struct {
 	// ('http' in 'http.Router').
 	Package *build.Package
 }
+
+var ErrNoIdentifierFound = errors.New("no identifier found")
 
 type packageCache struct {
 	f map[string]*ast.File

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lambdalab/ctxvfs"
+	"github.com/sourcegraph/ctxvfs"
 	"github.com/lambdalab/go-langserver/langserver/internal/gocode"
 	"github.com/lambdalab/go-langserver/langserver/util"
 

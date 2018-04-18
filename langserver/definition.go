@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
 
 	"github.com/lambdalab/go-langserver/langserver/internal/godef"
 	"github.com/lambdalab/go-langserver/langserver/internal/refs"
@@ -83,7 +83,7 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 			return fset, res, []lsp.Location{}, nil
 		} else {
 			importPath[path] = true
-			loc := lsp.Location{URI: path}
+			loc := lsp.Location{URI: util.PathToURI(path)}
 			return fset, res, []lsp.Location{loc}, nil
 		}
 	}

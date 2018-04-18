@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/lambdalab/go-langserver/pkg/lsp"
 )
 
 func trimFilePrefix(s string) string {
