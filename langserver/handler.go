@@ -15,12 +15,13 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
+	"github.com/lambdalab/go-langserver/langserver/internal/gocode"
+	"github.com/lambdalab/go-langserver/pkg/lsp"
+	"github.com/lambdalab/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
+	"os"
+	"strings"
 )
 
 // NewHandler creates a Go language server handler.
@@ -205,12 +206,17 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			params.RootPath = string(util.PathToURI(params.RootPath))
 		}
 
+		// set GOPATH
+		path := os.Getenv("GOPATH")
+		os.Setenv("GOPATH", strings.TrimPrefix(params.RootPath, "file://") + ":" + path)
+
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
 		if h.Config.GocodeCompletionEnabled {
 			gocode.InitDaemon(h.BuildContext(ctx))
 		}
+
 
 		// PERF: Kick off a workspace/symbol in the background to warm up the server
 		if yes, _ := strconv.ParseBool(envWarmupOnInitialize); yes {

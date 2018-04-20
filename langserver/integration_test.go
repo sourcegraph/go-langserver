@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/lambdalab/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/pkg/lsp"
 )
 
 // TestIntegration_FileSystem tests using the server against the real

@@ -22,7 +22,7 @@ import (
 
 	"go/ast"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/godef/go/parser"
+	"github.com/lambdalab/go-langserver/langserver/internal/godef/go/parser"
 )
 
 // Type represents the type of a Go expression.
@@ -76,38 +76,58 @@ func predecl(name string) *ast.Ident {
 
 type Importer func(path string, srcDir string) *ast.Package
 
+var pkgCache = make(map[string]map[string]*ast.Package)
+
+var prevPkgPath = ""
+
 // DefaultImporter looks for the package; if it finds it,
 // it parses and returns it. If no package was found, it returns nil.
-func DefaultImporter(fset *token.FileSet) func(path string, srcDir string) *ast.Package {
+func DefaultImporter(fset *token.FileSet, name string) func(path string, srcDir string) *ast.Package {
 	return func(path string, srcDir string) *ast.Package {
+		var pkgs map[string]*ast.Package
+
 		bpkg, err := build.Default.Import(path, srcDir, 0)
 		if err != nil {
 			return nil
 		}
-		goFiles := make(map[string]bool)
-		for _, f := range bpkg.GoFiles {
-			goFiles[f] = true
-		}
-		for _, f := range bpkg.CgoFiles {
-			goFiles[f] = true
-		}
-		shouldInclude := func(d os.FileInfo) bool {
-			return goFiles[d.Name()]
-		}
-		pkgs, err := parser.ParseDir(fset, bpkg.Dir, shouldInclude, 0, DefaultImportPathToName)
-		if err != nil {
-			if Debug {
-				switch err := err.(type) {
-				case scanner.ErrorList:
-					for _, e := range err {
-						debugp("\t%v: %s", e.Pos, e.Msg)
-					}
-				default:
-					debugp("\terror parsing %s: %v", bpkg.Dir, err)
-				}
+
+		hashName := srcDir + name + path
+		cache, ok := pkgCache[hashName]
+		if ok {
+			pkgs = cache
+		} else {
+			if prevPkgPath != srcDir {
+				prevPkgPath = srcDir
+				pkgCache = make(map[string]map[string]*ast.Package)
 			}
-			return nil
+
+			goFiles := make(map[string]bool)
+			for _, f := range bpkg.GoFiles {
+				goFiles[f] = true
+			}
+			for _, f := range bpkg.CgoFiles {
+				goFiles[f] = true
+			}
+			shouldInclude := func(d os.FileInfo) bool {
+				return goFiles[d.Name()]
+			}
+			pkgs, err = parser.ParseDir(fset, bpkg.Dir, shouldInclude, 0, DefaultImportPathToName)
+			if pkgs == nil {
+				if Debug {
+					switch err := err.(type) {
+					case scanner.ErrorList:
+						for _, e := range err {
+							debugp("\t%v: %s", e.Pos, e.Msg)
+						}
+					default:
+						debugp("\terror parsing %s: %v", bpkg.Dir, err)
+					}
+				}
+				return nil
+			}
+			pkgCache[hashName] = pkgs
 		}
+
 		if pkg := pkgs[bpkg.Name]; pkg != nil {
 			return pkg
 		}
@@ -209,6 +229,14 @@ func (t Type) Iter() <-chan *ast.Object {
 // the source location of the definition of the object.
 //
 func ExprType(e ast.Expr, importer Importer, fs *token.FileSet) (obj *ast.Object, typ Type) {
+	defer func() {
+		if x := recover(); x != nil {
+			obj = nil
+			typ = badType
+			debugp("panic recover")
+		}
+	}()
+
 	ctxt := &exprTypeContext{
 		importer: importer,
 		fileSet:  fs,
@@ -224,6 +252,7 @@ type exprTypeContext struct {
 func (ctxt *exprTypeContext) exprType(n ast.Node, expectTuple bool, pkg string) (xobj *ast.Object, typ Type) {
 	debugp("exprType tuple:%v pkg:%s %T %v [", expectTuple, pkg, n, pretty{ctxt.fileSet, n})
 	defer func() {
+		recover()
 		debugp("] -> %p, %v", xobj, typ)
 	}()
 	switch n := n.(type) {
@@ -252,13 +281,16 @@ func (ctxt *exprTypeContext) exprType(n ast.Node, expectTuple bool, pkg string) 
 			return obj, t
 
 		case expr != nil:
-			_, t := ctxt.exprType(expr, false, pkg)
-			if t.Kind == ast.Typ {
-				debugp("expected value, got type %v", t)
-				t = badType
+			if expr != n {
+				_, t := ctxt.exprType(expr, false, pkg)
+				if t.Kind == ast.Typ {
+					debugp("expected value, got type %v", t)
+					t = badType
+				}
+				return obj, t
+			} else {
+				return obj, badType
 			}
-			return obj, t
-
 		default:
 			switch n.Obj {
 			case falseIdent.Obj, trueIdent.Obj:

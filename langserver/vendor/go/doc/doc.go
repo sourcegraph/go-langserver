@@ -88,15 +88,29 @@ const (
 	AllMethods
 )
 
+type FieldStruct struct {
+	Name	string
+	Recv 	string
+	Pos		token.Pos
+	Kind 	ast.ObjKind
+}
+
+var fieldNode = make([]FieldStruct, 0)
+
+func AcceptFieldNode(name string, recv string, pos token.Pos, kind ast.ObjKind) {
+	fieldNode = append(fieldNode, FieldStruct{name, recv, pos, kind})
+}
+
 // New computes the package documentation for the given package AST.
 // New takes ownership of the AST pkg and may edit or overwrite it.
 //
-func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+func New(pkg *ast.Package, importPath string, mode Mode) (*Package, []FieldStruct) {
+	fieldNode = make([]FieldStruct, 0)
 	var r reader
 	r.readPackage(pkg, mode)
 	r.computeMethodSets()
 	r.cleanupTypes()
-	return &Package{
+	rstPkg := &Package{
 		Doc:        r.doc,
 		Name:       pkg.Name,
 		ImportPath: importPath,
@@ -109,4 +123,6 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 		Vars:       sortedValues(r.values, token.VAR),
 		Funcs:      sortedFuncs(r.funcs, true),
 	}
+
+	return rstPkg, fieldNode
 }

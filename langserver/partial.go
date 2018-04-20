@@ -1,6 +1,6 @@
 package langserver
 
-import "github.com/sourcegraph/go-langserver/pkg/lsp"
+import "github.com/lambdalab/go-langserver/pkg/lsp"
 
 // This file contains types and functions related to $/partialResult streaming
 

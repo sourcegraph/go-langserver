@@ -21,10 +21,11 @@ import (
 	"testing"
 
 	"github.com/sourcegraph/ctxvfs"
-	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
+	"github.com/lambdalab/go-langserver/langserver/internal/gocode"
+	"github.com/lambdalab/go-langserver/langserver/util"
+
+	"github.com/lambdalab/go-langserver/pkg/lsp"
+	"github.com/lambdalab/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

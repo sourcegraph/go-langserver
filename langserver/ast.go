@@ -6,10 +6,13 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+
 	"golang.org/x/tools/go/loader"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
+
+	"github.com/lambdalab/go-langserver/pkg/lsp"
+
 )
 
 func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool, whyInvalid string) {

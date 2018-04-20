@@ -25,6 +25,13 @@ import (
 // import statement, which may be empty.
 type ImportPathToName func(path string, fromDir string) (string, error)
 
+type fileContCache struct {
+	fileCont []byte
+	fileErr error
+}
+
+var contentCache = make(map[string]fileContCache)
+
 // If src != nil, readSource converts src to a []byte if possible;
 // otherwise it returns an error. If src == nil, readSource returns
 // the result of reading the file specified by filename.
@@ -53,7 +60,14 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 		}
 	}
 
-	return ioutil.ReadFile(filename)
+	cache, ok := contentCache[filename]
+	if ok {
+		return cache.fileCont, cache.fileErr
+	} else {
+		c, e := ioutil.ReadFile(filename)
+		contentCache[filename] = fileContCache{c, e}
+		return c, e
+	}
 }
 
 func (p *parser) parseEOF() error {
@@ -103,20 +117,99 @@ func ParseExpr(fset *token.FileSet, filename string, src interface{}, scope *ast
 // errors were found, the result is a partial AST (with ast.BadX nodes
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by file position.
-//
+// filename/mode/importhapathtoName => result  / scope
+
+type parseCacheType struct {
+	f *ast.File
+	lines []int
+	e error
+	scope *ast.Scope
+}
+
+var parseCache = make(map[string]parseCacheType)
+var pkgNameCache = make(map[string]parseCacheType)
+
+func extendScope(pkgScope *ast.Scope, fileScope *ast.Scope) {
+	p := pkgScope.Objects
+	f := fileScope.Objects
+	for k := range f {
+		if p[k] == nil {
+			p[k] = f[k]
+		} else {
+			if p[k].Kind == ast.Bad { //&& p[k].Type == f[k].Type{
+				p[k].Kind = f[k].Kind
+				p[k].Name = f[k].Name
+				p[k].Decl = f[k].Decl
+			}
+			if f[k].Kind == ast.Bad {
+				f[k].Kind = p[k].Kind
+				f[k].Name = p[k].Name
+				f[k].Decl = p[k].Decl
+			}
+		}
+	}
+}
+
+func doParseFile(fset *token.FileSet, filename string, data []byte, mode uint, scope *ast.Scope, pathToName ImportPathToName) (*ast.File, error){
+	var p parser
+	p.init(fset, filename, data, mode, scope, pathToName)
+	p.pkgScope = p.topScope
+	p.openScope()
+	p.fileScope = p.topScope
+	p.ErrorList.RemoveMultiples()
+	return p.parseFile(), p.ErrorList.Err() // parseFile() reads to EOF
+}
+
+func getLineInfo(content []byte) []int {
+	var lines []int
+	line := 0
+	for offset, b := range content {
+		if line >= 0 {
+			lines = append(lines, line)
+		}
+		line = -1
+		if b == '\n' {
+			line = offset + 1
+		}
+	}
+	return lines
+}
+
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode uint, pkgScope *ast.Scope, pathToName ImportPathToName) (*ast.File, error) {
 	data, err := readSource(filename, src)
 	if err != nil {
 		return nil, err
 	}
 
-	var p parser
-	p.init(fset, filename, data, mode, pkgScope, pathToName)
-	p.pkgScope = p.topScope
-	p.openScope()
-	p.fileScope = p.topScope
-	p.ErrorList.RemoveMultiples()
-	return p.parseFile(), p.ErrorList.Err() // parseFile() reads to EOF
+	return doParseFile(fset, filename, data, mode, pkgScope, pathToName)
+
+	/*
+	if mode != 0  {
+		cache, ok := pkgNameCache[filename]
+		if ok  {
+			file := fset.AddFile(filename, fset.Base(), len(data))
+			file.SetLines(cache.lines)
+			return cache.f, nil
+		} else {
+			f, err := doParseFile(fset, filename, data, mode, pkgScope, pathToName)
+			pkgNameCache[filename] = parseCacheType{f:f, lines:getLineInfo(data)}
+			return f, err
+		}
+	} else {
+		cache, ok := parseCache[filename]
+		if ok {
+			extendScope(pkgScope, cache.scope)
+			file := fset.AddFile(filename, fset.Base(), len(data))
+			file.SetLines(cache.lines)
+			return cache.f, cache.e
+		} else {
+			scope := pkgScope
+			f, e := doParseFile(fset, filename, data, mode, scope, pathToName)
+			extendScope(pkgScope, scope)
+			parseCache[filename] = parseCacheType{f, getLineInfo(data), e,scope}
+			return f, e
+		}
+	}*/
 }
 
 func parseFileInPkg(fset *token.FileSet, pkgs map[string]*ast.Package, filename string, mode uint, pathToName ImportPathToName) (err error) {

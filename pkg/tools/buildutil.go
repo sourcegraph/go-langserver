@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
 )
 
 // ListPkgsUnderDir is buildutil.ExpandPattern(ctxt, []string{dir +

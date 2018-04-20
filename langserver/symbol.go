@@ -19,10 +19,10 @@ import (
 	"golang.org/x/tools/go/buildutil"
 
 	"github.com/neelance/parallel"
-	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
-	"github.com/sourcegraph/go-langserver/pkg/tools"
+	"github.com/lambdalab/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/pkg/lsp"
+	"github.com/lambdalab/go-langserver/pkg/lspext"
+	"github.com/lambdalab/go-langserver/pkg/tools"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -295,7 +295,7 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 
 	fset := token.NewFileSet()
 	bctx := h.BuildContext(ctx)
-	src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Dir(path), filepath.Base(path), 0)
+	src, err := buildutil.ParseFile(fset, bctx, nil, filepath.Dir(path), filepath.Base(path), parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
@@ -305,11 +305,14 @@ func (h *LangHandler) handleTextDocumentSymbol(ctx context.Context, conn jsonrpc
 	}
 	pkg.Files[filepath.Base(path)] = src
 
-	symbols := astPkgToSymbols(fset, pkg, &build.Package{})
-	res := make([]lsp.SymbolInformation, len(symbols))
+	symbols := astPkgToSymbols(fset, pkg, &build.Package{}, path)
+	size := len(symbols)
+	res := make([]lsp.SymbolInformation, size+1)
 	for i, s := range symbols {
 		res[i] = s.SymbolInformation
 	}
+
+	res[size] = lsp.SymbolInformation{Name: pkg.Name, Kind: lsp.SKPkgName}
 	return res, nil
 }
 
@@ -421,7 +424,7 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 			return nil
 		}
 
-		return astPkgToSymbols(fs, astPkg, buildPkg)
+		return astPkgToSymbols(fs, astPkg, buildPkg, "")
 	})
 
 	if symbols == nil {
@@ -436,13 +439,42 @@ func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, p
 	}
 }
 
+type HoverInfoCache struct {
+	DocPkg *doc.Package
+	Fset *token.FileSet
+}
+
+var docPkgCache = make(map[string]HoverInfoCache)
+
+func AddHoverPkgCache(docPkg *doc.Package, fset *token.FileSet, filename string) {
+	docPkgCache[filename] = HoverInfoCache{docPkg, fset }
+}
+
+func GetHoverPkgCache(filename string) HoverInfoCache {
+	v, ok := docPkgCache[filename]
+	if ok {
+		return v
+	} else {
+		return HoverInfoCache{nil,nil}
+	}
+}
+
 // astToSymbols returns a slice of LSP symbols from an AST.
-func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Package) []symbolPair {
+func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Package, filename string) []symbolPair {
 	// TODO(keegancsmith) Remove vendored doc/go once https://github.com/golang/go/issues/17788 is shipped
-	docPkg := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
+	docPkg, fileNodes := doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
+
+	AddHoverPkgCache(docPkg, fs, filename)
+
+	var pkgSyms []symbolPair
+
+	for _, node := range fileNodes {
+		if node.Recv != "" {
+			pkgSyms = append(pkgSyms, toSym(node.Name, buildPkg, node.Recv, lsp.SKField, fs, node.Pos))
+		}
+	}
 
 	// Emit decls
-	var pkgSyms []symbolPair
 	for _, t := range docPkg.Types {
 		pkgSyms = append(pkgSyms, toSym(t.Name, buildPkg, "", typeSpecSym(t), fs, declNamePos(t.Decl, t.Name)))
 		for _, v := range t.Funcs {
@@ -457,21 +489,57 @@ func astPkgToSymbols(fs *token.FileSet, astPkg *ast.Package, buildPkg *build.Pac
 			}
 		}
 		for _, v := range t.Vars {
-			for _, name := range v.Names {
-				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKField, fs, declNamePos(v.Decl, name)))
+			if len(v.Decl.Specs) == 1 {
+				for _, name := range v.Names {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+				}
+			} else {
+				len := len(v.Decl.Specs)
+				for i, name := range v.Names {
+					if i < len {
+						pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[i].Pos()))
+					} else {
+						pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+					}
+				}
 			}
 		}
 	}
+
 	for _, v := range docPkg.Consts {
-		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, declNamePos(v.Decl, name)))
+		if len(v.Decl.Specs) == 1 {
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[0].Pos()))
+			}
+		} else {
+			len := len(v.Decl.Specs)
+			for i, name := range v.Names {
+				if i < len {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[i].Pos()))
+				} else {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKConstant, fs, v.Decl.Specs[0].Pos()))
+				}
+			}
 		}
 	}
+
 	for _, v := range docPkg.Vars {
-		for _, name := range v.Names {
-			pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, declNamePos(v.Decl, name)))
+		if len(v.Decl.Specs) == 1 {
+			for _, name := range v.Names {
+				pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+			}
+		} else {
+			len := len(v.Decl.Specs)
+			for i, name := range v.Names {
+				if i < len {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[i].Pos()))
+				} else {
+					pkgSyms = append(pkgSyms, toSym(name, buildPkg, "", lsp.SKVariable, fs, v.Decl.Specs[0].Pos()))
+				}
+			}
 		}
 	}
+
 	for _, v := range docPkg.Funcs {
 		pkgSyms = append(pkgSyms, toSym(v.Name, buildPkg, "", lsp.SKFunction, fs, v.Decl.Name.NamePos))
 	}

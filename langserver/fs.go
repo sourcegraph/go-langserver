@@ -13,11 +13,11 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
+	"github.com/lambdalab/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/ctxvfs"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
 
-	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/lambdalab/go-langserver/langserver/util"
 )
 
 // isFileSystemRequest returns if this is an LSP method whose sole
@@ -199,10 +199,23 @@ func (h *HandlerShared) FilePath(uri lsp.DocumentURI) string {
 	return path
 }
 
+type fileContCache struct {
+	fileCont []byte
+	fileErr error
+}
+
+var contentCache = make(map[string]fileContCache)
+
 func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]byte, error) {
 	if !util.IsURI(uri) {
 		return nil, &os.PathError{Op: "Open", Path: string(uri), Err: errors.New("unable to read out-of-workspace resource from virtual file system")}
 	}
+
+	c, ok := contentCache[string(uri)]
+	if ok {
+		return c.fileCont, c.fileErr
+	}
+
 	h.Mu.Lock()
 	fs := h.FS
 	h.Mu.Unlock()
@@ -213,6 +226,8 @@ func (h *HandlerShared) readFile(ctx context.Context, uri lsp.DocumentURI) ([]by
 			err = &os.PathError{Op: "Open", Path: path, Err: err}
 		}
 	}
+
+	contentCache[string(uri)] = fileContCache{contents, err}
 	return contents, err
 }
 

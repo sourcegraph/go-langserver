@@ -422,6 +422,7 @@ const (
 	SKEvent         SymbolKind = 24
 	SKOperator      SymbolKind = 25
 	SKTypeParameter SymbolKind = 26
+	SKPkgName	  SymbolKind = 27
 )
 
 func (s SymbolKind) String() string {
