@@ -1304,10 +1304,10 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		os.Setenv("GOPATH", tmpDir)
 		out, err := exec.Command("go", "install", "-v", "all").CombinedOutput()
 		os.Setenv("GOPATH", oldGOPATH)
+		t.Logf("$ GOPATH='%s' go install -v all\n%s", tmpDir, out)
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("$ go install -v all\n%s", out)
 
 		testOSToVFSPath = func(osPath string) string {
 			return strings.TrimPrefix(osPath, util.UriToPath(util.PathToURI(tmpDir)))
