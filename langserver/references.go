@@ -136,7 +136,7 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 			// We also need to check defpkg itself, and its xtests.
 			// For the reverse graph packages, we process xtests with the main package.
 			// defpkg gets special handling; we must distinguish between in-package vs out-of-package.
-			// To make the control flow, add defpkg and defpkg xtest placeholders.
+			// To make the control flow in findReferencesPkgLevel simpler, add defpkg and defpkg xtest placeholders.
 			// Use "!test" instead of "_test" because "!" is not a valid character in an import path.
 			// (More precisely, it is not guaranteed to be a valid character in an import path,
 			// so it is unlikely that it will be in use. See https://golang.org/ref/spec#Import_declarations.)
@@ -505,11 +505,11 @@ func (h *LangHandler) findReferencesPkgLevel(ctx context.Context, bctx *build.Co
 	//
 	// We parse all files leniently. In the presence of parsing errors, results are best-effort.
 
-	defpkg := strings.TrimSuffix(obj.Pkg().Path(), "_test")
-	defpkg = util.VendorlessImportPath(defpkg)
+	defpkg := strings.TrimSuffix(obj.Pkg().Path(), "_test") // package x_test actually has package name x
+	defpkg = util.VendorlessImportPath(defpkg)              // TODO: use golang.org/x/tools/imports.VendorlessPath if/when https://golang.org/cl/108877 goes in
 
 	defname := obj.Pkg().Name()                    // name of the defining package of the query object, used for resolving imports that use import path only (common case)
-	isxtest := strings.HasSuffix(defname, "_test") // indicates where the query object is defined in an xtest package
+	isxtest := strings.HasSuffix(defname, "_test") // indicates whether the query object is defined in an xtest package
 
 	name := obj.Name()
 	namebytes := []byte(name)          // byte slice version of query object name, for early filtering
