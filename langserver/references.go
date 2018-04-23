@@ -580,12 +580,15 @@ func (h *LangHandler) findReferencesPkgLevel(ctx context.Context, bctx *build.Co
 				deffiles = make(map[string]*ast.File)
 			}
 
+			buf := new(bytes.Buffer) // reusable buffer for reading files
+
 			for _, file := range files {
 				if !buildutil.IsAbsPath(bctx, file) {
 					file = buildutil.JoinPath(bctx, pkg.Dir, file)
 				}
+				buf.Reset()
 				sema <- struct{}{} // acquire token
-				src, err := readFile(bctx, file)
+				src, err := readFile(bctx, file, buf)
 				<-sema // release token
 				if err != nil {
 					continue
@@ -797,14 +800,17 @@ func sameObj(x, y types.Object) bool {
 
 // readFile is like ioutil.ReadFile, but
 // it goes through the virtualized build.Context.
-func readFile(ctxt *build.Context, filename string) ([]byte, error) {
+// If non-nil, buf must have been reset.
+func readFile(ctxt *build.Context, filename string, buf *bytes.Buffer) ([]byte, error) {
 	rc, err := buildutil.OpenFile(ctxt, filename)
 	if err != nil {
 		return nil, err
 	}
 	defer rc.Close()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, rc); err != nil {
+	if buf == nil {
+		buf = new(bytes.Buffer)
+	}
+	if _, err := io.Copy(buf, rc); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
