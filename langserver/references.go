@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/imports"
 	"golang.org/x/tools/refactor/importgraph"
 
 	opentracing "github.com/opentracing/opentracing-go"
@@ -506,7 +507,7 @@ func (h *LangHandler) findReferencesPkgLevel(ctx context.Context, bctx *build.Co
 	// We parse all files leniently. In the presence of parsing errors, results are best-effort.
 
 	defpkg := strings.TrimSuffix(obj.Pkg().Path(), "_test") // package x_test actually has package name x
-	defpkg = util.VendorlessImportPath(defpkg)              // TODO: use golang.org/x/tools/imports.VendorlessPath if/when https://golang.org/cl/108877 goes in
+	defpkg = imports.VendorlessPath(defpkg)
 
 	defname := obj.Pkg().Name()                    // name of the defining package of the query object, used for resolving imports that use import path only (common case)
 	isxtest := strings.HasSuffix(defname, "_test") // indicates whether the query object is defined in an xtest package
