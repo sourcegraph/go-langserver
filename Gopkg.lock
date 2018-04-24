@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
-  revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
+  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
   name = "github.com/go-stack/stack"
@@ -97,7 +97,7 @@
     "internal/bitbucket.org/ww/goautoneg",
     "model"
   ]
-  revision = "6fb6fce6f8b75884b92e1889c150403fc0872c5e"
+  revision = "e5b036cc37a466a0af27d604d1ee500211d16d6a"
 
 [[projects]]
   branch = "master"
@@ -108,7 +108,7 @@
     "nfs",
     "xfs"
   ]
-  revision = "d274e363d5759d1c916232217be421f1cc89c5fe"
+  revision = "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e"
 
 [[projects]]
   branch = "master"
@@ -120,25 +120,25 @@
   branch = "master"
   name = "github.com/sourcegraph/ctxvfs"
   packages = ["."]
-  revision = "fc136a6c6dec6d9921c6f6efe24d5289c9d4d776"
+  revision = "2b65f1b1ea81f660ad7bc9931991f39617eb783e"
 
 [[projects]]
   branch = "master"
   name = "github.com/sourcegraph/jsonrpc2"
   packages = ["."]
-  revision = "dbf20885e7ff39b0d5b64878148113e8433571f1"
+  revision = "2ed59d3304d3c7a972e6f58064ab9cdad4cbfc2c"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["context"]
-  revision = "22ae77b79946ea320088417e4d50825671d82d57"
+  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "dd2ff4accc098aceecb86b36eaa7829b2a17b1c9"
+  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
 
 [[projects]]
   branch = "master"
@@ -149,9 +149,11 @@
     "go/loader",
     "go/types/typeutil",
     "godoc/vfs",
+    "imports",
+    "internal/fastwalk",
     "refactor/importgraph"
   ]
-  revision = "73e16cff9e0d4a802937444bebb562458548241d"
+  revision = "c1def519f03ddf76f16b3e444ee1095d73afa01b"
 
 [[projects]]
   name = "gopkg.in/inconshreveable/log15.v2"
@@ -162,6 +164,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e8830f6cfe087f738508477fb770e110ae687ceecab49d378669cdda1a8a37cb"
+  inputs-digest = "ccec38c536afd7d2d41f2d22b03dc4164c23f23e83e885c755424c8afcda549f"
   solver-name = "gps-cdcl"
   solver-version = 1
