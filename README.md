@@ -36,4 +36,4 @@ Capture a CPU profile:
 go tool pprof -svg $GOPATH/bin/go-langserver http://localhost:6060/debug/pprof/profile > cpu.svg
 ```
 
-Since these capture the active resource usage, it's best to run these commands while the issue is occuring (i.e. while memory or CPU is high).
+Since these capture the active resource usage, it's best to run these commands while the issue is occurring (i.e. while memory or CPU is high).

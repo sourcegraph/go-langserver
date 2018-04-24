@@ -71,7 +71,7 @@ var serverTestCases = map[string]serverTestCase{
 				"b.go:1:23": "/src/test/pkg/a.go:1:17 id:test/pkg/-/A name:A package:test/pkg packageName:p recv: vendor:false",
 			},
 			wantCompletion: map[string]string{
-				//"a.go:1:24": "1:23-1:24 A function func()", // returns empty list for unknown reason. Works if the two statements are in seperate lines
+				//"a.go:1:24": "1:23-1:24 A function func()", // returns empty list for unknown reason. Works if the two statements are in separate lines
 				"b.go:1:24": "1:23-1:24 A function func()",
 			},
 			wantReferences: map[string][]string{

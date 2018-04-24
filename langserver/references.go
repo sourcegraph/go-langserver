@@ -267,7 +267,7 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 }
 
 // refStreamAndCollect returns all refs read in from chan until it is
-// closed. While it is reading, it will also occasionaly stream out updates of
+// closed. While it is reading, it will also occasionally stream out updates of
 // the refs received so far.
 func refStreamAndCollect(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, fset *token.FileSet, refs <-chan *ast.Ident, limit int, stop func()) []lsp.Location {
 	if limit == 0 {
