@@ -2096,7 +2096,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 	if par.NumFields() != 1 {
 		p.errorExpected(pos, "exactly one receiver")
 		// TODO determine a better range for BadExpr below
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{pos, pos}}}
+		par.List = []*ast.Field{{Type: &ast.BadExpr{pos, pos}}}
 		return par
 	}
 
@@ -2105,7 +2105,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 	base := deref(recv.Type)
 	if _, isIdent := base.(*ast.Ident); !isIdent {
 		p.errorExpected(base.Pos(), "(unqualified) identifier")
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
+		par.List = []*ast.Field{{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
 	}
 
 	return par
