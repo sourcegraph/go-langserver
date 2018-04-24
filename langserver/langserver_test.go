@@ -1092,6 +1092,33 @@ func (h *Hello) Bye() int {
 			},
 		},
 	},
+	"godoc fail issue 261": {
+		rootURI: "file:///src/test/pkg",
+		fs: map[string]string{
+			"main.go": `package main
+
+import "fmt"
+
+type T string
+type TM map[string]T
+
+func main() {
+	var tm TM
+	for _, t := range tm {
+		fmt.Println(t)
+	}
+}
+`,
+		},
+		cases: lspTestCases{
+			overrideGodefHover: map[string]string{
+				"main.go:11:15": "",
+			},
+			wantHover: map[string]string{
+				"main.go:11:15": "var t T",
+			},
+		},
+	},
 }
 
 func TestServer(t *testing.T) {
