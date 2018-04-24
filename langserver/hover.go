@@ -333,7 +333,8 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 	target := fset.Position(res.Start)
 	docObject := findDocTarget(fset, target, docPkg)
 	if docObject == nil {
-		return nil, fmt.Errorf("failed to find doc object for %s", target)
+		// probably a local variable, so just ignore.
+		return &lsp.Hover{}, nil
 	}
 
 	contents, _ := fmtDocObject(fset, docObject, target)
