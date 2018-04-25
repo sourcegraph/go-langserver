@@ -7,8 +7,10 @@ import (
 	"go/ast"
 	"go/build"
 	"go/token"
+	"go/types"
 	"log"
 	"path/filepath"
+	"strings"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
@@ -35,6 +37,24 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRP
 	locs := make([]lsp.Location, 0, len(res))
 	for _, li := range res {
 		locs = append(locs, li.Location)
+	}
+	return locs, nil
+}
+
+func (h *LangHandler) handleTypeDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
+	// note the omission of Godef case; don't want to try to
+	// handle two different ways of doing this just yet.
+
+	res, err := h.handleXDefinition(ctx, conn, req, params)
+	if err != nil {
+		return nil, err
+	}
+	locs := make([]lsp.Location, 0, len(res))
+	for _, li := range res {
+		// not everything we find a definition for also has a type definition
+		if li.TypeLocation.URI != "" {
+			locs = append(locs, li.TypeLocation)
+		}
 	}
 	return locs, nil
 }
@@ -87,6 +107,11 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 	return fset, res, []lsp.Location{loc}, nil
 }
 
+type foundNode struct {
+	ident	*ast.Ident   // the lookup in Uses[] or Defs[]
+	typ	types.Object // the type's object
+}
+
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
 	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
@@ -98,7 +123,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	rootPath := h.FilePath(h.init.Root())
 	bctx := h.BuildContext(ctx)
 
-	fset, node, pathEnclosingInterval, _, pkg, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+	fset, node, pathEnclosingInterval, prog, pkg, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
 	if err != nil {
 		// Invalid nodes means we tried to click on something which is
 		// not an ident (eg comment/string/etc). Return no locations.
@@ -108,14 +133,36 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		return nil, err
 	}
 
-	var nodes []*ast.Ident
+	var nodes []foundNode
 	obj, ok := pkg.Uses[node]
 	if !ok {
 		obj, ok = pkg.Defs[node]
 	}
 	if ok && obj != nil {
 		if p := obj.Pos(); p.IsValid() {
-			nodes = append(nodes, &ast.Ident{NamePos: p, Name: obj.Name()})
+			typ := pkg.TypeOf(node).String()
+			typIdent := typ
+			var typObj types.Object
+			if idx := strings.LastIndex(typ, "."); idx != -1 {
+				typIdent := typ[idx+1:]
+				pkgStr := typ[:idx]
+				typPkg := prog.Package(pkgStr)
+				if typPkg != nil && typPkg.Pkg != nil {
+					scope := typPkg.Pkg.Scope()
+					if scope != nil {
+						typObj = typPkg.Pkg.Scope().Lookup(typIdent)
+					}
+				}
+			} else {
+				for scope := pkg.Pkg.Scope().Innermost(p); typObj == nil && scope != nil && scope != types.Universe; scope = scope.Parent() {
+					typObj = scope.Lookup(typIdent)
+
+				}
+			}
+			nodes = append(nodes, foundNode{
+				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
+				typ: typObj,
+			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for
 			// them, for now. It's not that valuable to jump to their def.
@@ -130,10 +177,16 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	}
 	findPackage := h.getFindPackageFunc()
 	locs := make([]symbolLocationInformation, 0, len(nodes))
-	for _, node := range nodes {
+	for _, found := range nodes {
+		node := found.ident
 		// Determine location information for the node.
 		l := symbolLocationInformation{
 			Location: goRangeToLSPLocation(fset, node.Pos(), node.End()),
+		}
+		if found.typ != nil {
+			// We don't get an end position, but we can assume it's comparable to
+			// the length of the name, I hope.
+			l.TypeLocation = goRangeToLSPLocation(fset, found.typ.Pos(), token.Pos(int(found.typ.Pos())+len(found.typ.Name())+1))
 		}
 
 		// Determine metadata information for the node.

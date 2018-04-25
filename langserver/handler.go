@@ -236,6 +236,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				},
 				CompletionProvider:           completionOp,
 				DefinitionProvider:           true,
+				TypeDefinitionProvider:       true,
 				DocumentFormattingProvider:   true,
 				DocumentSymbolProvider:       true,
 				HoverProvider:                true,
@@ -301,6 +302,16 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 			return nil, err
 		}
 		return h.handleDefinition(ctx, conn, req, params)
+
+	case "textDocument/typeDefinition":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.TextDocumentPositionParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleTypeDefinition(ctx, conn, req, params)
 
 	case "textDocument/xdefinition":
 		if req.Params == nil {

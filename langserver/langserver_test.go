@@ -1119,6 +1119,22 @@ func main() {
 			},
 		},
 	},
+	"type definition lookup": {
+		rootURI: "file:///src/test/pkg",
+		fs: map[string]string{
+			"a/a.go": `package a; type A int; func A1() A { var A A = 1; return A }`,
+			"b/b.go": `package b; import "test/pkg/a"; func Dummy() a.A { x := a.A1(); return x }`,
+		},
+		cases: lspTestCases{
+			wantDefinition: map[string]string{
+				"b/b.go:1:72": "/src/test/pkg/b/b.go:1:52-1:53", // declaration of x
+			},
+			wantTypeDefinition: map[string]string{
+				"a/a.go:1:58": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of A's type, a.A.
+				"b/b.go:1:72": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of x's type, a.A.
+			},
+		},
+	},
 }
 
 func TestServer(t *testing.T) {
@@ -1232,7 +1248,7 @@ func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
 type lspTestCases struct {
 	wantHover, overrideGodefHover           map[string]string
 	wantDefinition, overrideGodefDefinition map[string]string
-	wantXDefinition                         map[string]string
+	wantTypeDefinition, wantXDefinition     map[string]string
 	wantCompletion                          map[string]string
 	wantReferences                          map[string][]string
 	wantImplementation                      map[string][]string
@@ -1369,6 +1385,12 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		})
 	}
 
+	for pos, want := range cases.wantTypeDefinition {
+		tbRun(t, fmt.Sprintf("typedefinition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
+			typeDefinitionTest(t, ctx, c, rootURI, pos, want, "")
+		})
+	}
+
 	for pos, want := range cases.wantXDefinition {
 		tbRun(t, fmt.Sprintf("xdefinition-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 			xdefinitionTest(t, ctx, c, rootURI, pos, want)
@@ -1454,6 +1476,34 @@ func definitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 		t.Fatal(err)
 	}
 	definition, err := callDefinition(ctx, c, uriJoin(rootURI, file), line, char)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if definition != "" {
+		definition = util.UriToPath(lsp.DocumentURI(definition))
+		if trimPrefix != "" {
+			definition = strings.TrimPrefix(definition, util.UriToPath(util.PathToURI(trimPrefix)))
+		}
+	}
+	if want != "" && !strings.Contains(path.Base(want), ":") {
+		// our want is just a path, so we only check that matches. This is
+		// used by our godef tests into GOROOT. The GOROOT changes over time,
+		// but the file for a symbol is usually pretty stable.
+		dir := path.Dir(definition)
+		base := strings.Split(path.Base(definition), ":")[0]
+		definition = path.Join(dir, base)
+	}
+	if definition != want {
+		t.Errorf("got %q, want %q", definition, want)
+	}
+}
+
+func typeDefinitionTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos, want, trimPrefix string) {
+	file, line, char, err := parsePos(pos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := callTypeDefinition(ctx, c, uriJoin(rootURI, file), line, char)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1661,6 +1711,28 @@ func callHover(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line,
 func callDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
 	var res locations
 	err := c.Call(ctx, "textDocument/definition", lsp.TextDocumentPositionParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+		Position:     lsp.Position{Line: line, Character: char},
+	}, &res)
+	if err != nil {
+		return "", err
+	}
+	var str string
+	for i, loc := range res {
+		if loc.URI == "" {
+			continue
+		}
+		if i != 0 {
+			str += ", "
+		}
+		str += fmt.Sprintf("%s:%d:%d-%d:%d", loc.URI, loc.Range.Start.Line+1, loc.Range.Start.Character+1, loc.Range.End.Line+1, loc.Range.End.Character+1)
+	}
+	return str, nil
+}
+
+func callTypeDefinition(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int) (string, error) {
+	var res locations
+	err := c.Call(ctx, "textDocument/typeDefinition", lsp.TextDocumentPositionParams{
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
 		Position:     lsp.Position{Line: line, Character: char},
 	}, &res)
