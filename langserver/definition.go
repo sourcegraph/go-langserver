@@ -10,13 +10,14 @@ import (
 	"go/types"
 	"log"
 	"path/filepath"
-	"strings"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"golang.org/x/tools/go/loader"
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
@@ -108,8 +109,24 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 }
 
 type foundNode struct {
-	ident	*ast.Ident   // the lookup in Uses[] or Defs[]
-	typ	types.Object // the type's object
+	ident	*ast.Ident      // the lookup in Uses[] or Defs[]
+	typ	*types.TypeName // the object for a named type, if present
+}
+
+func (h *LangHandler) typeLookup(prog *loader.Program, typ types.Type) *types.TypeName {
+	if typ == nil {
+		return nil
+	}
+	switch t := typ.(type) {
+	case *types.Pointer:
+		for base, ok := typ.(*types.Pointer); ok; base, ok = typ.(*types.Pointer) {
+			typ = base.Elem()
+		}
+		return h.typeLookup(prog, typ)
+	case *types.Named:
+		return t.Obj()
+	}
+	return nil
 }
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
@@ -140,28 +157,9 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	}
 	if ok && obj != nil {
 		if p := obj.Pos(); p.IsValid() {
-			typ := pkg.TypeOf(node).String()
-			typIdent := typ
-			var typObj types.Object
-			if idx := strings.LastIndex(typ, "."); idx != -1 {
-				typIdent := typ[idx+1:]
-				pkgStr := typ[:idx]
-				typPkg := prog.Package(pkgStr)
-				if typPkg != nil && typPkg.Pkg != nil {
-					scope := typPkg.Pkg.Scope()
-					if scope != nil {
-						typObj = typPkg.Pkg.Scope().Lookup(typIdent)
-					}
-				}
-			} else {
-				for scope := pkg.Pkg.Scope().Innermost(p); typObj == nil && scope != nil && scope != types.Universe; scope = scope.Parent() {
-					typObj = scope.Lookup(typIdent)
-
-				}
-			}
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
-				typ: typObj,
+				typ: h.typeLookup(prog, pkg.TypeOf(node)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for

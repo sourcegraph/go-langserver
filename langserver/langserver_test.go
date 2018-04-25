@@ -1124,6 +1124,8 @@ func main() {
 		fs: map[string]string{
 			"a/a.go": `package a; type A int; func A1() A { var A A = 1; return A }`,
 			"b/b.go": `package b; import "test/pkg/a"; func Dummy() a.A { x := a.A1(); return x }`,
+			"c/c.go": `package c; import "test/pkg/a"; func Dummy() *a.A { var x *a.A; return x }`,
+			"d/d.go": `package d; import "test/pkg/a"; func Dummy() []a.A { var x []a.A; return x }`,
 		},
 		cases: lspTestCases{
 			wantDefinition: map[string]string{
@@ -1132,6 +1134,8 @@ func main() {
 			wantTypeDefinition: map[string]string{
 				"a/a.go:1:58": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of A's type, a.A.
 				"b/b.go:1:72": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of x's type, a.A.
+				"c/c.go:1:72": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of *x's type, a.A.
+				"d/d.go:1:74": "",                               // no lookup for slice
 			},
 		},
 	},
