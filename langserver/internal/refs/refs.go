@@ -302,7 +302,10 @@ func deepRecvType(sel *types.Selection) types.Type {
 
 func dereferenceType(typ types.Type) types.Type {
 	if typ, ok := typ.(*types.Pointer); ok {
-		return typ.Elem()
+		return dereferenceType(typ.Elem())
+	}
+	if typ, ok := typ.(*types.Slice); ok {
+		return dereferenceType(typ.Elem())
 	}
 	return typ
 }

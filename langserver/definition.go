@@ -119,10 +119,9 @@ func (h *LangHandler) typeLookup(prog *loader.Program, typ types.Type) *types.Ty
 	}
 	switch t := typ.(type) {
 	case *types.Pointer:
-		for base, ok := typ.(*types.Pointer); ok; base, ok = typ.(*types.Pointer) {
-			typ = base.Elem()
-		}
-		return h.typeLookup(prog, typ)
+		return h.typeLookup(prog, t.Elem())
+	case *types.Slice:
+		return h.typeLookup(prog, t.Elem())
 	case *types.Named:
 		return t.Obj()
 	}
