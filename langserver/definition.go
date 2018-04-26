@@ -113,19 +113,31 @@ type foundNode struct {
 	typ	*types.TypeName // the object for a named type, if present
 }
 
+type dereferencable interface {
+	Elem() types.Type
+}
+
+// typeLookup looks for a named type, but will search through
+// any number of type qualifiers (chan/array/slice/pointer)
+// which have an unambiguous base type. If no named type is
+// found, we are not interested, because this is only used
+// for finding a type's definition.
 func (h *LangHandler) typeLookup(prog *loader.Program, typ types.Type) *types.TypeName {
 	if typ == nil {
 		return nil
 	}
-	switch t := typ.(type) {
-	case *types.Pointer:
-		return h.typeLookup(prog, t.Elem())
-	case *types.Slice:
-		return h.typeLookup(prog, t.Elem())
-	case *types.Named:
-		return t.Obj()
+	for {
+		switch t := typ.(type) {
+			case *types.Named:
+				return t.Obj()
+			case *types.Map:
+				return nil
+			case dereferencable:
+				typ = t.Elem()
+			default:
+				return nil
+		}
 	}
-	return nil
 }
 
 func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]symbolLocationInformation, error) {
