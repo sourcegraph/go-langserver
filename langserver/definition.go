@@ -122,7 +122,7 @@ type dereferencable interface {
 // which have an unambiguous base type. If no named type is
 // found, we are not interested, because this is only used
 // for finding a type's definition.
-func (h *LangHandler) typeLookup(prog *loader.Program, typ types.Type) *types.TypeName {
+func typeLookup(prog *loader.Program, typ types.Type) *types.TypeName {
 	if typ == nil {
 		return nil
 	}
@@ -170,7 +170,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
-				typ: h.typeLookup(prog, pkg.TypeOf(node)),
+				typ: typeLookup(prog, pkg.TypeOf(node)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for
