@@ -1132,9 +1132,9 @@ func main() {
 				"b/b.go:1:72": "/src/test/pkg/b/b.go:1:52-1:53", // declaration of x
 			},
 			wantTypeDefinition: map[string]string{
-				"a/a.go:1:58": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of A's type, a.A.
-				"b/b.go:1:72": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of x's type, a.A.
-				"c/c.go:1:74": "/src/test/pkg/a/a.go:1:17-1:19", // declaration of **x's type, a.A.
+				"a/a.go:1:58": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of A's type, a.A.
+				"b/b.go:1:72": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of x's type, a.A.
+				"c/c.go:1:74": "/src/test/pkg/a/a.go:1:17-1:18", // declaration of **x's type, a.A.
 				"d/d.go:1:92": "",                               // no lookup for slice
 			},
 		},

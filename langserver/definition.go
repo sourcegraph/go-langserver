@@ -43,9 +43,6 @@ func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRP
 }
 
 func (h *LangHandler) handleTypeDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
-	// note the omission of Godef case; don't want to try to
-	// handle two different ways of doing this just yet.
-
 	res, err := h.handleXDefinition(ctx, conn, req, params)
 	if err != nil {
 		return nil, err
@@ -187,19 +184,18 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	findPackage := h.getFindPackageFunc()
 	locs := make([]symbolLocationInformation, 0, len(nodes))
 	for _, found := range nodes {
-		node := found.ident
 		// Determine location information for the node.
 		l := symbolLocationInformation{
-			Location: goRangeToLSPLocation(fset, node.Pos(), node.End()),
+			Location: goRangeToLSPLocation(fset, found.ident.Pos(), found.ident.End()),
 		}
 		if found.typ != nil {
 			// We don't get an end position, but we can assume it's comparable to
 			// the length of the name, I hope.
-			l.TypeLocation = goRangeToLSPLocation(fset, found.typ.Pos(), token.Pos(int(found.typ.Pos())+len(found.typ.Name())+1))
+			l.TypeLocation = goRangeToLSPLocation(fset, found.typ.Pos(), token.Pos(int(found.typ.Pos())+len(found.typ.Name())))
 		}
 
 		// Determine metadata information for the node.
-		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, node.Pos()); err == nil {
+		if def, err := refs.DefInfo(pkg.Pkg, &pkg.Info, pathEnclosingInterval, found.ident.Pos()); err == nil {
 			symDesc, err := defSymbolDescriptor(ctx, bctx, rootPath, *def, findPackage)
 			if err != nil {
 				// TODO: tracing
