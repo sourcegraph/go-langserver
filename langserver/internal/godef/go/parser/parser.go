@@ -1210,7 +1210,12 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	}
 	p.exprLev--
 	rbrace := p.expect(token.RBRACE)
-	return &ast.CompositeLit{typ, lbrace, elts, rbrace}
+	return &ast.CompositeLit{
+		Type:   typ,
+		Lbrace: lbrace,
+		Elts:   elts,
+		Rbrace: rbrace,
+	}
 }
 
 // checkExpr checks that x is an expression (and not a type).
