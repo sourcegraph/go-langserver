@@ -1152,6 +1152,7 @@ func TestServer(t *testing.T) {
 			cfg := NewDefaultConfig()
 			cfg.FuncSnippetEnabled = true
 			cfg.GocodeCompletionEnabled = true
+			cfg.UseBinaryPkgCache = false
 
 			h := &LangHandler{
 				DefaultConfig: cfg,

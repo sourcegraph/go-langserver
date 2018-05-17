@@ -1,6 +1,9 @@
 package langserver
 
-import "os"
+import (
+	"os"
+	"runtime"
+)
 
 var (
 	// GOLSP_WARMUP_ON_INITIALIZE toggles if we typecheck the whole
@@ -61,8 +64,19 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	return c
 }
 
+// NewDefaultConfig returns the default config. See the field comments for the
+// defaults.
 func NewDefaultConfig() Config {
+	// Default max parallelism to half the CPU cores, but at least always one.
+	maxparallelism := runtime.NumCPU() / 2
+	if maxparallelism <= 0 {
+		maxparallelism = 1
+	}
+
 	return Config{
-		MaxParallelism: 8,
+		FuncSnippetEnabled:      true,
+		GocodeCompletionEnabled: false,
+		MaxParallelism:          maxparallelism,
+		UseBinaryPkgCache:       true,
 	}
 }

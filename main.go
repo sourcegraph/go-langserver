@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"runtime/debug"
 	"time"
 
@@ -30,7 +29,7 @@ var (
 
 	// Default Config, can be overridden by InitializationOptions
 	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance). Can be overridden by InitializationOptions.")
-	maxparallelism     = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
+	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
 	gocodecompletion   = flag.Bool("gocodecompletion", false, "enable completion (extra memory burden). Can be overridden by InitializationOptions.")
 	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. Can be overridden by InitializationOptions.")
 )
@@ -57,19 +56,14 @@ func main() {
 		go freeOSMemory()
 	}
 
-	// Default max parallelism to half the CPU cores, but at least always one.
-	if *maxparallelism <= 0 {
-		*maxparallelism = runtime.NumCPU() / 2
-		if *maxparallelism <= 0 {
-			*maxparallelism = 1
-		}
-	}
-
 	cfg := langserver.NewDefaultConfig()
 	cfg.FuncSnippetEnabled = *funcSnippetEnabled
 	cfg.GocodeCompletionEnabled = *gocodecompletion
-	cfg.MaxParallelism = *maxparallelism
 	cfg.UseBinaryPkgCache = *usebinarypkgcache
+
+	if *maxparallelism > 0 {
+		cfg.MaxParallelism = *maxparallelism
+	}
 
 	if err := run(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)

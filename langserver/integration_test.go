@@ -24,7 +24,9 @@ func TestIntegration_FileSystem(t *testing.T) {
 
 	gopath := filepath.Join(tmpDir, "gopath")
 	goroot := filepath.Join(tmpDir, "goroot")
-	h := NewHandler(NewDefaultConfig())
+	cfg := NewDefaultConfig()
+	cfg.UseBinaryPkgCache = false
+	h := NewHandler(cfg)
 
 	addr, done := startServer(t, h)
 	defer done()
