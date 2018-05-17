@@ -101,6 +101,7 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 			return err
 		}
 	}
+	h.Config = h.Config.Apply(init.InitializationOptions)
 	h.init = init
 	h.cancel = &cancel{}
 	h.resetCaches(false)
