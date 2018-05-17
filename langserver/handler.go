@@ -24,9 +24,9 @@ import (
 )
 
 // NewHandler creates a Go language server handler.
-func NewHandler(cfg Config) jsonrpc2.Handler {
+func NewHandler(defaultCfg Config) jsonrpc2.Handler {
 	return lspHandler{jsonrpc2.HandlerWithError((&LangHandler{
-		Config:        cfg,
+		DefaultConfig: defaultCfg,
 		HandlerShared: &HandlerShared{},
 	}).handle)}
 }
@@ -73,7 +73,14 @@ type LangHandler struct {
 
 	cancel *cancel
 
-	Config Config // language handler configuration; must not change after handling has begun
+	// DefaultConfig is the default values used for configuration. It is
+	// combined with InitializationOptions after initialize. This should be
+	// set by LangHandler creators. Please read config instead.
+	DefaultConfig Config
+
+	// config is the language handler configuration. It is Default with
+	// InitializationOptions applied.
+	config *Config // pointer so we panic if someone reads before we set it.
 }
 
 // reset clears all internal state in h.
@@ -101,7 +108,8 @@ func (h *LangHandler) reset(init *InitializeParams) error {
 			return err
 		}
 	}
-	h.Config = h.Config.Apply(init.InitializationOptions)
+	config := h.DefaultConfig.Apply(init.InitializationOptions)
+	h.config = &config
 	h.init = init
 	h.cancel = &cancel{}
 	h.resetCaches(false)
@@ -209,7 +217,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		if err := h.reset(&params); err != nil {
 			return nil, err
 		}
-		if h.Config.GocodeCompletionEnabled {
+		if h.config.GocodeCompletionEnabled {
 			gocode.InitDaemon(h.BuildContext(ctx))
 		}
 
@@ -227,7 +235,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		kind := lsp.TDSKIncremental
 		var completionOp *lsp.CompletionOptions
-		if h.Config.GocodeCompletionEnabled {
+		if h.config.GocodeCompletionEnabled {
 			completionOp = &lsp.CompletionOptions{TriggerCharacters: []string{"."}}
 		}
 		return lsp.InitializeResult{
@@ -325,7 +333,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		return h.handleXDefinition(ctx, conn, req, params)
 
 	case "textDocument/completion":
-		if !h.Config.GocodeCompletionEnabled {
+		if !h.config.GocodeCompletionEnabled {
 			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound,
 				Message: fmt.Sprintf("completion is disabled. Enable with flag `-gocodecompletion`")}
 		}
@@ -419,7 +427,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				// a user is viewing this path, hint to add it to the cache
 				// (unless we're primarily using binary package cache .a
 				// files).
-				if !h.Config.UseBinaryPkgCache {
+				if !h.config.UseBinaryPkgCache {
 					go h.typecheck(ctx, conn, uri, lsp.Position{})
 				}
 			}
