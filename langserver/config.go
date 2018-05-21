@@ -17,9 +17,9 @@ var (
 // Config adjusts the behaviour of go-langserver. Please keep in sync with
 // InitializationOptions in the README.
 type Config struct {
-	// FuncSnippetEnabled enables the returning of enable argument snippets
-	// on `func` completions, eg. func(foo string, arg2 bar).
-	// Requires code completion to be enabled.
+	// FuncSnippetEnabled enables the returning of argument snippets on `func`
+	// completions, eg. func(foo string, arg2 bar). Requires code completion
+	// to be enabled.
 	//
 	// Defaults to true if not specified.
 	FuncSnippetEnabled bool

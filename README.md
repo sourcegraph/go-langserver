@@ -27,7 +27,7 @@ If you are a client wanting to integrate go-langserver, you can use the followin
 ```typescript
 interface GoInitializationOptions {
   /**
-   * funcSnippetEnabled enables the returning of enable argument snippets
+   * funcSnippetEnabled enables the returning of argument snippets
    * on `func` completions, eg. func(foo string, arg2 bar).
    * Requires code completion to be enabled.
    *

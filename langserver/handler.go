@@ -78,8 +78,8 @@ type LangHandler struct {
 	// set by LangHandler creators. Please read config instead.
 	DefaultConfig Config
 
-	// config is the language handler configuration. It is Default with
-	// InitializationOptions applied.
+	// config is the language handler configuration. It is a combination of
+	// DefaultConfig and InitializationOptions.
 	config *Config // pointer so we panic if someone reads before we set it.
 }
 
