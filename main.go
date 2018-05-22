@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"runtime/debug"
 	"time"
 
@@ -20,17 +19,19 @@ import (
 )
 
 var (
-	mode               = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr               = flag.String("addr", ":4389", "server listen address (tcp)")
-	trace              = flag.Bool("trace", false, "print all requests and responses")
-	logfile            = flag.String("logfile", "", "also log to this file (in addition to stderr)")
-	printVersion       = flag.Bool("version", false, "print version and exit")
-	pprof              = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
-	freeosmemory       = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
-	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance)")
-	maxparallelism     = flag.Int("maxparallelism", -1, "use at max N parallel goroutines to fulfill requests")
-	gocodecompletion   = flag.Bool("gocodecompletion", false, "enable completion (extra memory burden)")
-	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion")
+	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
+	addr         = flag.String("addr", ":4389", "server listen address (tcp)")
+	trace        = flag.Bool("trace", false, "print all requests and responses")
+	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	printVersion = flag.Bool("version", false, "print version and exit")
+	pprof        = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
+	freeosmemory = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+
+	// Default Config, can be overridden by InitializationOptions
+	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance). Can be overridden by InitializationOptions.")
+	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
+	gocodecompletion   = flag.Bool("gocodecompletion", false, "enable completion (extra memory burden). Can be overridden by InitializationOptions.")
+	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. Can be overridden by InitializationOptions.")
 )
 
 // version is the version field we report back. If you are releasing a new version:
@@ -55,19 +56,14 @@ func main() {
 		go freeOSMemory()
 	}
 
-	// Default max parallelism to half the CPU cores, but at least always one.
-	if *maxparallelism <= 0 {
-		*maxparallelism = runtime.NumCPU() / 2
-		if *maxparallelism <= 0 {
-			*maxparallelism = 1
-		}
-	}
-
 	cfg := langserver.NewDefaultConfig()
 	cfg.FuncSnippetEnabled = *funcSnippetEnabled
 	cfg.GocodeCompletionEnabled = *gocodecompletion
-	cfg.MaxParallelism = *maxparallelism
 	cfg.UseBinaryPkgCache = *usebinarypkgcache
+
+	if *maxparallelism > 0 {
+		cfg.MaxParallelism = *maxparallelism
+	}
 
 	if err := run(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)

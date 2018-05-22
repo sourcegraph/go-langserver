@@ -1152,9 +1152,10 @@ func TestServer(t *testing.T) {
 			cfg := NewDefaultConfig()
 			cfg.FuncSnippetEnabled = true
 			cfg.GocodeCompletionEnabled = true
+			cfg.UseBinaryPkgCache = false
 
 			h := &LangHandler{
-				Config:        cfg,
+				DefaultConfig: cfg,
 				HandlerShared: &HandlerShared{},
 			}
 
@@ -1326,7 +1327,7 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 	}
 
 	if len(wantGodefDefinition) > 0 || (len(wantGodefHover) > 0 && h != nil) || len(cases.wantCompletion) > 0 {
-		h.Config.UseBinaryPkgCache = true
+		h.config.UseBinaryPkgCache = true
 
 		// Copy the VFS into a temp directory, which will be our $GOPATH.
 		tmpDir, err := ioutil.TempDir("", "godef-definition")
@@ -1380,7 +1381,7 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 			})
 		}
 
-		h.Config.UseBinaryPkgCache = false
+		h.config.UseBinaryPkgCache = false
 	}
 
 	for pos, want := range cases.wantDefinition {

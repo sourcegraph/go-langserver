@@ -21,7 +21,7 @@ import (
 )
 
 func (h *LangHandler) handleDefinition(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) ([]lsp.Location, error) {
-	if h.Config.UseBinaryPkgCache {
+	if h.config.UseBinaryPkgCache {
 		_, _, locs, err := h.definitionGodef(ctx, params)
 		if err == godef.ErrNoIdentifierFound {
 			// This is expected to happen when j2d over
@@ -106,8 +106,8 @@ func (h *LangHandler) definitionGodef(ctx context.Context, params lsp.TextDocume
 }
 
 type foundNode struct {
-	ident	*ast.Ident      // the lookup in Uses[] or Defs[]
-	typ	*types.TypeName // the object for a named type, if present
+	ident *ast.Ident      // the lookup in Uses[] or Defs[]
+	typ   *types.TypeName // the object for a named type, if present
 }
 
 type dereferencable interface {
@@ -125,14 +125,14 @@ func typeLookup(prog *loader.Program, typ types.Type) *types.TypeName {
 	}
 	for {
 		switch t := typ.(type) {
-			case *types.Named:
-				return t.Obj()
-			case *types.Map:
-				return nil
-			case dereferencable:
-				typ = t.Elem()
-			default:
-				return nil
+		case *types.Named:
+			return t.Obj()
+		case *types.Map:
+			return nil
+		case dereferencable:
+			typ = t.Elem()
+		default:
+			return nil
 		}
 	}
 }
@@ -167,7 +167,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 		if p := obj.Pos(); p.IsValid() {
 			nodes = append(nodes, foundNode{
 				ident: &ast.Ident{NamePos: p, Name: obj.Name()},
-				typ: typeLookup(prog, pkg.TypeOf(node)),
+				typ:   typeLookup(prog, pkg.TypeOf(node)),
 			})
 		} else {
 			// Builtins have an invalid Pos. Just don't emit a definition for
