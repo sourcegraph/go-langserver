@@ -105,11 +105,12 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		// Package names must be resolved specially, so do this now to avoid
 		// additional overhead.
 		if v, ok := o.(*types.PkgName); ok {
-			pkg := prog.Package(v.Imported().Path())
-			if pkg == nil {
-				return "", fmt.Errorf("failed to import package %q", v.Imported().Path())
+			pkg := v.Imported()
+			pkgInfo := prog.Package(pkg.Path())
+			if pkgInfo == nil {
+				return "", fmt.Errorf("failed to import package %q", pkg.Path())
 			}
-			return packageDoc(pkg.Files, node.Name), nil
+			return packageDoc(pkgInfo.Files, node.Name), nil
 		}
 
 		// Resolve the object o into its respective ast.Node
