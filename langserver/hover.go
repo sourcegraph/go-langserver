@@ -125,10 +125,19 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 			switch v := path[i].(type) {
 			case *ast.Field:
 				doc = v.Doc
+				if doc == nil {
+					doc = v.Comment
+				}
 			case *ast.ValueSpec:
 				doc = v.Doc
+				if doc == nil {
+					doc = v.Comment
+				}
 			case *ast.TypeSpec:
 				doc = v.Doc
+				if doc == nil {
+					doc = v.Comment
+				}
 			case *ast.GenDecl:
 				doc = v.Doc
 			case *ast.FuncDecl:
