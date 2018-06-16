@@ -125,19 +125,14 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 			switch v := path[i].(type) {
 			case *ast.Field:
 				doc = v.Doc
+				// Fallback to inline comments when there is no associated documentation
 				if doc == nil {
 					doc = v.Comment
 				}
 			case *ast.ValueSpec:
 				doc = v.Doc
-				if doc == nil {
-					doc = v.Comment
-				}
 			case *ast.TypeSpec:
 				doc = v.Doc
-				if doc == nil {
-					doc = v.Comment
-				}
 			case *ast.GenDecl:
 				doc = v.Doc
 			case *ast.FuncDecl:
@@ -494,7 +489,14 @@ func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]
 				if fset.Position(field.Pos()).Offset == target.Offset {
 					// An exact match.
 					value := fmt.Sprintf("struct field %s %s", field.Names[0], fmtNode(fset, field.Type))
-					return maybeAddComments(field.Doc.Text(), []lsp.MarkedString{{Language: "go", Value: value}}), field
+					doc := field.Doc
+
+					// Fallback to inline comments when there is no associated documentation
+					if doc == nil {
+						doc = field.Comment
+					}
+
+					return maybeAddComments(doc.Text(), []lsp.MarkedString{{Language: "go", Value: value}}), field
 				}
 			}
 		}
