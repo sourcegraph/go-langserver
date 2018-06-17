@@ -918,14 +918,14 @@ type Header struct {
 			"q.go": `package p
 type T struct {
 	Q string // Q is a string field.
-	// X is confusing!
-	X int // This is a trap.
+	// X is documented.
+	X int // X has comments.
 }`,
 		},
 		cases: lspTestCases{
 			wantHover: map[string]string{
 				"q.go:3:2": "struct field Q string; Q is a string field. \n\n",
-				"q.go:5:2": "struct field X int; X is confusing! \n\n",
+				"q.go:5:2": "struct field X int; X is documented. \n\nX has comments. \n\n",
 			},
 		},
 	},

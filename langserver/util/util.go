@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"go/ast"
 	"log"
 	"net/url"
 	"path/filepath"
@@ -13,6 +14,19 @@ import (
 
 func trimFilePrefix(s string) string {
 	return strings.TrimPrefix(s, "file://")
+}
+
+// ConcatCommentGroups joins the resultant comment text from two CommentGroups with a newline.
+func ConcatCommentGroups(a, b *ast.CommentGroup) string {
+	a_text := a.Text()
+	b_text := b.Text()
+	if len(a_text) == 0 {
+		return b_text
+	} else if len(b_text) == 0 {
+		return a_text
+	} else {
+		return a_text + "\n" + b_text
+	}
 }
 
 // PathHasPrefix returns true if s is starts with the given prefix

@@ -120,29 +120,23 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 
 		// Pull the comment out of the comment map for the file. Do
 		// not search too far away from the current path.
-		var doc *ast.CommentGroup
-		for i := 0; i < 3 && i < len(path) && doc == nil; i++ {
+		var comments string
+		for i := 0; i < 3 && i < len(path) && len(comments) == 0; i++ {
 			switch v := path[i].(type) {
 			case *ast.Field:
-				doc = v.Doc
-				// Fallback to inline comments when there is no associated documentation
-				if doc == nil {
-					doc = v.Comment
-				}
+				// Concat associated documentation with any inline comments
+				comments = util.ConcatCommentGroups(v.Doc, v.Comment)
 			case *ast.ValueSpec:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			case *ast.TypeSpec:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			case *ast.GenDecl:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			case *ast.FuncDecl:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			}
 		}
-		if doc == nil {
-			return "", nil
-		}
-		return doc.Text(), nil
+		return comments, nil
 	}
 
 	comments, err := findComments(o)
@@ -489,14 +483,9 @@ func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]
 				if fset.Position(field.Pos()).Offset == target.Offset {
 					// An exact match.
 					value := fmt.Sprintf("struct field %s %s", field.Names[0], fmtNode(fset, field.Type))
-					doc := field.Doc
-
-					// Fallback to inline comments when there is no associated documentation
-					if doc == nil {
-						doc = field.Comment
-					}
-
-					return maybeAddComments(doc.Text(), []lsp.MarkedString{{Language: "go", Value: value}}), field
+					// Concat associated documentation with any inline comments
+					comments := util.ConcatCommentGroups(field.Doc, field.Comment)
+					return maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: value}}), field
 				}
 			}
 		}
