@@ -121,7 +121,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		// Pull the comment out of the comment map for the file. Do
 		// not search too far away from the current path.
 		var comments string
-		for i := 0; i < 3 && i < len(path) && comments != ""; i++ {
+		for i := 0; i < 3 && i < len(path) && comments == ""; i++ {
 			switch v := path[i].(type) {
 			case *ast.Field:
 				// Concat associated documentation with any inline comments
