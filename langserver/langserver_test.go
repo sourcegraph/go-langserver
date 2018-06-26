@@ -1149,7 +1149,7 @@ func serve(ctx context.Context, lis net.Listener, h jsonrpc2.Handler, opt ...jso
 	}
 }
 
-func dialServer(t testing.TB, addr string, h ...jsonrpc2.HandlerWithError) *jsonrpc2.Conn {
+func dialServer(t testing.TB, addr string, h ...*jsonrpc2.HandlerWithErrorConfigurer) *jsonrpc2.Conn {
 	conn, err := (&net.Dialer{}).Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)

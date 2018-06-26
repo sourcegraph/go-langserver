@@ -355,10 +355,10 @@ func integrationTest(
 	defer done()
 
 	notifies := make(chan *jsonrpc2.Request)
-	conn := dialServer(t, addr, func(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+	conn := dialServer(t, addr, jsonrpc2.HandlerWithError(func(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 		notifies <- req
 		return nil, nil
-	})
+	}))
 	defer func() {
 		if err := conn.Close(); err != nil {
 			t.Fatal("conn.Close:", err)
