@@ -20,17 +20,19 @@ import (
 type diagnostics map[string][]*lsp.Diagnostic // map of URI to diagnostics (for PublishDiagnosticParams)
 
 type diagnosticsCache struct {
+	mu    sync.Mutex
 	cache diagnostics
-	lock  sync.Mutex
 }
 
+// update the cached diagnostics. In order to keep the cache in good shape it
+// is required that only one go routine is able to modify the cache at a time.
 func (p *diagnosticsCache) update(fn func(diagnostics) diagnostics) {
-	p.lock.Lock()
+	p.mu.Lock()
 	if p.cache == nil {
 		p.cache = diagnostics{}
 	}
 	p.cache = fn(p.cache)
-	p.lock.Unlock()
+	p.mu.Unlock()
 }
 
 func newDiagnosticsCache() *diagnosticsCache {
@@ -42,6 +44,10 @@ func newDiagnosticsCache() *diagnosticsCache {
 // publishDiagnostics sends diagnostic information (such as compile
 // errors) to the client.
 func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, files []string) error {
+	if !h.Config.DiagnosticsEnabled {
+		return nil
+	}
+
 	if diags == nil {
 		diags = diagnostics{}
 	}

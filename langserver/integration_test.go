@@ -202,6 +202,7 @@ func TestIntegration_FileSystem_Diagnostics(t *testing.T) {
 	// make the test more deterministic and only receive
 	// diagnostics when sending "textDocument/didSave"
 	cfg.UseBinaryPkgCache = true
+	cfg.DiagnosticsEnabled = true
 
 	integrationTest(t, files, &cfg, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		uriA := uriJoin(rootURI, "A.go")
