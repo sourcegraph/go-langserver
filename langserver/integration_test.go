@@ -327,10 +327,25 @@ func integrationTest(
 	}
 	defer os.RemoveAll(tmpDir)
 
-	GOPATH := filepath.Join(tmpDir, "gopath")
-	GOROOT := filepath.Join(tmpDir, "goroot")
+	gopath := filepath.Join(tmpDir, "gopath")
+	goroot := filepath.Join(tmpDir, "goroot")
+	if cfg != nil {
+		cfgP := NewDefaultConfig()
+		cfg = &cfgP
+		cfg.UseBinaryPkgCache = false
+	}
+	h := NewHandler(*cfg)
 
-	rootFSPath := filepath.Join(GOPATH, "src/test/p")
+	addr, done := startServer(t, h)
+	defer done()
+	conn := dialServer(t, addr)
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Fatal("conn.Close:", err)
+		}
+	}()
+
+	rootFSPath := filepath.Join(gopath, "src/test/p")
 	if err := os.MkdirAll(rootFSPath, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -344,11 +359,22 @@ func integrationTest(
 		}
 	}
 
-	if cfg == nil {
-		c := NewDefaultConfig()
-		// do not use the pkg cache because integration tests won't install any pkgs
-		c.UseBinaryPkgCache = false
-		cfg = &c
+	ctx := context.Background()
+	rootURI := util.PathToURI(rootFSPath)
+	if err := conn.Call(ctx, "initialize", InitializeParams{
+		InitializeParams: lsp.InitializeParams{RootURI: rootURI},
+		BuildContext: &InitializeBuildContextParams{
+			GOOS:        build.Default.GOOS,
+			GOARCH:      build.Default.GOARCH,
+			GOPATH:      gopath,
+			GOROOT:      goroot,
+			CgoEnabled:  build.Default.CgoEnabled,
+			UseAllFiles: build.Default.UseAllFiles,
+			Compiler:    build.Default.Compiler,
+			BuildTags:   build.Default.BuildTags,
+		},
+	}, nil); err != nil {
+		t.Fatal("initialize:", err)
 	}
 	h := NewHandler(*cfg)
 

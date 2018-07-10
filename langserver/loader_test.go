@@ -191,12 +191,12 @@ func TestBuildPackageForNamedFileInMultiPackageDir(t *testing.T) {
 				Files:    []string{"a.go", "a_test.go", "b.go", "b_test.go", "xa_test.go", "xb_test.go"},
 			},
 			want: map[string]*build.Package{
-				"a.go":       &build.Package{Name: "a", GoFiles: []string{"a.go"}, TestGoFiles: []string{"a_test.go"}, XTestGoFiles: []string{"xa_test.go"}},
-				"a_test.go":  &build.Package{Name: "a", GoFiles: []string{"a.go"}, TestGoFiles: []string{"a_test.go"}, XTestGoFiles: []string{"xa_test.go"}},
-				"xa_test.go": &build.Package{Name: "a_test", GoFiles: []string{"a.go"}, TestGoFiles: []string{"a_test.go"}, XTestGoFiles: []string{"xa_test.go"}},
-				"b.go":       &build.Package{Name: "b", GoFiles: []string{"b.go"}, TestGoFiles: []string{"b_test.go"}, XTestGoFiles: []string{"xb_test.go"}},
-				"b_test.go":  &build.Package{Name: "b", GoFiles: []string{"b.go"}, TestGoFiles: []string{"b_test.go"}, XTestGoFiles: []string{"xb_test.go"}},
-				"xb_test.go": &build.Package{Name: "b_test", GoFiles: []string{"b.go"}, TestGoFiles: []string{"b_test.go"}, XTestGoFiles: []string{"xb_test.go"}},
+				"a.go":       {Name: "a", GoFiles: []string{"a.go"}, TestGoFiles: []string{"a_test.go"}, XTestGoFiles: []string{"xa_test.go"}},
+				"a_test.go":  {Name: "a", GoFiles: []string{"a.go"}, TestGoFiles: []string{"a_test.go"}, XTestGoFiles: []string{"xa_test.go"}},
+				"xa_test.go": {Name: "a_test", GoFiles: []string{"a.go"}, TestGoFiles: []string{"a_test.go"}, XTestGoFiles: []string{"xa_test.go"}},
+				"b.go":       {Name: "b", GoFiles: []string{"b.go"}, TestGoFiles: []string{"b_test.go"}, XTestGoFiles: []string{"xb_test.go"}},
+				"b_test.go":  {Name: "b", GoFiles: []string{"b.go"}, TestGoFiles: []string{"b_test.go"}, XTestGoFiles: []string{"xb_test.go"}},
+				"xb_test.go": {Name: "b_test", GoFiles: []string{"b.go"}, TestGoFiles: []string{"b_test.go"}, XTestGoFiles: []string{"xb_test.go"}},
 			},
 		},
 		"two main packages": {
@@ -215,8 +215,8 @@ func TestBuildPackageForNamedFileInMultiPackageDir(t *testing.T) {
 				Files:    []string{"main1.go", "main2.go", "main_test.go"},
 			},
 			want: map[string]*build.Package{
-				"main1.go": &build.Package{Name: "main", GoFiles: []string{"main1.go", "main2.go"}, TestGoFiles: []string{"main_test.go"}},
-				"main2.go": &build.Package{Name: "main", GoFiles: []string{"main1.go", "main2.go"}, TestGoFiles: []string{"main_test.go"}},
+				"main1.go": {Name: "main", GoFiles: []string{"main1.go", "main2.go"}, TestGoFiles: []string{"main_test.go"}},
+				"main2.go": {Name: "main", GoFiles: []string{"main1.go", "main2.go"}, TestGoFiles: []string{"main_test.go"}},
 			},
 		},
 		"main with test": {
@@ -229,9 +229,9 @@ func TestBuildPackageForNamedFileInMultiPackageDir(t *testing.T) {
 				Files:    []string{"a.go", "main.go", "main_test.go"},
 			},
 			want: map[string]*build.Package{
-				"a.go":         &build.Package{Name: "a", GoFiles: []string{"a.go"}},
-				"main.go":      &build.Package{Name: "main", GoFiles: []string{"main.go"}, TestGoFiles: []string{"main_test.go"}},
-				"main_test.go": &build.Package{Name: "main", GoFiles: []string{"main.go"}, TestGoFiles: []string{"main_test.go"}},
+				"a.go":         {Name: "a", GoFiles: []string{"a.go"}},
+				"main.go":      {Name: "main", GoFiles: []string{"main.go"}, TestGoFiles: []string{"main_test.go"}},
+				"main_test.go": {Name: "main", GoFiles: []string{"main.go"}, TestGoFiles: []string{"main_test.go"}},
 			},
 		},
 	}

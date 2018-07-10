@@ -22,7 +22,7 @@ import (
 )
 
 func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
-	if h.Config.UseBinaryPkgCache {
+	if h.config.UseBinaryPkgCache {
 		return h.handleHoverGodef(ctx, conn, req, params)
 	}
 
@@ -97,47 +97,53 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		s = types.TypeString(t, qf)
 	}
 
-	findComments := func(o types.Object) string {
+	findComments := func(o types.Object) (string, error) {
 		if o == nil {
-			return ""
+			return "", nil
 		}
 
 		// Package names must be resolved specially, so do this now to avoid
 		// additional overhead.
 		if v, ok := o.(*types.PkgName); ok {
-			return packageDoc(prog.Package(v.Imported().Path()).Files, node.Name)
+			pkg := prog.Package(v.Imported().Path())
+			if pkg == nil {
+				return "", fmt.Errorf("failed to import package %q", v.Imported().Path())
+			}
+			return packageDoc(pkg.Files, node.Name), nil
 		}
 
 		// Resolve the object o into its respective ast.Node
 		_, path, _ := prog.PathEnclosingInterval(o.Pos(), o.Pos())
 		if path == nil {
-			return ""
+			return "", nil
 		}
 
 		// Pull the comment out of the comment map for the file. Do
 		// not search too far away from the current path.
-		var doc *ast.CommentGroup
-		for i := 0; i < 3 && i < len(path) && doc == nil; i++ {
+		var comments string
+		for i := 0; i < 3 && i < len(path) && comments == ""; i++ {
 			switch v := path[i].(type) {
 			case *ast.Field:
-				doc = v.Doc
+				// Concat associated documentation with any inline comments
+				comments = joinCommentGroups(v.Doc, v.Comment)
 			case *ast.ValueSpec:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			case *ast.TypeSpec:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			case *ast.GenDecl:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			case *ast.FuncDecl:
-				doc = v.Doc
+				comments = v.Doc.Text()
 			}
 		}
-		if doc == nil {
-			return ""
-		}
-		return doc.Text()
+		return comments, nil
 	}
 
-	contents := maybeAddComments(findComments(o), []lsp.MarkedString{{Language: "go", Value: s}})
+	comments, err := findComments(o)
+	if err != nil {
+		return nil, err
+	}
+	contents := maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: s}})
 	if extra != "" {
 		// If we have extra info, ensure it comes after the usually
 		// more useful documentation
@@ -171,6 +177,20 @@ func maybeAddComments(comments string, contents []lsp.MarkedString) []lsp.Marked
 	var b bytes.Buffer
 	doc.ToMarkdown(&b, comments, nil)
 	return append(contents, lsp.RawMarkedString(b.String()))
+}
+
+// joinCommentGroups joins the resultant non-empty comment text from two
+// CommentGroups with a newline.
+func joinCommentGroups(a, b *ast.CommentGroup) string {
+	aText := a.Text()
+	bText := b.Text()
+	if aText == "" {
+		return bText
+	} else if bText == "" {
+		return aText
+	} else {
+		return aText + "\n" + bText
+	}
 }
 
 // packageDoc finds the documentation for the named package from its files or
@@ -333,14 +353,13 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 	target := fset.Position(res.Start)
 	docObject := findDocTarget(fset, target, docPkg)
 	if docObject == nil {
-		return nil, fmt.Errorf("failed to find doc object for %s", target)
+		// probably a local variable, so just ignore.
+		return &lsp.Hover{}, nil
 	}
 
-	contents, node := fmtDocObject(fset, docObject, target)
-	r := rangeForNode(fset, node)
+	contents, _ := fmtDocObject(fset, docObject, target)
 	return &lsp.Hover{
 		Contents: contents,
-		Range:    &r,
 	}, nil
 }
 
@@ -478,7 +497,9 @@ func fmtDocObject(fset *token.FileSet, x interface{}, target token.Position) ([]
 				if fset.Position(field.Pos()).Offset == target.Offset {
 					// An exact match.
 					value := fmt.Sprintf("struct field %s %s", field.Names[0], fmtNode(fset, field.Type))
-					return maybeAddComments(field.Doc.Text(), []lsp.MarkedString{{Language: "go", Value: value}}), field
+					// Concat associated documentation with any inline comments
+					comments := joinCommentGroups(field.Doc, field.Comment)
+					return maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: value}}), field
 				}
 			}
 		}

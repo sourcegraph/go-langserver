@@ -18,7 +18,49 @@ go get -u github.com/sourcegraph/go-langserver
 
 |    | Hover | Jump to def | Find references | Workspace symbols | VFS extension | Isolated | Parallel |
 |----|-------|-------------|-----------------|-------------------|---------------|----------|----------|
-| Go |   x   |      x      |        x        |         x         |       x       |     x    |     x    |
+| Go |   ✔   |      ✔      |        ✔        |         ✔         |       ✔       |     ✔    |     ✔    |
+
+## InitializationOptions
+
+If you are a client wanting to integrate go-langserver, you can use the following as `initializationOptions` in your [initialize](https://microsoft.github.io/language-server-protocol/specification#initialize) request to adjust the behaviour:
+
+```typescript
+interface GoInitializationOptions {
+  /**
+   * funcSnippetEnabled enables the returning of argument snippets
+   * on `func` completions, eg. func(foo string, arg2 bar).
+   * Requires code completion to be enabled.
+   *
+   * Defaults to true if not specified.
+   */
+  funcSnippetEnabled?: boolean;
+
+  /**
+   * gocodeCompletionEnabled enables code completion feature (using gocode).
+   *
+   * Defaults to false if not specified.
+   */
+  gocodeCompletionEnabled?: boolean;
+
+  /**
+   * MaxParallelism controls the maximum number of goroutines that should be used
+   * to fulfill requests. This is useful in editor environments where users do
+   * not want results ASAP, but rather just semi quickly without eating all of
+   * their CPU.
+   *
+   * Defaults to half of your CPU cores if not specified.
+   */
+  maxParallelism?: number;
+
+  /**
+   * useBinaryPkgCache controls whether or not $GOPATH/pkg binary .a files should
+   * be used.
+   *
+   * Defaults to true if not specified.
+   */
+  useBinaryPkgCache?: boolean;
+}
+```
 
 ## Profiling
 
@@ -36,4 +78,4 @@ Capture a CPU profile:
 go tool pprof -svg $GOPATH/bin/go-langserver http://localhost:6060/debug/pprof/profile > cpu.svg
 ```
 
-Since these capture the active resource usage, it's best to run these commands while the issue is occuring (i.e. while memory or CPU is high).
+Since these capture the active resource usage, it's best to run these commands while the issue is occurring (i.e. while memory or CPU is high).
