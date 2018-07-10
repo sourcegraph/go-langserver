@@ -90,8 +90,12 @@ func (h *HandlerShared) handleFileSystemRequest(ctx context.Context, req *jsonrp
 		})
 
 	case "textDocument/didSave":
+		var params lsp.DidSaveTextDocumentParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return "", false, err
+		}
 		// no-op
-		return "", false, nil
+		return params.TextDocument.URI, false, nil
 
 	default:
 		panic("unexpected file system request method: " + req.Method)
