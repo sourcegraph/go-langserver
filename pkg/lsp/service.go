@@ -484,6 +484,17 @@ type WorkspaceSymbolParams struct {
 	Limit int    `json:"limit"`
 }
 
+type ConfigurationParams struct {
+	Items []ConfigurationItem `json:"items"`
+}
+
+type ConfigurationItem struct {
+	ScopeURI string `json:"scopeUri,omitempty"`
+	Section  string `json:"section,omitempty"`
+}
+
+type ConfigurationResult []interface{}
+
 type CodeActionContext struct {
 	Diagnostics []Diagnostic `json:"diagnostics"`
 }
