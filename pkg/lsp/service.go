@@ -166,6 +166,7 @@ type ServerCapabilities struct {
 	DocumentRangeFormattingProvider  bool                             `json:"documentRangeFormattingProvider,omitempty"`
 	DocumentOnTypeFormattingProvider *DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
 	RenameProvider                   bool                             `json:"renameProvider,omitempty"`
+	ExecuteCommandProvider           *ExecuteCommandOptions           `json:"executeCommandProvider,omitempty"`
 
 	// XWorkspaceReferencesProvider indicates the server provides support for
 	// xworkspace/references. This is a Sourcegraph extension.
@@ -199,6 +200,15 @@ type CodeLensOptions struct {
 
 type SignatureHelpOptions struct {
 	TriggerCharacters []string `json:"triggerCharacters,omitempty"`
+}
+
+type ExecuteCommandOptions struct {
+	Commands []string `json:"commands"`
+}
+
+type ExecuteCommandParams struct {
+	Command   string        `json:"command"`
+	Arguments []interface{} `json:"arguments,omitempty"`
 }
 
 type CompletionItemKind int
