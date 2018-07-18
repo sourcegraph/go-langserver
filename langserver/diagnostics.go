@@ -44,7 +44,7 @@ func newDiagnosticsCache() *diagnosticsCache {
 // publishDiagnostics sends diagnostic information (such as compile
 // errors) to the client.
 func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, files []string) error {
-	if !h.Config.DiagnosticsEnabled {
+	if !h.config.DiagnosticsEnabled {
 		return nil
 	}
 
