@@ -131,8 +131,10 @@ var serverTestCases = map[string]serverTestCase{
 				{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/B"}}: {"/src/test/pkg/b.go:function:B:1:17"},
 				{Symbol: lspext.SymbolDescriptor{"id": "test/pkg/-/A"}}: {"/src/test/pkg/a.go:function:A:1:17"},
 			},
-			wantFormatting: map[string]string{
-				"a.go": "package p\n\nfunc A() { A() }\n",
+			wantFormatting: map[string]map[string]string{
+				"a.go": map[string]string{
+					"0:0-1:0": "package p\n\nfunc A() { A() }\n",
+				},
 			},
 		},
 	},
@@ -1280,15 +1282,25 @@ func serve(ctx context.Context, lis net.Listener, h jsonrpc2.Handler, opt ...jso
 	}
 }
 
-func dialServer(t testing.TB, addr string) *jsonrpc2.Conn {
+func dialServer(t testing.TB, addr string, h ...*jsonrpc2.HandlerWithErrorConfigurer) *jsonrpc2.Conn {
 	conn, err := (&net.Dialer{}).Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), jsonrpc2.HandlerWithError(func(context.Context, *jsonrpc2.Conn, *jsonrpc2.Request) (interface{}, error) {
+
+	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 		// no-op
 		return nil, nil
-	}))
+	})
+	if len(h) == 1 {
+		handler = h[0]
+	}
+
+	return jsonrpc2.NewConn(
+		context.Background(),
+		jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}),
+		handler,
+	)
 }
 
 type lspTestCases struct {
@@ -1302,7 +1314,7 @@ type lspTestCases struct {
 	wantWorkspaceSymbols                    map[*lspext.WorkspaceSymbolParams][]string
 	wantSignatures                          map[string]string
 	wantWorkspaceReferences                 map[*lspext.WorkspaceReferencesParams][]string
-	wantFormatting                          map[string]string
+	wantFormatting                          map[string]map[string]string
 }
 
 func copyFileToOS(ctx context.Context, fs *AtomicFS, targetFile, srcFile string) error {
@@ -1689,26 +1701,19 @@ func workspaceReferencesTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn
 	}
 }
 
-func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, file string, want string) {
+func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, file string, want map[string]string) {
 	edits, err := callFormatting(ctx, c, uriJoin(rootURI, file))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got string
-	switch len(edits) {
-	case 0:
-		// already gofmt clean
-		got = ""
-	case 2:
-		// our implementation is dumb, it is always delete everything
-		// followed by insert. Since we don't have access to the
-		// input, we cheat and just look at the 2nd operation.
-		got = edits[1].NewText
-	default:
-		t.Errorf("got %d edits, want 0 or 2", len(edits))
+
+	got := map[string]string{}
+	for _, edit := range edits {
+		got[edit.Range.String()] = edit.NewText
 	}
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
+
+	if reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 

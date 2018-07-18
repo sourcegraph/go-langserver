@@ -29,6 +29,11 @@ type Config struct {
 	// Defaults to false if not specified.
 	GocodeCompletionEnabled bool
 
+	// DiagnosticsEnabled enables handling of diagnostics
+	//
+	// Defaults to false if not specified.
+	DiagnosticsEnabled bool
+
 	// MaxParallelism controls the maximum number of goroutines that should be used
 	// to fulfill requests. This is useful in editor environments where users do
 	// not want results ASAP, but rather just semi quickly without eating all of

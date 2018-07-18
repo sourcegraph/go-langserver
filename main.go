@@ -31,6 +31,7 @@ var (
 	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance). Can be overridden by InitializationOptions.")
 	maxparallelism     = flag.Int("maxparallelism", 0, "use at max N parallel goroutines to fulfill requests. Can be overridden by InitializationOptions.")
 	gocodecompletion   = flag.Bool("gocodecompletion", false, "enable completion (extra memory burden). Can be overridden by InitializationOptions.")
+	diagnostics        = flag.Bool("diagnostics", false, "enable diagnostics (extra memory burden). Can be overridden by InitializationOptions.")
 	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. Can be overridden by InitializationOptions.")
 )
 
@@ -59,6 +60,7 @@ func main() {
 	cfg := langserver.NewDefaultConfig()
 	cfg.FuncSnippetEnabled = *funcSnippetEnabled
 	cfg.GocodeCompletionEnabled = *gocodecompletion
+	cfg.DiagnosticsEnabled = *diagnostics
 	cfg.UseBinaryPkgCache = *usebinarypkgcache
 
 	if *maxparallelism > 0 {
