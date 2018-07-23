@@ -29,6 +29,16 @@ type Config struct {
 	// Defaults to false if not specified.
 	GocodeCompletionEnabled bool
 
+	// GoimportsEnabled formats documents using goimports instead of normal go fmt
+	//
+	// Defaults to true if not specified.
+	GoimportsEnabled bool
+
+	// GoimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use
+	//
+	// Defaults to empty string if not specified.
+	GoimportsLocalPrefix string
+
 	// DiagnosticsEnabled enables handling of diagnostics
 	//
 	// Defaults to false if not specified.
@@ -60,6 +70,12 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o.GocodeCompletionEnabled != nil {
 		c.GocodeCompletionEnabled = *o.GocodeCompletionEnabled
 	}
+	if o.GoimportsEnabled != nil {
+		c.GoimportsEnabled = *o.GoimportsEnabled
+	}
+	if o.GoimportsLocalPrefix != nil {
+		c.GoimportsLocalPrefix = *o.GoimportsLocalPrefix
+	}
 	if o.MaxParallelism != nil {
 		c.MaxParallelism = *o.MaxParallelism
 	}
@@ -81,6 +97,7 @@ func NewDefaultConfig() Config {
 	return Config{
 		FuncSnippetEnabled:      true,
 		GocodeCompletionEnabled: false,
+		GoimportsEnabled:        true,
 		MaxParallelism:          maxparallelism,
 		UseBinaryPkgCache:       true,
 	}

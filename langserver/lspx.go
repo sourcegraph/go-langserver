@@ -18,6 +18,14 @@ type InitializationOptions struct {
 	// Config.GocodeCompletionEnabled
 	GocodeCompletionEnabled *bool `json:"gocodeCompletionEnabled"`
 
+	// GoimportsEnabled is an optional version of
+	// Config.GoimportsEnabled
+	GoimportsEnabled *bool `json:"goimportsEnabled"`
+
+	// GoimportsLocalPrefix is an optional version of
+	// Config.GoimportsLocalPrefix
+	GoimportsLocalPrefix *string `json:"goimportsLocalPrefix"`
+
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`
 
