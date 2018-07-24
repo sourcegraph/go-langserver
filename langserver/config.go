@@ -29,10 +29,10 @@ type Config struct {
 	// Defaults to false if not specified.
 	GocodeCompletionEnabled bool
 
-	// GoimportsEnabled formats documents using goimports instead of normal go fmt
+	// FormatTool decides which tool is used to format documents. Supported: goimports and gofmt
 	//
-	// Defaults to true if not specified.
-	GoimportsEnabled bool
+	// Defaults to goimports if not specified.
+	FormatTool string
 
 	// GoimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use
 	//
@@ -70,8 +70,8 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o.GocodeCompletionEnabled != nil {
 		c.GocodeCompletionEnabled = *o.GocodeCompletionEnabled
 	}
-	if o.GoimportsEnabled != nil {
-		c.GoimportsEnabled = *o.GoimportsEnabled
+	if o.FormatTool != nil {
+		c.FormatTool = *o.FormatTool
 	}
 	if o.GoimportsLocalPrefix != nil {
 		c.GoimportsLocalPrefix = *o.GoimportsLocalPrefix
@@ -97,7 +97,7 @@ func NewDefaultConfig() Config {
 	return Config{
 		FuncSnippetEnabled:      true,
 		GocodeCompletionEnabled: false,
-		GoimportsEnabled:        true,
+		FormatTool:              formatToolGoimports,
 		MaxParallelism:          maxparallelism,
 		UseBinaryPkgCache:       true,
 	}

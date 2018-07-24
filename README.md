@@ -43,11 +43,11 @@ interface GoInitializationOptions {
   gocodeCompletionEnabled?: boolean;
 
   /**
-   * goimportsEnabled formats documents using goimports instead of normal go fmt.
+   * formatTool decides which tool is used to format documents. Supported: goimports and gofmt.
    *
-   * Defaults to true if not specified.
+   * Defaults to goimports if not specified.
    */
-  goimportsEnabled?: boolean;
+  formatTool?: string;
 
   /**
    * goimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use.

@@ -20,6 +20,11 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+const (
+	formatToolGoimports string = "goimports"
+	formatToolGofmt     string = "gofmt"
+)
+
 func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentFormattingParams) ([]lsp.TextEdit, error) {
 	if !util.IsURI(params.TextDocument.URI) {
 		return nil, &jsonrpc2.Error{
@@ -35,14 +40,8 @@ func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jso
 	}
 
 	var formatted []byte
-	if h.config.GoimportsEnabled {
-		imports.LocalPrefix = h.config.GoimportsLocalPrefix
-		var err error
-		formatted, err = imports.Process(filename, unformatted, nil)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	switch h.config.FormatTool {
+	case formatToolGofmt:
 		bctx := h.BuildContext(ctx)
 		fset := token.NewFileSet()
 		file, err := buildutil.ParseFile(fset, bctx, nil, path.Dir(filename), path.Base(filename), parser.ParseComments)
@@ -59,8 +58,15 @@ func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jso
 			return nil, err
 		}
 		formatted = buf.Bytes()
+	default: // goimports
+		imports.LocalPrefix = h.config.GoimportsLocalPrefix
+		var err error
+		formatted, err = imports.Process(filename, unformatted, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
-	
+
 	if bytes.Equal(formatted, unformatted) {
 		return nil, nil
 	}

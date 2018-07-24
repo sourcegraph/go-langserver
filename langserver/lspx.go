@@ -18,9 +18,9 @@ type InitializationOptions struct {
 	// Config.GocodeCompletionEnabled
 	GocodeCompletionEnabled *bool `json:"gocodeCompletionEnabled"`
 
-	// GoimportsEnabled is an optional version of
-	// Config.GoimportsEnabled
-	GoimportsEnabled *bool `json:"goimportsEnabled"`
+	// FormatTool is an optional version of
+	// Config.FormatTool
+	FormatTool *string `json:"formatTool"`
 
 	// GoimportsLocalPrefix is an optional version of
 	// Config.GoimportsLocalPrefix
