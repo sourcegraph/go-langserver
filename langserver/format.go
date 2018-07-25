@@ -13,10 +13,16 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 	"golang.org/x/tools/go/buildutil"
+	"golang.org/x/tools/imports"
 
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
+)
+
+const (
+	formatToolGoimports string = "goimports"
+	formatToolGofmt     string = "gofmt"
 )
 
 func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.DocumentFormattingParams) ([]lsp.TextEdit, error) {
@@ -28,27 +34,39 @@ func (h *LangHandler) handleTextDocumentFormatting(ctx context.Context, conn jso
 	}
 
 	filename := h.FilePath(params.TextDocument.URI)
-	bctx := h.BuildContext(ctx)
-	fset := token.NewFileSet()
-	file, err := buildutil.ParseFile(fset, bctx, nil, path.Dir(filename), path.Base(filename), parser.ParseComments)
-	if err != nil {
-		return nil, err
-	}
-
-	ast.SortImports(fset, file)
-
-	var buf bytes.Buffer
-	cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
-	err = cfg.Fprint(&buf, fset, file)
-	if err != nil {
-		return nil, err
-	}
-
-	formatted := buf.Bytes()
 	unformatted, err := h.readFile(ctx, params.TextDocument.URI)
 	if err != nil {
 		return nil, err
 	}
+
+	var formatted []byte
+	switch h.config.FormatTool {
+	case formatToolGofmt:
+		bctx := h.BuildContext(ctx)
+		fset := token.NewFileSet()
+		file, err := buildutil.ParseFile(fset, bctx, nil, path.Dir(filename), path.Base(filename), parser.ParseComments)
+		if err != nil {
+			return nil, err
+		}
+
+		ast.SortImports(fset, file)
+
+		var buf bytes.Buffer
+		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
+		err = cfg.Fprint(&buf, fset, file)
+		if err != nil {
+			return nil, err
+		}
+		formatted = buf.Bytes()
+	default: // goimports
+		imports.LocalPrefix = h.config.GoimportsLocalPrefix
+		var err error
+		formatted, err = imports.Process(filename, unformatted, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if bytes.Equal(formatted, unformatted) {
 		return nil, nil
 	}

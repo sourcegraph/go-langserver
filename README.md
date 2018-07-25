@@ -43,6 +43,20 @@ interface GoInitializationOptions {
   gocodeCompletionEnabled?: boolean;
 
   /**
+   * formatTool decides which tool is used to format documents. Supported: goimports and gofmt.
+   *
+   * Defaults to goimports if not specified.
+   */
+  formatTool?: string;
+
+  /**
+   * goimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use.
+   *
+   * Defaults to empty string if not specified.
+   */
+  goimportsLocalPrefix?: string;
+
+  /**
    * MaxParallelism controls the maximum number of goroutines that should be used
    * to fulfill requests. This is useful in editor environments where users do
    * not want results ASAP, but rather just semi quickly without eating all of
