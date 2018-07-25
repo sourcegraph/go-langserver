@@ -47,7 +47,7 @@ interface GoInitializationOptions {
    *
    * Defaults to goimports if not specified.
    */
-  formatTool?: string;
+  formatTool?: "goimports" | "gofmt";
 
   /**
    * goimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use.
