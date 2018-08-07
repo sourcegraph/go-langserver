@@ -355,7 +355,7 @@ func integrationTest(
 	addr, done := startServer(t, h)
 	defer done()
 
-	notifies := make(chan *jsonrpc2.Request)
+	notifies := make(chan *jsonrpc2.Request, 10)
 	conn := dialServer(t, addr, jsonrpc2.HandlerWithError(func(_ context.Context, _ *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
 		notifies <- req
 		return nil, nil
