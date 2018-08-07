@@ -18,20 +18,20 @@
   version = "v1.7.0"
 
 [[projects]]
-  digest = "1:40a8df12855884453745185448712618ae2e4ec8b8ddf0d9ead35a84a0d7f511"
+  digest = "1:38e684375ef5b55e812332266d63f9fc5b6329ab303067c4cdda051db6d29ca4"
   name = "github.com/gogo/protobuf"
   packages = ["proto"]
   pruneopts = "NUT"
-  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
-  version = "v1.0.0"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
 
 [[projects]]
-  digest = "1:9f35c1344b56e5868d511d231f215edd0650aa572664f856444affdd256e43e4"
+  digest = "1:15042ad3498153684d09f393bbaec6b216c8eec6d61f63dff711de7d64ed8861"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   pruneopts = "NUT"
-  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
-  version = "v1.0.0"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -65,8 +65,8 @@
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   pruneopts = "NUT"
-  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
-  version = "v1.0.0"
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -117,15 +117,15 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:32d10bdfa8f09ecf13598324dba86ab891f11db3c538b6a34d1c3b5b99d7c36b"
+  digest = "1:2d5cd61daa5565187e1d96bae64dbbc6080dacf741448e9629c64fd93203b0d4"
   name = "github.com/prometheus/client_model"
   packages = ["go"]
   pruneopts = "NUT"
-  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
+  revision = "5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f"
 
 [[projects]]
   branch = "master"
-  digest = "1:768b555b86742de2f28beb37f1dedce9a75f91f871d75b5717c96399c1a78c08"
+  digest = "1:fad5a35eea6a1a33d6c8f949fbc146f24275ca809ece854248187683f52cc30b"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -133,11 +133,11 @@
     "model",
   ]
   pruneopts = "NUT"
-  revision = "e5b036cc37a466a0af27d604d1ee500211d16d6a"
+  revision = "c7de2306084e37d54b8be01f3541a8464345e9a5"
 
 [[projects]]
   branch = "master"
-  digest = "1:c4a213a8d73fbb0b13f717ba7996116602ef18ecb42b91d77405877914cb0349"
+  digest = "1:6621142cd60b7150ab66f38ff36303ca55843dc5a635c1f9a28f95ecddab72b4"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
@@ -146,7 +146,7 @@
     "xfs",
   ]
   pruneopts = "NUT"
-  revision = "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e"
+  revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
 
 [[projects]]
   branch = "master"
@@ -166,11 +166,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:bd535abe8729371ea9fc3c3e175b28bb1f8c26e75efdc7304da845a995ba72e0"
+  digest = "1:dc9552c84e344290692c6eed4c0942c9de801deed795fc3b169d654243d433cd"
   name = "github.com/sourcegraph/jsonrpc2"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "2ed59d3304d3c7a972e6f58064ab9cdad4cbfc2c"
+  revision = "a3d86c792f0f5a0c0c2c4ed9157125e914cb5534"
 
 [[projects]]
   branch = "master"
@@ -178,23 +178,24 @@
   name = "golang.org/x/net"
   packages = ["context"]
   pruneopts = "NUT"
-  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
+  revision = "f4c29de78a2a91c00474a2e689954305c350adf9"
 
 [[projects]]
   branch = "master"
-  digest = "1:f95d24526ad6f33afba6233fe613b4fe10b132ca01dbda0836b5f94b50059737"
+  digest = "1:35c59c51326ae24971faecb338cff208df4a4cb8b41ae5719840ca89e1ed2f34"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "NUT"
-  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
+  revision = "2be389f392cd91df245b41638f818a1c041f0c08"
 
 [[projects]]
   branch = "master"
-  digest = "1:86c24abeef639bfbb7a009959ecca14482f5af03e366b884ce108c788242fca3"
+  digest = "1:4d168f98b1eb086ed68586133a6cc59074e0fa1c940160e9e2ac3c3ab68558a2"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
     "go/buildutil",
+    "go/internal/cgo",
     "go/loader",
     "go/types/typeutil",
     "godoc/vfs",
@@ -203,7 +204,7 @@
     "refactor/importgraph",
   ]
   pruneopts = "NUT"
-  revision = "c1def519f03ddf76f16b3e444ee1095d73afa01b"
+  revision = "3c07937fe18c27668fd78bbaed3d6b8b39e202ea"
 
 [[projects]]
   digest = "1:efbe016b6d198cf44f1db0ed2fbdf1b36ebf1f6956cc9b76d6affa96f022d368"
