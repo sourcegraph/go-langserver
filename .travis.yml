@@ -13,4 +13,4 @@ install:
 
 script:
   - cd $TRAVIS_BUILD_DIR
-  - ./ci-run-tests.sh
+  - go test -race -v ./...
