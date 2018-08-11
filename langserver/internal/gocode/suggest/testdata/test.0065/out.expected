@@ -1,0 +1,2 @@
+Found 1 candidates:
+  func New(text string) error

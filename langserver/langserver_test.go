@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/sourcegraph/ctxvfs"
-	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
@@ -1397,7 +1396,6 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		// look for $GOPATH/pkg .a files inside the $GOPATH that was set during
 		// 'go test' instead of our tmp directory.
 		build.Default.GOPATH = tmpDir
-		gocode.SetBuildContext(&build.Default)
 		tmpRootPath := filepath.Join(tmpDir, util.UriToPath(rootURI))
 
 		// Install all Go packages in the $GOPATH.

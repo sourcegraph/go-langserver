@@ -15,7 +15,6 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 
-	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/jsonrpc2"
@@ -221,9 +220,6 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 		if err := h.reset(&params); err != nil {
 			return nil, err
-		}
-		if h.config.GocodeCompletionEnabled {
-			gocode.InitDaemon(h.BuildContext(ctx))
 		}
 
 		// PERF: Kick off a workspace/symbol in the background to warm up the server
