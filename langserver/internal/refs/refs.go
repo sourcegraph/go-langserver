@@ -316,12 +316,12 @@ type dereferencable interface {
 func dereferenceType(otyp types.Type) types.Type {
 	for {
 		switch typ := otyp.(type) {
-			case *types.Map:
-				return otyp
-			case dereferencable:
-				otyp = typ.Elem()
-			default:
-				return otyp
+		case *types.Map:
+			return otyp
+		case dereferencable:
+			otyp = typ.Elem()
+		default:
+			return otyp
 		}
 	}
 }

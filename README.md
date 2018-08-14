@@ -93,3 +93,10 @@ go tool pprof -svg $GOPATH/bin/go-langserver http://localhost:6060/debug/pprof/p
 ```
 
 Since these capture the active resource usage, it's best to run these commands while the issue is occurring (i.e. while memory or CPU is high).
+
+## Testing
+
+Running tests inside docker
+```
+sudo make docker-test
+```
