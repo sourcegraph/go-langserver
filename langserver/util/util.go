@@ -69,7 +69,7 @@ func IsURI(s lsp.DocumentURI) bool {
 }
 
 func isURI(s string) bool {
-	return strings.HasPrefix(s, "file:///")
+	return strings.HasPrefix(s, "file://")
 }
 
 // PathToURI converts given absolute path to file URI
