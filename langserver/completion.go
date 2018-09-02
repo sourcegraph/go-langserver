@@ -3,7 +3,6 @@ package langserver
 import (
 	"context"
 	"fmt"
-	"go/build"
 	"regexp"
 	"strings"
 
@@ -52,7 +51,8 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		Filename: filename,
 		Data:     contents,
 		Cursor:   offset,
-		Context:  gbimporter.PackContext(&build.Default),
+		Source:   !h.config.UseBinaryPkgCache,
+		Context:  gbimporter.PackContext(h.BuildContext(ctx)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not autocomplete %s: %v", filename, err)
