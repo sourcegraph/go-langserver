@@ -1,6 +1,7 @@
 package gocode
 
 import (
+	"fmt"
 	"go/importer"
 	"go/types"
 
@@ -22,8 +23,18 @@ type AutoCompleteReply struct {
 	Len        int
 }
 
-func AutoComplete(req *AutoCompleteRequest) (*AutoCompleteReply, error) {
-	res := &AutoCompleteReply{}
+func AutoComplete(req *AutoCompleteRequest) (res *AutoCompleteReply, err error) {
+	res = &AutoCompleteReply{}
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("gocode panic: %s\n\n", err)
+
+			res.Candidates = []suggest.Candidate{
+				{Class: "PANIC", Name: "PANIC", Type: "PANIC"},
+			}
+		}
+	}()
+
 	var underlying types.ImporterFrom
 	if req.Source {
 		underlying = importer.For("source", nil).(types.ImporterFrom)
