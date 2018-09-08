@@ -43,7 +43,7 @@ func newDiagnosticsCache() *diagnosticsCache {
 
 // publishDiagnostics sends diagnostic information (such as compile
 // errors) to the client.
-func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, files []string) error {
+func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, source string, files []string) error {
 	if !h.config.DiagnosticsEnabled {
 		return nil
 	}
@@ -53,7 +53,7 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSON
 	}
 
 	h.diagnosticsCache.update(func(cached diagnostics) diagnostics {
-		return updateCachedDiagnostics(cached, diags, files)
+		return syncCachedDiagnostics(cached, diags, source, files)
 	})
 
 	for filename, diags := range diags {
@@ -71,18 +71,31 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSON
 	return nil
 }
 
-func updateCachedDiagnostics(cachedDiagnostics diagnostics, newDiagnostics diagnostics, files []string) diagnostics {
-	// add/update existing diagnostics
-	for file, diags := range newDiagnostics {
-		cachedDiagnostics[file] = diags
-	}
-
-	// remove all cached diagnostics for each files that is not present in `newDiagnostics`
-	// and add an entry to the output diagnostics for them (to clean the clients)
+func syncCachedDiagnostics(cachedDiagnostics diagnostics, newDiagnostics diagnostics, source string, files []string) diagnostics {
 	for _, file := range files {
-		if _, ok := newDiagnostics[file]; !ok {
-			if _, ok := cachedDiagnostics[file]; ok {
-				delete(cachedDiagnostics, file)
+		_, fileInCache := cachedDiagnostics[file]
+
+		//remove all of the diagnostics for the given source/file combinations and add the new diagnostics to the cache.
+		i := 0
+		for _, diag := range cachedDiagnostics[file] {
+			if diag.Source != source {
+				cachedDiagnostics[file][i] = diag
+				i++
+			}
+		}
+		cachedDiagnostics[file] = append(cachedDiagnostics[file][:i], newDiagnostics[file]...)
+
+		// if the file was already in the cache, the existing diagnostics need sent to the client along with the new
+		if fileInCache {
+			newDiagnostics[file] = cachedDiagnostics[file]
+		}
+
+		// clear out empty cache
+		if len(cachedDiagnostics[file]) == 0 {
+			delete(cachedDiagnostics, file)
+
+			// clear out the client cache
+			if fileInCache {
 				newDiagnostics[file] = nil
 			}
 		}
