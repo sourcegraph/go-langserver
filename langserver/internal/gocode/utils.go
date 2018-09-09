@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/build"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -184,7 +185,7 @@ var g_backtrace_mutex sync.Mutex
 func print_backtrace(err interface{}) {
 	g_backtrace_mutex.Lock()
 	defer g_backtrace_mutex.Unlock()
-	fmt.Printf("panic: %v\n", err)
+	log.Printf("panic: %v\n", err)
 	i := 2
 	for {
 		pc, file, line, ok := runtime.Caller(i)
@@ -192,10 +193,10 @@ func print_backtrace(err interface{}) {
 			break
 		}
 		f := runtime.FuncForPC(pc)
-		fmt.Printf("%d(%s): %s:%d\n", i-1, f.Name(), file, line)
+		log.Printf("%d(%s): %s:%d\n", i-1, f.Name(), file, line)
 		i++
 	}
-	fmt.Println("")
+	log.Println("")
 }
 
 //-------------------------------------------------------------------------
