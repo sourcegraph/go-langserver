@@ -209,9 +209,7 @@ var serverTestCases = map[string]serverTestCase{
 				"a_test.go:1:20": "var A int",
 			},
 			wantCompletion: map[string]string{
-				// TODO(anjmao): fix gocode to support global methods autocomplete
-				// "x_test.go:1:45": "1:44-1:45 panic function func(interface{}), print function func(...interface{}), println function func(...interface{}), p module ",
-				"x_test.go:1:45": "1:44-1:45 p module ",
+				"x_test.go:1:45": "1:44-1:45 panic function func(v interface{}), print function func(args ...Type), println function func(args ...Type), p module ",
 				"x_test.go:1:46": "1:46-1:46 A variable int",
 				"b_test.go:1:35": "1:34-1:35 X variable int",
 			},
@@ -464,8 +462,8 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 			wantCompletion: map[string]string{
 				// use default GOROOT, since gocode needs package binaries
-				"a.go:1:21": "1:21-1:21 x variable int",
-				// "a.go:1:44": "1:38-1:44 Println function func(a ...interface{}) (n int, err error)", TODO(anjmao): debug gocode for this case
+				// "a.go:1:21": "1:21-1:21 x variable int", TODO(anjmao): bug in gocode, it returns all builtins when adding . in pkg import path
+				// "a.go:1:44": "1:38-1:44 Println function func(a ...interface{}) (n int, err error)", // TODO(anjmao): check this test
 			},
 			wantSymbols: map[string][]string{
 				"a.go": {
@@ -1055,9 +1053,9 @@ var s4 func()`,
 		},
 		cases: lspTestCases{
 			wantCompletion: map[string]string{
-				"a.go:6:7": "6:6-6:7 s1 constant untyped int, s2 function func(), strings module , s3 variable int, s4 variable func()",
-				// "a.go:7:7":   "7:6-7:7 nil constant , new function func(type) *type", // TODO(anjmao): check this test
-				// "a.go:12:11": "12:8-12:11 int class built-in, int16 class built-in, int32 class built-in, int64 class built-in, int8 class built-in", // TODO(anjmao): check this test
+				"a.go:6:7":   "6:6-6:7 s1 constant untyped int, s2 function func(), strings module , string class string, s3 variable int, s4 variable func()",
+				"a.go:7:7":   "7:6-7:7 nil constant untyped nil, new function func(Type) *Type",
+				"a.go:12:11": "12:8-12:11 int class int, int16 class int16, int32 class int32, int64 class int64, int8 class int8",
 			},
 		},
 	},

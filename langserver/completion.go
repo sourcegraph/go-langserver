@@ -51,6 +51,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		Filename: filename,
 		Data:     contents,
 		Cursor:   offset,
+		Builtin:  true,
 		Source:   !h.config.UseBinaryPkgCache,
 		Context:  gbimporter.PackContext(h.BuildContext(ctx)),
 	})
