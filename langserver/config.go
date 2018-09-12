@@ -34,6 +34,13 @@ type Config struct {
 	// Defaults to goimports if not specified.
 	FormatTool string
 
+	// LintTool decides which tool is used for linting documents. Supported: golint and none
+	//
+	// Diagnostics must be enable for linting to work.
+	//
+	// Defaults to none if not specified.
+	LintTool string
+
 	// GoimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use
 	//
 	// Defaults to empty string if not specified.
@@ -73,6 +80,9 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o.FormatTool != nil {
 		c.FormatTool = *o.FormatTool
 	}
+	if o.LintTool != nil {
+		c.LintTool = *o.LintTool
+	}
 	if o.GoimportsLocalPrefix != nil {
 		c.GoimportsLocalPrefix = *o.GoimportsLocalPrefix
 	}
@@ -98,6 +108,7 @@ func NewDefaultConfig() Config {
 		FuncSnippetEnabled:      true,
 		GocodeCompletionEnabled: false,
 		FormatTool:              formatToolGoimports,
+		LintTool:                lintToolNone,
 		MaxParallelism:          maxparallelism,
 		UseBinaryPkgCache:       true,
 	}

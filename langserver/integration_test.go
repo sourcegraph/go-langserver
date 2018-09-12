@@ -179,6 +179,111 @@ func TestIntegration_FileSystem_Format2(t *testing.T) {
 	})
 }
 
+func TestIntegration_FileSystem_Lint(t *testing.T) {
+	files := map[string]string{
+		"A.go": strings.Join([]string{
+			"package p",
+			"",
+			"func A(){}",
+			"",
+			"func AA(){}",
+		}, "\n"),
+		"B.go": strings.Join([]string{
+			"package p",
+			"",
+			"// B is a function",
+			"func B(){}",
+		}, "\n"),
+		"sub/C.go": strings.Join([]string{
+			"package sub",
+			"",
+			"func C(){}",
+		}, "\n"),
+	}
+
+	cfg := NewDefaultConfig()
+	cfg.UseBinaryPkgCache = true
+	cfg.DiagnosticsEnabled = true
+	cfg.LintTool = lintToolGolint
+
+	integrationTest(t, files, &cfg, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
+		uriA := uriJoin(rootURI, "A.go")
+		uriC := uriJoin(rootURI, "sub/C.go")
+
+		var params1 lsp.PublishDiagnosticsParams
+		var params2 lsp.PublishDiagnosticsParams
+
+		// Receive diagnostics from the lint fired off during initialization (whole workspace)
+		receiveNotification(t, notifies, &params1)
+		receiveNotification(t, notifies, &params2)
+
+		// expect A.go and sub/D.go to have linting errors, but not B.go
+		actual := publishedDiagnosticsToMap(params1, params2)
+		expected := map[lsp.DocumentURI]int{
+			uriA: 2,
+			uriC: 1,
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("Expected diagnostics for %v but got diagnostics %v", expected, actual)
+		}
+
+		call := callFn(ctx, t, conn)
+		call("textDocument/didOpen", lsp.DidOpenTextDocumentParams{
+			TextDocument: lsp.TextDocumentItem{
+				URI:  uriA,
+				Text: files["A.go"],
+			},
+		})
+		call("textDocument/didSave", lsp.DidOpenTextDocumentParams{
+			TextDocument: lsp.TextDocumentItem{
+				URI:  uriA,
+				Text: files["A.go"],
+			},
+		})
+
+		// receive diagnostics the lint fired off during save (current package: p)
+		// receive on params1 twice to account for both linting and typecheck diagnostics
+		receiveNotification(t, notifies, &params1)
+		receiveNotification(t, notifies, &params1)
+
+		// expect A.go to have linting errors
+		actual = publishedDiagnosticsToMap(params1)
+		expected = map[lsp.DocumentURI]int{
+			uriA: 2,
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("Expected diagnostics for %v but got diagnostics %v", expected, actual)
+		}
+
+		call("textDocument/didOpen", lsp.DidOpenTextDocumentParams{
+			TextDocument: lsp.TextDocumentItem{
+				URI:  uriC,
+				Text: files["sub/C.go"],
+			},
+		})
+		call("textDocument/didSave", lsp.DidOpenTextDocumentParams{
+			TextDocument: lsp.TextDocumentItem{
+				URI:  uriC,
+				Text: files["sub/C.go"],
+			},
+		})
+
+		// receive diagnostics the lint fired off during save (current package: sub)
+		// receive on params1 twice to account for both linting and typech eck diagnostics
+		receiveNotification(t, notifies, &params1)
+		receiveNotification(t, notifies, &params1)
+
+		// expect C.go to have linting errors
+		actual = publishedDiagnosticsToMap(params1)
+		expected = map[lsp.DocumentURI]int{
+			uriC: 1,
+		}
+		if !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("Expected diagnostics for %v but got diagnostics %v", expected, actual)
+		}
+	})
+}
+
 func TestIntegration_FileSystem_Diagnostics(t *testing.T) {
 	files := map[string]string{
 		"A.go": strings.Join([]string{
@@ -203,6 +308,7 @@ func TestIntegration_FileSystem_Diagnostics(t *testing.T) {
 	// diagnostics when sending "textDocument/didSave"
 	cfg.UseBinaryPkgCache = true
 	cfg.DiagnosticsEnabled = true
+	cfg.LintTool = lintToolNone
 
 	integrationTest(t, files, &cfg, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		uriA := uriJoin(rootURI, "A.go")
@@ -329,6 +435,10 @@ func integrationTest(
 
 	GOPATH := filepath.Join(tmpDir, "gopath")
 	GOROOT := filepath.Join(tmpDir, "goroot")
+
+	if err := os.MkdirAll(GOROOT, 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	rootFSPath := filepath.Join(GOPATH, "src/test/p")
 	if err := os.MkdirAll(rootFSPath, 0700); err != nil {

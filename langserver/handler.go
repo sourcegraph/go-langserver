@@ -66,6 +66,10 @@ type LangHandler struct {
 	symbolCache      cache
 	diagnosticsCache *diagnosticsCache
 
+	// linter is the linter implementation that will be used.
+	// linter can be nil.
+	linter Linter
+
 	// cache the reverse import graph. The sync.Once is a pointer since it
 	// is reset when we reset caches. If it was a value we would racily
 	// updated the internal mutex when assigning a new sync.Once.
@@ -235,6 +239,35 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 					Query: "",
 					Limit: 100,
 				})
+			}()
+		}
+
+		// set the configured linter
+		if h.config.DiagnosticsEnabled && h.config.LintTool != lintToolNone {
+			switch h.config.LintTool {
+			case lintToolGolint:
+				h.linter = golint{}
+			}
+
+			if h.linter == nil {
+				log.Printf("warning: lint tool %s not supported", h.config.LintTool)
+			} else {
+				if err := h.linter.IsInstalled(ctx, h.BuildContext(ctx)); err != nil {
+					h.linter = nil
+					log.Printf("warning: lint tool (%s) initialize err: %s", h.config.LintTool, err)
+				}
+			}
+		}
+
+		// kick off a lint of the entire workspace
+		if h.config.DiagnosticsEnabled && h.linter != nil {
+			go func() {
+				ctx, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
+				defer cancel()
+				err := h.lintWorkspace(ctx, h.BuildContext(ctx), conn)
+				if err != nil {
+					log.Printf("warning: failed to lint workspace: %s", err)
+				}
 			}()
 		}
 
@@ -434,6 +467,17 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				// files).
 				if !h.config.UseBinaryPkgCache || (h.config.DiagnosticsEnabled && req.Method == "textDocument/didSave") {
 					go h.typecheck(ctx, conn, uri, lsp.Position{})
+				}
+
+				if h.config.DiagnosticsEnabled && h.linter != nil && req.Method == "textDocument/didSave" {
+					go func() {
+						ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+						defer cancel()
+						err := h.lintPackage(ctx, h.BuildContext(ctx), conn, uri)
+						if err != nil {
+							log.Printf("warning: failed to lint package: %s", err)
+						}
+					}()
 				}
 			}
 			return nil, err
