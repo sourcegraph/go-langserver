@@ -1060,8 +1060,8 @@ var s4 func()`,
 		},
 	},
 	"unexpected paths": {
-		// notice the : and @ symbol
-		rootURI: "file:///src/t:est/@hello/pkg",
+		// notice the : symbol
+		rootURI: "file:///src/t:est/hello/pkg",
 		skip:    runtime.GOOS == "windows", // this test is not supported on windows
 		fs: map[string]string{
 			"a.go": "package p; func A() { A() }",
@@ -1072,12 +1072,12 @@ var s4 func()`,
 			},
 			wantReferences: map[string][]string{
 				"a.go:1:17": {
-					"/src/t:est/@hello/pkg/a.go:1:17",
-					"/src/t:est/@hello/pkg/a.go:1:23",
+					"/src/t:est/hello/pkg/a.go:1:17",
+					"/src/t:est/hello/pkg/a.go:1:23",
 				},
 			},
 			wantSymbols: map[string][]string{
-				"a.go": {"/src/t:est/@hello/pkg/a.go:function:A:1:17"},
+				"a.go": {"/src/t:est/hello/pkg/a.go:function:A:1:17"},
 			},
 		},
 	},
