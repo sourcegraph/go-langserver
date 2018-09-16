@@ -108,7 +108,7 @@ func (i *importer) joinPath(elem ...string) string {
 				if hasSuffix {
 					gbrel = "-" + gbrel
 				}
-				gbrel = fmt.Sprintf("pkg/%s-%s/", i.ctx.GOOS, i.ctx.GOARCH) + gbrel
+				gbrel = fmt.Sprintf("pkg/%s_%s/", i.ctx.GOOS, i.ctx.GOARCH) + gbrel
 				gbrel = filepath.FromSlash(gbrel)
 				res = filepath.Join(i.gbroot, gbrel)
 			}
