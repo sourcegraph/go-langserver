@@ -1427,14 +1427,13 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 			})
 		}
 
-		h.config.UseBinaryPkgCache = false
-
-		// TODO(anjmao): autocomplete tests fails if binary cache is used
 		for pos, want := range cases.wantCompletion {
 			tbRun(t, fmt.Sprintf("completion-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
 				completionTest(t, ctx, c, util.PathToURI(tmpRootPath), pos, want)
 			})
 		}
+
+		h.config.UseBinaryPkgCache = false
 	}
 
 	for pos, want := range cases.wantDefinition {
