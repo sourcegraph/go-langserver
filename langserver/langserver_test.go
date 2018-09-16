@@ -1224,8 +1224,8 @@ func TestServer(t *testing.T) {
 				NoOSFileSystemAccess: true,
 				RootImportPath:       strings.TrimPrefix(rootFSPath, "/src/"),
 				BuildContext: &InitializeBuildContextParams{
-					GOOS:     "linux",
-					GOARCH:   "amd64",
+					GOOS:     runtime.GOOS,
+					GOARCH:   runtime.GOARCH,
 					GOPATH:   "/",
 					GOROOT:   "/goroot",
 					Compiler: runtime.Compiler,
