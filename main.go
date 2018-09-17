@@ -41,7 +41,7 @@ var (
 // 2. Create commit with version incremented and -dev suffix
 // 3. Push to master
 // 4. Tag the commit created in (1) with the value of the version string
-const version = "v2"
+const version = "v3-dev"
 
 func main() {
 	flag.Parse()
