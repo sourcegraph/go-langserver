@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
+	"github.com/sourcegraph/go-langserver/langserver/internal/gocode/gbimporter"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/jsonrpc2"
@@ -46,11 +47,21 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 		return nil, fmt.Errorf("invalid position: %s:%d:%d (%s)", filename, params.Position.Line, params.Position.Character, why)
 	}
 
-	ca, rangelen := gocode.AutoComplete(contents, filename, offset)
-	citems := make([]lsp.CompletionItem, len(ca))
-	for i, it := range ca {
+	ac, err := gocode.AutoComplete(&gocode.AutoCompleteRequest{
+		Filename: filename,
+		Data:     contents,
+		Cursor:   offset,
+		Builtin:  true,
+		Source:   !h.config.UseBinaryPkgCache,
+		Context:  gbimporter.PackContext(h.BuildContext(ctx)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not autocomplete %s: %v", filename, err)
+	}
+	citems := make([]lsp.CompletionItem, len(ac.Candidates))
+	for i, it := range ac.Candidates {
 		var kind lsp.CompletionItemKind
-		switch it.Class.String() {
+		switch it.Class {
 		case "const":
 			kind = CIKConstantSupported
 		case "func":
@@ -75,7 +86,7 @@ func (h *LangHandler) handleTextDocumentCompletion(ctx context.Context, conn jso
 			InsertText: newText,
 			TextEdit: &lsp.TextEdit{
 				Range: lsp.Range{
-					Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - rangelen},
+					Start: lsp.Position{Line: params.Position.Line, Character: params.Position.Character - ac.Len},
 					End:   lsp.Position{Line: params.Position.Line, Character: params.Position.Character},
 				},
 				NewText: newText,
