@@ -1,9 +1,9 @@
 package gocode
 
 import (
-	"fmt"
 	"go/importer"
 	"go/types"
+	"log"
 
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode/gbimporter"
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode/suggest"
@@ -27,7 +27,7 @@ func AutoComplete(req *AutoCompleteRequest) (res *AutoCompleteReply, err error) 
 	res = &AutoCompleteReply{}
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("gocode panic: %s\n\n", err)
+			log.Printf("gocode panic: %s\n\n", err)
 
 			res.Candidates = []suggest.Candidate{
 				{Class: "PANIC", Name: "PANIC", Type: "PANIC"},
