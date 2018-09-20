@@ -73,7 +73,7 @@ func implements(fset *token.FileSet, lprog *loader.Program, pkgInfo *loader.Pack
 			if obj, ok := pkgInfo.ObjectOf(id).(*types.Func); ok {
 				recv := obj.Type().(*types.Signature).Recv()
 				if recv == nil {
-					return nil, errors.New("this function is not a method")
+					return nil, errors.New("this function is not an interface definition")
 				}
 				method = obj
 				T = recv.Type()
