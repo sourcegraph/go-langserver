@@ -57,7 +57,7 @@ interface GoInitializationOptions {
    *
    * Defaults to none if not specified.
    */
-  formatTool?: "none" | "golint";
+  lintTool?: "none" | "golint";
 
   /**
    * goimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use.
