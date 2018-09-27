@@ -251,24 +251,20 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 
 			if h.linter == nil {
 				log.Printf("warning: lint tool %s not supported", h.config.LintTool)
+			} else if err := h.linter.IsInstalled(ctx, h.BuildContext(ctx)); err != nil {
+				h.linter = nil
+				log.Printf("warning: lint tool (%s) initialize err: %s", h.config.LintTool, err)
 			} else {
-				if err := h.linter.IsInstalled(ctx, h.BuildContext(ctx)); err != nil {
-					h.linter = nil
-					log.Printf("warning: lint tool (%s) initialize err: %s", h.config.LintTool, err)
-				}
+				// kick off a lint of the entire workspace
+				go func() {
+					ctx, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
+					defer cancel()
+					err := h.lintWorkspace(ctx, h.BuildContext(ctx), conn)
+					if err != nil {
+						log.Printf("warning: failed to lint workspace: %s", err)
+					}
+				}()
 			}
-		}
-
-		// kick off a lint of the entire workspace
-		if h.config.DiagnosticsEnabled && h.linter != nil {
-			go func() {
-				ctx, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
-				defer cancel()
-				err := h.lintWorkspace(ctx, h.BuildContext(ctx), conn)
-				if err != nil {
-					log.Printf("warning: failed to lint workspace: %s", err)
-				}
-			}()
 		}
 
 		kind := lsp.TDSKIncremental

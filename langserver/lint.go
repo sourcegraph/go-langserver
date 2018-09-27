@@ -1,11 +1,11 @@
 package langserver
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"go/build"
-	"io"
 	"log"
 	"os/exec"
 	"path"
@@ -86,26 +86,8 @@ func (h *LangHandler) lintWorkspace(ctx context.Context, bctx *build.Context, co
 type golint struct{}
 
 func (l golint) IsInstalled(ctx context.Context, bctx *build.Context) error {
-	cmd := exec.CommandContext(ctx, "golint", "--help")
-	cmd.Env = []string{
-		"GOPATH=" + bctx.GOPATH,
-		"GOROOT=" + bctx.GOROOT,
-	}
-
-	buff := new(bytes.Buffer)
-	cmd.Stdout = buff
-	cmd.Stderr = buff
-
-	err := cmd.Run()
-
-	if err == nil {
-		return nil
-	}
-	if _, ok := err.(*exec.ExitError); ok {
-		return nil
-	}
-
-	return fmt.Errorf("linter check failed: %s (%q)", err, buff.String())
+	_, err := exec.LookPath("golint")
+	return err
 }
 
 func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (diagnostics, error) {
@@ -115,32 +97,26 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 		"GOROOT=" + bctx.GOROOT,
 	}
 
-	buff := new(bytes.Buffer)
-	cmd.Stdout = buff
-	cmd.Stderr = buff
+	errBuff := new(bytes.Buffer)
+	cmd.Stderr = errBuff
 
-	err := cmd.Run()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		switch err.(type) {
-		case *exec.ExitError:
-			// do nothing
-		default:
-			return nil, fmt.Errorf("lint command error: %s", err)
-		}
+		return nil, fmt.Errorf("lint command error: %s", err)
+	}
+	defer stdout.Close()
+
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, fmt.Errorf("lint command error: %s", err)
 	}
 
 	diags := diagnostics{}
-	for {
-		l, err := buff.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("could not read lint command output: %s", err)
-		}
+	scanner := bufio.NewScanner(stdout)
 
-		l = strings.TrimSuffix(l, "\n")
-		file, line, _, message, err := parseLintResult(l)
+	for scanner.Scan() {
+		file, line, _, message, err := parseLintResult(scanner.Text())
 		if err != nil {
 			// If there is an error parsing a line still try to parse the remaining lines
 			log.Printf("warning: error failed to parse lint result: %v", err)
@@ -162,6 +138,19 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 				},
 			},
 		})
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("could not read lint command output: %s", err)
+	}
+
+	cmd.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("lint command error: %s", err)
+	}
+
+	if errString := errBuff.String(); errString != "" {
+		log.Panicf("warning: lint command stdErr: %q", errString)
 	}
 
 	return diags, nil
