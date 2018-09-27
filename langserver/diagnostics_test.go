@@ -7,72 +7,72 @@ import (
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 )
 
-type updateCachedDiagnosticsTestCase struct {
+type syncCachedDiagnosticsTestCase struct {
 	cache  diagnostics
 	diags  diagnostics
 	source string
 	files  []string
 
-	expectedCache diagnostics
-	expectedDiags diagnostics
+	expectedCache   diagnostics
+	expectedPublish diagnostics
 }
 
-var updateCachedDiagnosticsTestCases = map[string]updateCachedDiagnosticsTestCase{
-	"add to cache": updateCachedDiagnosticsTestCase{
+var syncCachedDiagnosticsTestCases = map[string]syncCachedDiagnosticsTestCase{
+	"add to cache": syncCachedDiagnosticsTestCase{
 		cache:  diagnostics{},
 		diags:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "go"}}},
 		source: "go",
 		files:  []string{"a.go"},
 
-		expectedCache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "go"}}},
-		expectedDiags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "go"}}},
+		expectedCache:   diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "go"}}},
+		expectedPublish: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "go"}}},
 	},
-	"add to cache multi source": updateCachedDiagnosticsTestCase{
+	"add to cache multi source": syncCachedDiagnosticsTestCase{
 		cache:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}}},
 		diags:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar", Source: "go"}}},
 		source: "go",
 		files:  []string{"a.go"},
 
-		expectedCache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "bar", Source: "go"}}},
-		expectedDiags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "bar", Source: "go"}}},
+		expectedCache:   diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "bar", Source: "go"}}},
+		expectedPublish: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "bar", Source: "go"}}},
 	},
-	"update cache": updateCachedDiagnosticsTestCase{
+	"update cache": syncCachedDiagnosticsTestCase{
 		cache:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "go"}}},
 		diags:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar", Source: "go"}}},
 		source: "go",
 		files:  []string{"a.go"},
 
-		expectedCache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar", Source: "go"}}},
-		expectedDiags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar", Source: "go"}}},
+		expectedCache:   diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar", Source: "go"}}},
+		expectedPublish: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "bar", Source: "go"}}},
 	},
-	"update cache multi source": updateCachedDiagnosticsTestCase{
+	"update cache multi source": syncCachedDiagnosticsTestCase{
 		cache:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "will be updated", Source: "go"}}},
 		diags:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "updated", Source: "go"}}},
 		source: "go",
 		files:  []string{"a.go"},
 
-		expectedCache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "updated", Source: "go"}}},
-		expectedDiags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "updated", Source: "go"}}},
+		expectedCache:   diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "updated", Source: "go"}}},
+		expectedPublish: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "updated", Source: "go"}}},
 	},
-	"remove from cache": updateCachedDiagnosticsTestCase{
+	"remove from cache": syncCachedDiagnosticsTestCase{
 		cache:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "go"}}},
 		diags:  diagnostics{},
 		source: "go",
 		files:  []string{"a.go"},
 
-		expectedCache: diagnostics{},
-		expectedDiags: diagnostics{"a.go": nil}, // clears the client cache
+		expectedCache:   diagnostics{},
+		expectedPublish: diagnostics{"a.go": nil}, // clears the client cache
 	},
-	"remove from cache  multi source": updateCachedDiagnosticsTestCase{
+	"remove from cache  multi source": syncCachedDiagnosticsTestCase{
 		cache:  diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}, {Message: "bar", Source: "go"}}},
 		diags:  diagnostics{},
 		source: "go",
 		files:  []string{"a.go"},
 
-		expectedCache: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}}},
-		expectedDiags: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}}},
+		expectedCache:   diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}}},
+		expectedPublish: diagnostics{"a.go": []*lsp.Diagnostic{{Message: "foo", Source: "lint"}}},
 	},
-	"add, change and remove from cache": updateCachedDiagnosticsTestCase{
+	"add, change and remove from cache": syncCachedDiagnosticsTestCase{
 		cache: diagnostics{
 			"a.go": []*lsp.Diagnostic{{Message: "same", Source: "go"}},
 			"b.go": []*lsp.Diagnostic{{Message: "will be updated", Source: "go"}},
@@ -93,14 +93,14 @@ var updateCachedDiagnosticsTestCases = map[string]updateCachedDiagnosticsTestCas
 			"b.go": []*lsp.Diagnostic{{Message: "updated", Source: "go"}},
 			"d.go": []*lsp.Diagnostic{{Message: "added", Source: "go"}},
 		},
-		expectedDiags: diagnostics{
+		expectedPublish: diagnostics{
 			"a.go": []*lsp.Diagnostic{{Message: "same", Source: "go"}},
 			"b.go": []*lsp.Diagnostic{{Message: "updated", Source: "go"}},
 			"c.go": nil, // clears the client cache
 			"d.go": []*lsp.Diagnostic{{Message: "added", Source: "go"}},
 		},
 	},
-	"add, change and remove from cache multi source": updateCachedDiagnosticsTestCase{
+	"add, change and remove from cache multi source": syncCachedDiagnosticsTestCase{
 		cache: diagnostics{
 			"a.go": []*lsp.Diagnostic{{Message: "same", Source: "go"}, {Message: "same", Source: "lint"}},
 			"b.go": []*lsp.Diagnostic{{Message: "will be updated", Source: "go"}, {Message: "same", Source: "lint"}},
@@ -124,7 +124,7 @@ var updateCachedDiagnosticsTestCases = map[string]updateCachedDiagnosticsTestCas
 			"c.go": []*lsp.Diagnostic{{Message: "same", Source: "lint"}},
 			"d.go": []*lsp.Diagnostic{{Message: "added", Source: "go"}},
 		},
-		expectedDiags: diagnostics{
+		expectedPublish: diagnostics{
 			"a.go": []*lsp.Diagnostic{{Message: "same", Source: "lint"}, {Message: "same", Source: "go"}},
 			"b.go": []*lsp.Diagnostic{{Message: "same", Source: "lint"}, {Message: "updated", Source: "go"}},
 			"c.go": []*lsp.Diagnostic{{Message: "same", Source: "lint"}},
@@ -132,28 +132,29 @@ var updateCachedDiagnosticsTestCases = map[string]updateCachedDiagnosticsTestCas
 			"e.go": nil, // clears the client cache
 		},
 	},
-	"do not set nil if not in cache": updateCachedDiagnosticsTestCase{
+	"do not set nil if not in cache": syncCachedDiagnosticsTestCase{
 		cache:  diagnostics{},
 		diags:  diagnostics{},
 		source: "go",
 		files:  []string{"a.go", "b.go"},
 
-		expectedCache: diagnostics{},
-		expectedDiags: diagnostics{}, // nothing, because a.go and b.go are not part of the cache
+		expectedCache:   diagnostics{},
+		expectedPublish: diagnostics{}, // nothing, because a.go and b.go are not part of the cache
 	},
 }
 
 func TestSyncCachedDiagnosticsTestCases(t *testing.T) {
-	for label, test := range updateCachedDiagnosticsTestCases {
+	for label, test := range syncCachedDiagnosticsTestCases {
 		t.Run(label, func(t *testing.T) {
-			updatedCache := syncCachedDiagnostics(test.cache, test.diags, test.source, test.files)
+			updatedCache := updateCachedDiagnostics(test.cache, test.diags, test.source, test.files)
+			publish := compareCachedDiagnostics(test.cache, updatedCache, test.files)
 
 			if !reflect.DeepEqual(test.expectedCache, updatedCache) {
 				t.Errorf("Cached diagnostics does not match\nExpected: %v\nActual: %v", test.expectedCache, updatedCache)
 			}
 
-			if !reflect.DeepEqual(test.expectedDiags, test.diags) {
-				t.Errorf("Reported diagnostics does not match\nExpected: %v\nActual: %v", test.expectedDiags, test.diags)
+			if !reflect.DeepEqual(test.expectedPublish, publish) {
+				t.Errorf("Publish diagnostics does not match\nExpected: %v\nActual: %v", test.expectedPublish, publish)
 			}
 		})
 	}
