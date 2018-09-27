@@ -75,7 +75,7 @@ func syncCachedDiagnostics(cachedDiagnostics diagnostics, newDiagnostics diagnos
 	for _, file := range files {
 		_, fileInCache := cachedDiagnostics[file]
 
-		//remove all of the diagnostics for the given source/file combinations and add the new diagnostics to the cache.
+		// remove all of the diagnostics for the given source/file combinations and add the new diagnostics to the cache.
 		i := 0
 		for _, diag := range cachedDiagnostics[file] {
 			if diag.Source != source {

@@ -53,7 +53,7 @@ interface GoInitializationOptions {
   /**
    * lintTool decides which tool is used for linting documents. Supported: none and golint
    *
-   * Diagnostics must be enable for linting to work.
+   * Diagnostics must be enabled for linting to work.
    *
    * Defaults to none if not specified.
    */

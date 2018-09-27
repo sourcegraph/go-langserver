@@ -36,7 +36,7 @@ type Config struct {
 
 	// LintTool decides which tool is used for linting documents. Supported: golint and none
 	//
-	// Diagnostics must be enable for linting to work.
+	// Diagnostics must be enabled for linting to work.
 	//
 	// Defaults to none if not specified.
 	LintTool string
