@@ -9,6 +9,7 @@ go_import_path: github.com/sourcegraph/go-langserver
 
 install:
   - go get -d -t ./...
+  - go get golang.org/x/lint/golint
   - go test -i ./...
 
 script:

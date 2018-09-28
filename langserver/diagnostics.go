@@ -24,26 +24,38 @@ type diagnosticsCache struct {
 	cache diagnostics
 }
 
-// update the cached diagnostics. In order to keep the cache in good shape it
-// is required that only one go routine is able to modify the cache at a time.
-func (p *diagnosticsCache) update(fn func(diagnostics) diagnostics) {
-	p.mu.Lock()
-	if p.cache == nil {
-		p.cache = diagnostics{}
-	}
-	p.cache = fn(p.cache)
-	p.mu.Unlock()
-}
-
 func newDiagnosticsCache() *diagnosticsCache {
 	return &diagnosticsCache{
 		cache: diagnostics{},
 	}
 }
 
+// sync updates the diagnosticsCache and returns diagnostics need to be
+// published.
+//
+// When a file no longer has any diagnostics the file will be removed from
+// the cache. The removed file will be included in the returned diagnostics
+// in order to clear the client.
+//
+// sync is thread safe and will only allow one go routine to modify the cache
+// at a time.
+func (p *diagnosticsCache) sync(update func(diagnostics) diagnostics, compare func(oldDiagnostics, newDiagnostics diagnostics) (publish diagnostics)) (publish diagnostics) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.cache == nil {
+		p.cache = diagnostics{}
+	}
+
+	newCache := update(p.cache)
+	publish = compare(p.cache, newCache)
+	p.cache = newCache
+	return publish
+}
+
 // publishDiagnostics sends diagnostic information (such as compile
 // errors) to the client.
-func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, files []string) error {
+func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSONRPC2, diags diagnostics, source string, files []string) error {
 	if !h.config.DiagnosticsEnabled {
 		return nil
 	}
@@ -52,11 +64,16 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSON
 		diags = diagnostics{}
 	}
 
-	h.diagnosticsCache.update(func(cached diagnostics) diagnostics {
-		return updateCachedDiagnostics(cached, diags, files)
-	})
+	publish := h.diagnosticsCache.sync(
+		func(cached diagnostics) diagnostics {
+			return updateCachedDiagnostics(cached, diags, source, files)
+		},
+		func(oldDiagnostics, newDiagnostics diagnostics) (publish diagnostics) {
+			return compareCachedDiagnostics(oldDiagnostics, newDiagnostics, files)
+		},
+	)
 
-	for filename, diags := range diags {
+	for filename, diags := range publish {
 		params := lsp.PublishDiagnosticsParams{
 			URI:         util.PathToURI(filename),
 			Diagnostics: make([]lsp.Diagnostic, len(diags)),
@@ -71,24 +88,53 @@ func (h *LangHandler) publishDiagnostics(ctx context.Context, conn jsonrpc2.JSON
 	return nil
 }
 
-func updateCachedDiagnostics(cachedDiagnostics diagnostics, newDiagnostics diagnostics, files []string) diagnostics {
-	// add/update existing diagnostics
-	for file, diags := range newDiagnostics {
-		cachedDiagnostics[file] = diags
+func updateCachedDiagnostics(cachedDiagnostics diagnostics, newDiagnostics diagnostics, source string, files []string) diagnostics {
+	// copy cachedDiagnostics so we don't mutate it
+	cache := make(diagnostics, len(cachedDiagnostics))
+	for k, v := range cachedDiagnostics {
+		cache[k] = v
 	}
 
-	// remove all cached diagnostics for each files that is not present in `newDiagnostics`
-	// and add an entry to the output diagnostics for them (to clean the clients)
 	for _, file := range files {
-		if _, ok := newDiagnostics[file]; !ok {
-			if _, ok := cachedDiagnostics[file]; ok {
-				delete(cachedDiagnostics, file)
-				newDiagnostics[file] = nil
+
+		// remove all of the diagnostics for the given source/file combinations and add the new diagnostics to the cache.
+		i := 0
+		for _, diag := range cache[file] {
+			if diag.Source != source {
+				cache[file][i] = diag
+				i++
 			}
+		}
+		cache[file] = append(cache[file][:i], newDiagnostics[file]...)
+
+		// clear out empty cache
+		if len(cache[file]) == 0 {
+			delete(cache, file)
 		}
 	}
 
-	return cachedDiagnostics
+	return cache
+}
+
+// compareCachedDiagnostics compares new and old diagnostics to determine
+// what needs to be published.
+func compareCachedDiagnostics(oldDiagnostics, newDiagnostics diagnostics, files []string) (publish diagnostics) {
+	publish = diagnostics{}
+	for _, f := range files {
+		_, inOld := oldDiagnostics[f]
+		diags, inNew := newDiagnostics[f]
+
+		if inOld && !inNew {
+			publish[f] = nil
+			continue
+		}
+
+		if inNew {
+			publish[f] = diags
+		}
+	}
+
+	return publish
 }
 
 func errsToDiagnostics(typeErrs []error, prog *loader.Program) (diagnostics, error) {

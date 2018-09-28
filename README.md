@@ -49,6 +49,16 @@ interface GoInitializationOptions {
    */
   formatTool?: "goimports" | "gofmt";
 
+
+  /**
+   * lintTool decides which tool is used for linting documents. Supported: none and golint
+   *
+   * Diagnostics must be enabled for linting to work.
+   *
+   * Defaults to none if not specified.
+   */
+  lintTool?: "none" | "golint";
+
   /**
    * goimportsLocalPrefix sets the local prefix (comma-separated string) that goimports will use.
    *

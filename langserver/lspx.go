@@ -22,6 +22,10 @@ type InitializationOptions struct {
 	// Config.FormatTool
 	FormatTool *string `json:"formatTool"`
 
+	// LintTool is an optional version of
+	// Config.LintTool
+	LintTool *string `json:"lintTool"`
+
 	// GoimportsLocalPrefix is an optional version of
 	// Config.GoimportsLocalPrefix
 	GoimportsLocalPrefix *string `json:"goimportsLocalPrefix"`
