@@ -43,7 +43,7 @@ func (h *LangHandler) handleWorkspaceReferences(ctx context.Context, conn jsonrp
 
 	// Perform typechecking.
 	var (
-		findPackage        = h.getFindPackageFunc()
+		findPackage        = h.getFindPackageFunc(h.RootFSPath)
 		fset               = token.NewFileSet()
 		pkgs               []string
 		unvendoredPackages = map[string]struct{}{}
@@ -214,7 +214,7 @@ func (h *LangHandler) workspaceRefsTypecheck(ctx context.Context, bctx *build.Co
 	}()
 
 	// Configure the loader.
-	findPackage := h.getFindPackageFunc()
+	findPackage := h.getFindPackageFunc(h.RootFSPath)
 	var typeErrs []error
 	conf := loader.Config{
 		Fset: fset,
@@ -294,7 +294,7 @@ func (h *LangHandler) workspaceRefsFromPkg(ctx context.Context, bctx *build.Cont
 	span.SetTag("pkg", pkg)
 
 	// Compute workspace references.
-	findPackage := h.getFindPackageFunc()
+	findPackage := h.getFindPackageFunc(h.RootFSPath)
 	cfg := &refs.Config{
 		FileSet:  fs,
 		Pkg:      pkg.Pkg,

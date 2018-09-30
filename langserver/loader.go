@@ -50,7 +50,7 @@ func (h *LangHandler) typecheck(ctx context.Context, conn jsonrpc2.JSONRPC2, fil
 
 	bctx := h.BuildContext(ctx)
 
-	bpkg, err := ContainingPackage(bctx, filename)
+	bpkg, err := ContainingPackage(bctx, filename, h.RootFSPath)
 	if mpErr, ok := err.(*build.MultiplePackageError); ok {
 		bpkg, err = buildPackageForNamedFileInMultiPackageDir(bpkg, mpErr, path.Base(filename))
 		if err != nil {
@@ -211,7 +211,7 @@ func (h *LangHandler) cachedTypecheck(ctx context.Context, bctx *build.Context, 
 		res := &typecheckResult{
 			fset: token.NewFileSet(),
 		}
-		res.prog, diags, res.err = typecheck(ctx, res.fset, bctx, bpkg, h.getFindPackageFunc())
+		res.prog, diags, res.err = typecheck(ctx, res.fset, bctx, bpkg, h.getFindPackageFunc(h.RootFSPath))
 		return res
 	})
 	if r == nil {

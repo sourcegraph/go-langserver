@@ -19,16 +19,41 @@ import (
 // buildutil.ExpandPattern may be more performant (there are TODOs for it).
 func ListPkgsUnderDir(ctxt *build.Context, dir string) []string {
 	ch := make(chan string)
+	dir = path.Clean(dir)
 
 	var wg sync.WaitGroup
+	var jobStarted bool
 	for _, root := range ctxt.SrcDirs() {
-		root := root
+		root = path.Clean(root)
+
+		if util.PathHasPrefix(root, dir) {
+			// If we are a child of start, we can just start at the
+			// root. A concrete example of this happening is when
+			// root=/goroot/src and start=/goroot
+			dir = root
+		}
+
+		if !util.PathHasPrefix(dir, root) {
+			continue
+		}
+
+		wg.Add(1)
+		go func() {
+			allPackages(ctxt, root, dir, ch)
+			wg.Done()
+		}()
+		jobStarted = true
+	}
+
+	if !jobStarted {
+		root := path.Dir(dir)
 		wg.Add(1)
 		go func() {
 			allPackages(ctxt, root, dir, ch)
 			wg.Done()
 		}()
 	}
+
 	go func() {
 		wg.Wait()
 		close(ch)
@@ -50,19 +75,6 @@ var ioLimit = make(chan bool, 20)
 // since it doesn't allow searching from a directory. We need from a specific
 // directory for performance on large GOPATHs.
 func allPackages(ctxt *build.Context, root, start string, ch chan<- string) {
-	root = path.Clean(root)
-	start = path.Clean(start)
-
-	if util.PathHasPrefix(root, start) {
-		// If we are a child of start, we can just start at the
-		// root. A concrete example of this happening is when
-		// root=/goroot/src and start=/goroot
-		start = root
-	}
-
-	if !util.PathHasPrefix(start, root) {
-		return
-	}
 
 	var wg sync.WaitGroup
 

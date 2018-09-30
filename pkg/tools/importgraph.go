@@ -40,8 +40,11 @@ func BuildReverseImportGraph(ctxt *build.Context, findPackage FindPackageFunc, d
 				defer wg.Done()
 
 				sema <- 1
-				// Even in error cases, Import usually returns a package.
-				bp, _ := findPackage(ctxt, path, "", 0)
+				bp, err := findPackage(ctxt, path, "", 0)
+				if err != nil {
+					<-sema
+					return
+				}
 				<-sema
 
 				memo := make(map[string]string)

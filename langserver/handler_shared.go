@@ -3,6 +3,7 @@ package langserver
 import (
 	"context"
 	"go/build"
+	"path/filepath"
 	"sync"
 
 	"github.com/sourcegraph/ctxvfs"
@@ -32,11 +33,74 @@ func defaultFindPackageFunc(ctx context.Context, bctx *build.Context, importPath
 }
 
 // getFindPackageFunc is a helper which returns h.FindPackage if non-nil, otherwise defaultFindPackageFunc
-func (h *HandlerShared) getFindPackageFunc() FindPackageFunc {
-	if h.FindPackage != nil {
-		return h.FindPackage
+func (h *HandlerShared) getFindPackageFunc(rootPath string) FindPackageFunc {
+	return func(ctx context.Context, bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+		var (
+			res        *build.Package
+			err        error
+			importFunc FindPackageFunc
+		)
+
+		if h.FindPackage != nil {
+			importFunc = h.FindPackage
+		} else {
+			importFunc = defaultFindPackageFunc
+		}
+
+		var srcDir string
+		if filepath.HasPrefix(rootPath, bctx.GOROOT) {
+			srcDir = bctx.GOROOT // if workspace is Go stdlib
+		} else {
+			gopaths := filepath.SplitList(bctx.GOPATH)
+			for _, gopath := range gopaths {
+				if filepath.HasPrefix(rootPath, gopath) {
+					srcDir = gopath
+					break
+				}
+			}
+		}
+
+		res, err = importFunc(ctx, bctx, importPath, fromDir, mode)
+		if err != nil && srcDir == "" {
+			// Workspace is out of GOPATH, we have 3 fallback dirs:
+			// 1. local package;
+			// 2. project level vendored package;
+			// 3. nested vendored package.
+			// Packages in go.mod file but not in vendor dir are not supported yet. :(
+			fallBackDirs := make([]string, 0, 3)
+
+			// Local imports always have same prefix -- the current dir's name.
+			if filepath.HasPrefix(importPath, filepath.Base(rootPath)) {
+				fallBackDirs = append(fallBackDirs, filepath.Join(filepath.Dir(rootPath), importPath))
+			}
+			// Vendored package.
+			fallBackDirs = append(fallBackDirs, filepath.Join(rootPath, "vendor", importPath))
+			// Nested vendored packages.
+			if fromDir != rootPath && fromDir != "" {
+				fallBackDirs = append(fallBackDirs, filepath.Join(fromDir, "vendor", importPath))
+			}
+
+			// In case of import error, use ImportDir instead.
+			// We must set ImportPath manually.
+			for _, importDir := range fallBackDirs {
+				res, err = bctx.ImportDir(importDir, mode)
+				if res != nil {
+					res.ImportPath = importPath
+				}
+				if err == nil {
+					break
+				}
+				if _, ok := err.(*build.NoGoError); ok {
+					break
+				}
+				if _, ok := err.(*build.MultiplePackageError); ok {
+					break
+				}
+			}
+		}
+
+		return res, err
 	}
-	return defaultFindPackageFunc
 }
 
 func (h *HandlerShared) Reset(useOSFS bool) error {

@@ -165,9 +165,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 			// which is much faster. See https://golang.org/cl/97800/.
 			findRefErr = h.findReferencesPkgLevel(findRefCtx, bctx, fset, unseen, pkgInWorkspace, obj, refs)
 		} else {
+			findPackage := h.getFindPackageFunc(h.RootFSPath)
 			lconf := loader.Config{
 				Fset:  fset,
 				Build: bctx,
+				FindPackage: func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+					return findPackage(findRefCtx, bctx, importPath, fromDir, mode)
+				},
 			}
 
 			// The importgraph doesn't treat external test packages
@@ -242,7 +246,7 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 			defer span.Finish()
 
 			bctx := h.BuildContext(ctx)
-			findPackageWithCtx := h.getFindPackageFunc()
+			findPackageWithCtx := h.getFindPackageFunc(h.RootFSPath)
 			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
 				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
 			}
@@ -516,7 +520,7 @@ func (h *LangHandler) findReferencesPkgLevel(ctx context.Context, bctx *build.Co
 	namebytes := []byte(name)          // byte slice version of query object name, for early filtering
 	objpos := fset.Position(obj.Pos()) // position of query object, used to prevent re-emitting original decl
 
-	find := h.getFindPackageFunc()
+	find := h.getFindPackageFunc(h.RootFSPath)
 
 	var reterr error
 	sema := make(chan struct{}, 20) // counting semaphore to limit I/O concurrency

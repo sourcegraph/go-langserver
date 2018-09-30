@@ -45,7 +45,7 @@ func (h *LangHandler) lint(ctx context.Context, bctx *build.Context, conn jsonrp
 
 // lintPackage runs LangHandler.lint for the package containing the uri.
 func (h *LangHandler) lintPackage(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, uri lsp.DocumentURI) error {
-	pkg, err := ContainingPackage(h.BuildContext(ctx), h.FilePath(uri))
+	pkg, err := ContainingPackage(h.BuildContext(ctx), h.FilePath(uri), h.RootFSPath)
 	if err != nil {
 		return err
 	}
@@ -60,15 +60,16 @@ func (h *LangHandler) lintPackage(ctx context.Context, bctx *build.Context, conn
 
 // lintWorkspace runs LangHandler.lint for the entire workspace
 func (h *LangHandler) lintWorkspace(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2) error {
-	rootPkg, err := ContainingPackage(h.BuildContext(ctx), h.RootFSPath)
+	rootPkg, err := ContainingPackage(h.BuildContext(ctx), h.RootFSPath, h.RootFSPath)
 	if err != nil {
 		return err
 	}
 
 	var files []string
 	pkgs := tools.ListPkgsUnderDir(bctx, h.RootFSPath)
+	find := h.getFindPackageFunc(h.RootFSPath)
 	for _, pkg := range pkgs {
-		p, err := bctx.Import(pkg, h.RootFSPath, 0)
+		p, err := find(ctx, bctx, pkg, h.RootFSPath, 0)
 		if err != nil {
 			return err
 		}
@@ -105,7 +106,6 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 		return nil, fmt.Errorf("lint command error: %s", err)
 	}
 	defer stdout.Close()
-
 
 	err = cmd.Start()
 	if err != nil {
