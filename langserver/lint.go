@@ -150,7 +150,7 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 	}
 
 	if errBuff.Len() > 0 {
-		log.Panicf("warning: lint command stderr: %q", errBuff.String())
+		log.Printf("warning: lint command stderr: %q", errBuff.String())
 	}
 
 	return diags, nil
