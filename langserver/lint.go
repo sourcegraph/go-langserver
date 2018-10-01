@@ -45,7 +45,8 @@ func (h *LangHandler) lint(ctx context.Context, bctx *build.Context, conn jsonrp
 
 // lintPackage runs LangHandler.lint for the package containing the uri.
 func (h *LangHandler) lintPackage(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, uri lsp.DocumentURI) error {
-	pkg, err := ContainingPackage(h.BuildContext(ctx), h.FilePath(uri), h.RootFSPath)
+	filename := h.FilePath(uri)
+	pkg, err := ContainingPackage(h.BuildContext(ctx), filename, h.RootFSPath)
 	if err != nil {
 		return err
 	}
@@ -54,23 +55,23 @@ func (h *LangHandler) lintPackage(ctx context.Context, bctx *build.Context, conn
 	for _, f := range pkg.GoFiles {
 		files = append(files, path.Join(pkg.Dir, f))
 	}
-
-	return h.lint(ctx, bctx, conn, []string{pkg.ImportPath}, files)
+	return h.lint(ctx, bctx, conn, []string{path.Dir(filename)}, files)
 }
 
 // lintWorkspace runs LangHandler.lint for the entire workspace
 func (h *LangHandler) lintWorkspace(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2) error {
-	rootPkg, err := ContainingPackage(h.BuildContext(ctx), h.RootFSPath, h.RootFSPath)
-	if err != nil {
-		return err
-	}
-
 	var files []string
 	pkgs := tools.ListPkgsUnderDir(bctx, h.RootFSPath)
 	find := h.getFindPackageFunc(h.RootFSPath)
 	for _, pkg := range pkgs {
 		p, err := find(ctx, bctx, pkg, h.RootFSPath, 0)
 		if err != nil {
+			if _, ok := err.(*build.NoGoError); ok {
+				continue
+			}
+			if _, ok := err.(*build.MultiplePackageError); ok {
+				continue
+			}
 			return err
 		}
 
@@ -78,8 +79,7 @@ func (h *LangHandler) lintWorkspace(ctx context.Context, bctx *build.Context, co
 			files = append(files, path.Join(p.Dir, f))
 		}
 	}
-
-	return h.lint(ctx, bctx, conn, []string{path.Join(rootPkg.ImportPath, "/...")}, files)
+	return h.lint(ctx, bctx, conn, []string{path.Join(h.RootFSPath, "/...")}, files)
 }
 
 // golint is a wrapper around the golint command that implements the
@@ -116,7 +116,8 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
-		file, line, _, message, err := parseLintResult(scanner.Text())
+		text := scanner.Text()
+		file, line, _, message, err := parseLintResult(text)
 		if err != nil {
 			// If there is an error parsing a line still try to parse the remaining lines
 			log.Printf("warning: error failed to parse lint result: %v", err)
