@@ -485,13 +485,9 @@ func (c *SymbolCollector) addFuncDecl(fun *ast.FuncDecl) {
 }
 
 func (c *SymbolCollector) addContainer(containerName string, fields *ast.FieldList, containerKind lsp.SymbolKind, containerPos token.Pos) {
-	if fields.List != nil {
-		for _, field := range fields.List {
-			if field.Names != nil {
-				for _, fieldName := range field.Names {
-					c.addSymbol(fieldName.Name, containerName, "", lsp.SKField, fieldName.NamePos)
-				}
-			}
+	for _, field := range fields.List {
+		for _, fieldName := range field.Names {
+			c.addSymbol(fieldName.Name, containerName, "", lsp.SKField, fieldName.NamePos)
 		}
 	}
 	c.addSymbol(containerName, "", "", containerKind, containerPos)
