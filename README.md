@@ -88,7 +88,7 @@ interface GoInitializationOptions {
 
 ## Profiling
 
-If you run into performance issues while using the language server, it can be very helpful to attach a CPU or memory profile with the issue report. To capture one, first [install Go](https://golang.org/doc/install) and then:
+If you run into performance issues while using the language server, it can be very helpful to attach a CPU or memory profile with the issue report. To capture one, first [install Go](https://golang.org/doc/install), start `go-langserver` with the pprof flag (e.g. `$GOPATH/bin/go-langserver -pprof :6060`) and then:
 
 Capture a heap (memory) profile:
 
