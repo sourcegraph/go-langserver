@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/sourcegraph/ctxvfs"
+
+	"github.com/sourcegraph/go-langserver/langserver/util"
 )
 
 // HandlerShared contains data structures that a build server and its
@@ -48,12 +50,12 @@ func (h *HandlerShared) getFindPackageFunc(rootPath string) FindPackageFunc {
 		}
 
 		var srcDir string
-		if filepath.HasPrefix(rootPath, bctx.GOROOT) {
+		if util.PathHasPrefix(rootPath, bctx.GOROOT) {
 			srcDir = bctx.GOROOT // if workspace is Go stdlib
 		} else {
 			gopaths := filepath.SplitList(bctx.GOPATH)
 			for _, gopath := range gopaths {
-				if filepath.HasPrefix(rootPath, gopath) {
+				if util.PathHasPrefix(rootPath, gopath) {
 					srcDir = gopath
 					break
 				}
@@ -70,7 +72,7 @@ func (h *HandlerShared) getFindPackageFunc(rootPath string) FindPackageFunc {
 			fallBackDirs := make([]string, 0, 3)
 
 			// Local imports always have same prefix -- the current dir's name.
-			if filepath.HasPrefix(importPath, filepath.Base(rootPath)) {
+			if util.PathHasPrefix(importPath, filepath.Base(rootPath)) {
 				fallBackDirs = append(fallBackDirs, filepath.Join(filepath.Dir(rootPath), importPath))
 			}
 			// Vendored package.

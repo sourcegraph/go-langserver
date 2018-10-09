@@ -22,14 +22,14 @@ func ListPkgsUnderDir(ctxt *build.Context, dir string) []string {
 	dir = path.Clean(dir)
 
 	var wg sync.WaitGroup
-	var jobStarted bool
+	dirOutsideGOPATH := true
 	for _, root := range ctxt.SrcDirs() {
 		root = path.Clean(root)
 
 		if util.PathHasPrefix(root, dir) {
-			// If we are a child of start, we can just start at the
+			// If we are a child of dir, we can just start at the
 			// root. A concrete example of this happening is when
-			// root=/goroot/src and start=/goroot
+			// root=/goroot/src and dir=/goroot
 			dir = root
 		}
 
@@ -42,10 +42,10 @@ func ListPkgsUnderDir(ctxt *build.Context, dir string) []string {
 			allPackages(ctxt, root, dir, ch)
 			wg.Done()
 		}()
-		jobStarted = true
+		dirOutsideGOPATH = false
 	}
 
-	if !jobStarted {
+	if !dirOutsideGOPATH {
 		root := path.Dir(dir)
 		wg.Add(1)
 		go func() {

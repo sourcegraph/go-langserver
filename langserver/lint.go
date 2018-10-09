@@ -116,8 +116,7 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
-		text := scanner.Text()
-		file, line, _, message, err := parseLintResult(text)
+		file, line, _, message, err := parseLintResult(scanner.Text())
 		if err != nil {
 			// If there is an error parsing a line still try to parse the remaining lines
 			log.Printf("warning: error failed to parse lint result: %v", err)
