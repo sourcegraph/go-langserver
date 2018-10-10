@@ -165,12 +165,12 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 			// which is much faster. See https://golang.org/cl/97800/.
 			findRefErr = h.findReferencesPkgLevel(findRefCtx, bctx, fset, unseen, pkgInWorkspace, obj, refs)
 		} else {
-			findPackage := h.getFindPackageFunc(h.RootFSPath)
+			findPackage := h.getFindPackageFunc()
 			lconf := loader.Config{
 				Fset:  fset,
 				Build: bctx,
 				FindPackage: func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
-					return findPackage(findRefCtx, bctx, importPath, fromDir, mode)
+					return findPackage(findRefCtx, bctx, importPath, fromDir, h.RootFSPath, mode)
 				},
 			}
 
@@ -246,9 +246,9 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 			defer span.Finish()
 
 			bctx := h.BuildContext(ctx)
-			findPackageWithCtx := h.getFindPackageFunc(h.RootFSPath)
+			findPackageWithCtx := h.getFindPackageFunc()
 			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
-				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
+				return findPackageWithCtx(ctx, bctx, importPath, fromDir, h.RootFSPath, mode)
 			}
 			g := tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.Root()))
 			h.mu.Lock()
@@ -520,7 +520,7 @@ func (h *LangHandler) findReferencesPkgLevel(ctx context.Context, bctx *build.Co
 	namebytes := []byte(name)          // byte slice version of query object name, for early filtering
 	objpos := fset.Position(obj.Pos()) // position of query object, used to prevent re-emitting original decl
 
-	find := h.getFindPackageFunc(h.RootFSPath)
+	find := h.getFindPackageFunc()
 
 	var reterr error
 	sema := make(chan struct{}, 20) // counting semaphore to limit I/O concurrency
@@ -552,7 +552,7 @@ func (h *LangHandler) findReferencesPkgLevel(ctx context.Context, bctx *build.Co
 			// Resolve package.
 			// TODO: is fromDir == "" correct?
 			sema <- struct{}{} // acquire token
-			pkg, err := find(ctx, bctx, u, "", build.IgnoreVendor)
+			pkg, err := find(ctx, bctx, u, "", h.RootFSPath, build.IgnoreVendor)
 			<-sema // release token
 			if err != nil {
 				return

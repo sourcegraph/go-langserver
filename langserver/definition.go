@@ -181,7 +181,7 @@ func (h *LangHandler) handleXDefinition(ctx context.Context, conn jsonrpc2.JSONR
 	if len(nodes) == 0 {
 		return nil, errors.New("definition not found")
 	}
-	findPackage := h.getFindPackageFunc(h.RootFSPath)
+	findPackage := h.getFindPackageFunc()
 	locs := make([]symbolLocationInformation, 0, len(nodes))
 	for _, found := range nodes {
 		// Determine location information for the node.

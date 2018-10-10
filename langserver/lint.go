@@ -62,9 +62,9 @@ func (h *LangHandler) lintPackage(ctx context.Context, bctx *build.Context, conn
 func (h *LangHandler) lintWorkspace(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2) error {
 	var files []string
 	pkgs := tools.ListPkgsUnderDir(bctx, h.RootFSPath)
-	find := h.getFindPackageFunc(h.RootFSPath)
+	find := h.getFindPackageFunc()
 	for _, pkg := range pkgs {
-		p, err := find(ctx, bctx, pkg, h.RootFSPath, 0)
+		p, err := find(ctx, bctx, pkg, h.RootFSPath, h.RootFSPath, 0)
 		if err != nil {
 			if _, ok := err.(*build.NoGoError); ok {
 				continue

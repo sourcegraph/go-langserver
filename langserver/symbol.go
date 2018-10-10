@@ -402,8 +402,8 @@ type pkgSymResult struct {
 // speed up repeated calls.
 func (h *LangHandler) collectFromPkg(ctx context.Context, bctx *build.Context, pkg string, rootPath string, results *resultSorter) {
 	symbols := h.symbolCache.Get(pkg, func() interface{} {
-		findPackage := h.getFindPackageFunc(h.RootFSPath)
-		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
+		findPackage := h.getFindPackageFunc()
+		buildPkg, err := findPackage(ctx, bctx, pkg, rootPath, rootPath, 0)
 		if err != nil {
 			maybeLogImportError(pkg, err)
 			return nil

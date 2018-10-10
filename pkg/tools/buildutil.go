@@ -21,8 +21,11 @@ func ListPkgsUnderDir(ctxt *build.Context, dir string) []string {
 	ch := make(chan string)
 	dir = path.Clean(dir)
 
-	var wg sync.WaitGroup
-	dirOutsideGOPATH := true
+	var (
+		wg          sync.WaitGroup
+		dirInGOPATH bool
+	)
+
 	for _, root := range ctxt.SrcDirs() {
 		root = path.Clean(root)
 
@@ -42,10 +45,10 @@ func ListPkgsUnderDir(ctxt *build.Context, dir string) []string {
 			allPackages(ctxt, root, dir, ch)
 			wg.Done()
 		}()
-		dirOutsideGOPATH = false
+		dirInGOPATH = true
 	}
 
-	if !dirOutsideGOPATH {
+	if !dirInGOPATH {
 		root := path.Dir(dir)
 		wg.Add(1)
 		go func() {
