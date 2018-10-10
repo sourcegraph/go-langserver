@@ -51,10 +51,9 @@ func defaultFindPackageFunc(ctx context.Context, bctx *build.Context, importPath
 
 	res, err = bctx.Import(importPath, fromDir, mode)
 	if err != nil && !dirInGOPATH {
-		// Workspace is out of GOPATH, we have 3 fallback dirs:
+		// Workspace is out of GOPATH, we have 2 fallback dirs:
 		// 1. local package;
 		// 2. project level vendored package;
-		// 3. nested vendored package.
 		// Packages in go.mod file but not in vendor dir are not supported yet. :(
 		fallBackDirs := make([]string, 0, 3)
 
@@ -64,7 +63,6 @@ func defaultFindPackageFunc(ctx context.Context, bctx *build.Context, importPath
 		}
 		// Vendored package.
 		fallBackDirs = append(fallBackDirs, filepath.Join(rootPath, "vendor", importPath))
-		// Nested vendored packages.
 		if fromDir != rootPath && fromDir != "" {
 			fallBackDirs = append(fallBackDirs, filepath.Join(fromDir, "vendor", importPath))
 		}
@@ -74,7 +72,7 @@ func defaultFindPackageFunc(ctx context.Context, bctx *build.Context, importPath
 		for _, importDir := range fallBackDirs {
 			res, err = bctx.ImportDir(importDir, mode)
 			if res != nil {
-				res.ImportPath = importPath
+				res.ImportPath = util.PathTrimPrefix(importDir, filepath.Dir(rootPath))
 			}
 			if err == nil {
 				break
