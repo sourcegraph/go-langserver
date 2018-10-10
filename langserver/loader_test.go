@@ -45,7 +45,7 @@ func TestLoader(t *testing.T) {
 	for label, tc := range loaderCases {
 		t.Run(label, func(t *testing.T) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
-			p, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc)
+			p, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc, "/src/p")
 			if err != nil {
 				t.Error(err)
 			} else if len(p.Created) == 0 {
@@ -70,7 +70,7 @@ func BenchmarkLoader(b *testing.B) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.fs)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if _, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc); err != nil {
+				if _, _, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc, "/src/p"); err != nil {
 					b.Error(err)
 				}
 			}
@@ -118,7 +118,7 @@ func TestLoaderDiagnostics(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			fset, bctx, bpkg := setUpLoaderTest(tc.FS)
-			_, diag, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc)
+			_, diag, err := typecheck(ctx, fset, bctx, bpkg, defaultFindPackageFunc, "/src/p")
 			if err != nil {
 				t.Error(err)
 			}

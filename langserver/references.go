@@ -165,9 +165,13 @@ func (h *LangHandler) handleTextDocumentReferences(ctx context.Context, conn jso
 			// which is much faster. See https://golang.org/cl/97800/.
 			findRefErr = h.findReferencesPkgLevel(findRefCtx, bctx, fset, unseen, pkgInWorkspace, obj, refs)
 		} else {
+			findPackage := h.getFindPackageFunc()
 			lconf := loader.Config{
 				Fset:  fset,
 				Build: bctx,
+				FindPackage: func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
+					return findPackage(findRefCtx, bctx, importPath, fromDir, h.RootFSPath, mode)
+				},
 			}
 
 			// The importgraph doesn't treat external test packages
@@ -244,7 +248,7 @@ func (h *LangHandler) reverseImportGraph(ctx context.Context, conn jsonrpc2.JSON
 			bctx := h.BuildContext(ctx)
 			findPackageWithCtx := h.getFindPackageFunc()
 			findPackage := func(bctx *build.Context, importPath, fromDir string, mode build.ImportMode) (*build.Package, error) {
-				return findPackageWithCtx(ctx, bctx, importPath, fromDir, mode)
+				return findPackageWithCtx(ctx, bctx, importPath, fromDir, h.RootFSPath, mode)
 			}
 			g := tools.BuildReverseImportGraph(bctx, findPackage, h.FilePath(h.init.Root()))
 			h.mu.Lock()
@@ -548,7 +552,7 @@ func (h *LangHandler) findReferencesPkgLevel(ctx context.Context, bctx *build.Co
 			// Resolve package.
 			// TODO: is fromDir == "" correct?
 			sema <- struct{}{} // acquire token
-			pkg, err := find(ctx, bctx, u, "", build.IgnoreVendor)
+			pkg, err := find(ctx, bctx, u, "", h.RootFSPath, build.IgnoreVendor)
 			<-sema // release token
 			if err != nil {
 				return

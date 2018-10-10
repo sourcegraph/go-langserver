@@ -55,7 +55,7 @@ func (h *LangHandler) BuildContext(ctx context.Context) *build.Context {
 //   workspace's code, not its deps).
 // * if the file is in the xtest package (package p_test not package p),
 //   it returns build.Package only representing that xtest package
-func ContainingPackage(bctx *build.Context, filename string) (*build.Package, error) {
+func ContainingPackage(bctx *build.Context, filename, rootPath string) (*build.Package, error) {
 	gopaths := buildutil.SplitPathList(bctx, bctx.GOPATH) // list will be empty with no GOPATH
 	for _, gopath := range gopaths {
 		if !buildutil.IsAbsPath(bctx, gopath) {
@@ -67,11 +67,11 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 	if !bctx.IsDir(filename) {
 		pkgDir = path.Dir(filename)
 	}
+
 	var srcDir string
 	if util.PathHasPrefix(filename, bctx.GOROOT) {
 		srcDir = bctx.GOROOT // if workspace is Go stdlib
 	} else {
-		srcDir = "" // with no GOPATH, only stdlib will work
 		for _, gopath := range gopaths {
 			if util.PathHasPrefix(pkgDir, gopath) {
 				srcDir = gopath
@@ -79,10 +79,26 @@ func ContainingPackage(bctx *build.Context, filename string) (*build.Package, er
 			}
 		}
 	}
-	srcDir = path.Join(filepath.ToSlash(srcDir), "src")
-	importPath := util.PathTrimPrefix(pkgDir, srcDir)
-	var xtest bool
-	pkg, err := bctx.Import(importPath, pkgDir, 0)
+
+	var (
+		pkg   *build.Package
+		err   error
+		xtest bool
+	)
+
+	if srcDir == "" {
+		// workspace is out of GOPATH
+		pkg, err = bctx.ImportDir(pkgDir, 0)
+		if pkg != nil {
+			parts := strings.Split(util.PathTrimPrefix(pkgDir, filepath.Dir(rootPath)), "vendor/")
+			pkg.ImportPath = parts[len(parts)-1]
+		}
+	} else {
+		srcDir = path.Join(filepath.ToSlash(srcDir), "src")
+		importPath := util.PathTrimPrefix(pkgDir, srcDir)
+		pkg, err = bctx.Import(importPath, pkgDir, 0)
+	}
+
 	if pkg != nil {
 		base := path.Base(filename)
 		for _, f := range pkg.XTestGoFiles {

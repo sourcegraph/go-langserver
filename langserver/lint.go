@@ -45,7 +45,8 @@ func (h *LangHandler) lint(ctx context.Context, bctx *build.Context, conn jsonrp
 
 // lintPackage runs LangHandler.lint for the package containing the uri.
 func (h *LangHandler) lintPackage(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2, uri lsp.DocumentURI) error {
-	pkg, err := ContainingPackage(h.BuildContext(ctx), h.FilePath(uri))
+	filename := h.FilePath(uri)
+	pkg, err := ContainingPackage(h.BuildContext(ctx), filename, h.RootFSPath)
 	if err != nil {
 		return err
 	}
@@ -54,22 +55,23 @@ func (h *LangHandler) lintPackage(ctx context.Context, bctx *build.Context, conn
 	for _, f := range pkg.GoFiles {
 		files = append(files, path.Join(pkg.Dir, f))
 	}
-
-	return h.lint(ctx, bctx, conn, []string{pkg.ImportPath}, files)
+	return h.lint(ctx, bctx, conn, []string{path.Dir(filename)}, files)
 }
 
 // lintWorkspace runs LangHandler.lint for the entire workspace
 func (h *LangHandler) lintWorkspace(ctx context.Context, bctx *build.Context, conn jsonrpc2.JSONRPC2) error {
-	rootPkg, err := ContainingPackage(h.BuildContext(ctx), h.RootFSPath)
-	if err != nil {
-		return err
-	}
-
 	var files []string
 	pkgs := tools.ListPkgsUnderDir(bctx, h.RootFSPath)
+	find := h.getFindPackageFunc()
 	for _, pkg := range pkgs {
-		p, err := bctx.Import(pkg, h.RootFSPath, 0)
+		p, err := find(ctx, bctx, pkg, h.RootFSPath, h.RootFSPath, 0)
 		if err != nil {
+			if _, ok := err.(*build.NoGoError); ok {
+				continue
+			}
+			if _, ok := err.(*build.MultiplePackageError); ok {
+				continue
+			}
 			return err
 		}
 
@@ -77,8 +79,7 @@ func (h *LangHandler) lintWorkspace(ctx context.Context, bctx *build.Context, co
 			files = append(files, path.Join(p.Dir, f))
 		}
 	}
-
-	return h.lint(ctx, bctx, conn, []string{path.Join(rootPkg.ImportPath, "/...")}, files)
+	return h.lint(ctx, bctx, conn, []string{path.Join(h.RootFSPath, "/...")}, files)
 }
 
 // golint is a wrapper around the golint command that implements the
@@ -105,7 +106,6 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 		return nil, fmt.Errorf("lint command error: %s", err)
 	}
 	defer stdout.Close()
-
 
 	err = cmd.Start()
 	if err != nil {
