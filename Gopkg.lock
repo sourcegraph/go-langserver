@@ -166,6 +166,17 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:ad862dc3ca096db0ab0aacc1b6c9042df9d4712e26d5c441eb8d9ec3a63d4112"
+  name = "github.com/sourcegraph/go-lsp"
+  packages = [
+    ".",
+    "lspext",
+  ]
+  pruneopts = "NUT"
+  revision = "4631ffd93a18dc7dd940f937be13589f6ff79826"
+
+[[projects]]
+  branch = "master"
   digest = "1:dc9552c84e344290692c6eed4c0942c9de801deed795fc3b169d654243d433cd"
   name = "github.com/sourcegraph/jsonrpc2"
   packages = ["."]
@@ -227,6 +238,8 @@
     "github.com/prometheus/client_golang/prometheus",
     "github.com/slimsag/godocmd",
     "github.com/sourcegraph/ctxvfs",
+    "github.com/sourcegraph/go-lsp",
+    "github.com/sourcegraph/go-lsp/lspext",
     "github.com/sourcegraph/jsonrpc2",
     "golang.org/x/net/context",
     "golang.org/x/tools/go/ast/astutil",

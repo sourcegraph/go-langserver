@@ -1,165 +1,36 @@
 package lsp
 
-import "fmt"
-
-type Position struct {
-	/**
-	 * Line position in a document (zero-based).
-	 */
-	Line int `json:"line"`
-
-	/**
-	 * Character offset on a line in a document (zero-based).
-	 */
-	Character int `json:"character"`
-}
-
-func (p Position) String() string {
-	return fmt.Sprintf("%d:%d", p.Line, p.Character)
-}
-
-type Range struct {
-	/**
-	 * The range's start position.
-	 */
-	Start Position `json:"start"`
-
-	/**
-	 * The range's end position.
-	 */
-	End Position `json:"end"`
-}
-
-func (r Range) String() string {
-	return fmt.Sprintf("%s-%s", r.Start, r.End)
-}
-
-type Location struct {
-	URI   DocumentURI `json:"uri"`
-	Range Range       `json:"range"`
-}
-
-type Diagnostic struct {
-	/**
-	 * The range at which the message applies.
-	 */
-	Range Range `json:"range"`
-
-	/**
-	 * The diagnostic's severity. Can be omitted. If omitted it is up to the
-	 * client to interpret diagnostics as error, warning, info or hint.
-	 */
-	Severity DiagnosticSeverity `json:"severity,omitempty"`
-
-	/**
-	 * The diagnostic's code. Can be omitted.
-	 */
-	Code string `json:"code,omitempty"`
-
-	/**
-	 * A human-readable string describing the source of this
-	 * diagnostic, e.g. 'typescript' or 'super lint'.
-	 */
-	Source string `json:"source,omitempty"`
-
-	/**
-	 * The diagnostic's message.
-	 */
-	Message string `json:"message"`
-}
-
-type DiagnosticSeverity int
-
-const (
-	Error       DiagnosticSeverity = 1
-	Warning                        = 2
-	Information                    = 3
-	Hint                           = 4
+import (
+	"github.com/sourcegraph/go-lsp"
 )
 
-type Command struct {
-	/**
-	 * Title of the command, like `save`.
-	 */
-	Title string `json:"title"`
-	/**
-	 * The identifier of the actual command handler.
-	 */
-	Command string `json:"command"`
-	/**
-	 * Arguments that the command handler should be
-	 * invoked with.
-	 */
-	Arguments []interface{} `json:"arguments"`
-}
+type Position = lsp.Position
 
-type TextEdit struct {
-	/**
-	 * The range of the text document to be manipulated. To insert
-	 * text into a document create a range where start === end.
-	 */
-	Range Range `json:"range"`
+type Range = lsp.Range
 
-	/**
-	 * The string to be inserted. For delete operations use an
-	 * empty string.
-	 */
-	NewText string `json:"newText"`
-}
+type Location = lsp.Location
 
-type WorkspaceEdit struct {
-	/**
-	 * Holds changes to existing resources.
-	 */
-	Changes map[string][]TextEdit `json:"changes"`
-}
+type Diagnostic = lsp.Diagnostic
 
-type TextDocumentIdentifier struct {
-	/**
-	 * The text document's URI.
-	 */
-	URI DocumentURI `json:"uri"`
-}
+type DiagnosticSeverity = lsp.DiagnosticSeverity
 
-type TextDocumentItem struct {
-	/**
-	 * The text document's URI.
-	 */
-	URI DocumentURI `json:"uri"`
+const (
+	Error       = lsp.Error
+	Warning     = lsp.Warning
+	Information = lsp.Information
+	Hint        = lsp.Hint
+)
 
-	/**
-	 * The text document's language identifier.
-	 */
-	LanguageID string `json:"languageId"`
+type Command = lsp.Command
 
-	/**
-	 * The version number of this document (it will strictly increase after each
-	 * change, including undo/redo).
-	 */
-	Version int `json:"version"`
+type TextEdit = lsp.TextEdit
 
-	/**
-	 * The content of the opened text document.
-	 */
-	Text string `json:"text"`
-}
+type WorkspaceEdit = lsp.WorkspaceEdit
 
-type VersionedTextDocumentIdentifier struct {
-	TextDocumentIdentifier
-	/**
-	 * The version number of this document.
-	 */
-	Version int `json:"version"`
-}
+type TextDocumentIdentifier = lsp.TextDocumentIdentifier
 
-type TextDocumentPositionParams struct {
-	/**
-	 * The text document.
-	 */
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
+type TextDocumentItem = lsp.TextDocumentItem
 
-	/**
-	 * The position inside the text document.
-	 */
-	Position Position `json:"position"`
-}
+type VersionedTextDocumentIdentifier = lsp.VersionedTextDocumentIdentifier
+
+type TextDocumentPositionParams = lsp.TextDocumentPositionParams

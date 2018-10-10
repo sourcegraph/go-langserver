@@ -1,296 +1,93 @@
 package lsp
 
 import (
-	"bytes"
-	"encoding/json"
-	"strings"
+	"github.com/sourcegraph/go-lsp"
 )
 
-type None struct{}
+type None = lsp.None
 
-type InitializeParams struct {
-	ProcessID int `json:"processId,omitempty"`
+type InitializeParams = lsp.InitializeParams
 
-	// RootPath is DEPRECATED in favor of the RootURI field.
-	RootPath string `json:"rootPath,omitempty"`
+type DocumentURI = lsp.DocumentURI
 
-	RootURI               DocumentURI        `json:"rootUri,omitempty"`
-	InitializationOptions interface{}        `json:"initializationOptions,omitempty"`
-	Capabilities          ClientCapabilities `json:"capabilities"`
-}
+type ClientCapabilities = lsp.ClientCapabilities
 
-// Root returns the RootURI if set, or otherwise the RootPath with 'file://' prepended.
-func (p *InitializeParams) Root() DocumentURI {
-	if p.RootURI != "" {
-		return p.RootURI
-	}
-	if strings.HasPrefix(p.RootPath, "file://") {
-		return DocumentURI(p.RootPath)
-	}
-	return DocumentURI("file://" + p.RootPath)
-}
+type WorkspaceClientCapabilities = lsp.WorkspaceClientCapabilities
 
-type DocumentURI string
+type TextDocumentClientCapabilities = lsp.TextDocumentClientCapabilities
 
-type ClientCapabilities struct {
-	Workspace    WorkspaceClientCapabilities    `json:"workspace,omitempty"`
-	TextDocument TextDocumentClientCapabilities `json:"textDocument,omitempty"`
-	Experimental interface{}                    `json:"experimental,omitempty"`
+type InitializeResult = lsp.InitializeResult
 
-	// Below are Sourcegraph extensions. They do not live in lspext since
-	// they are extending the field InitializeParams.Capabilities
-
-	// XFilesProvider indicates the client provides support for
-	// workspace/xfiles. This is a Sourcegraph extension.
-	XFilesProvider bool `json:"xfilesProvider,omitempty"`
-
-	// XContentProvider indicates the client provides support for
-	// textDocument/xcontent. This is a Sourcegraph extension.
-	XContentProvider bool `json:"xcontentProvider,omitempty"`
-
-	// XCacheProvider indicates the client provides support for cache/get
-	// and cache/set.
-	XCacheProvider bool `json:"xcacheProvider,omitempty"`
-}
-
-type WorkspaceClientCapabilities struct{}
-
-type TextDocumentClientCapabilities struct {
-	Completion struct {
-		CompletionItemKind struct {
-			ValueSet []CompletionItemKind `json:"valueSet,omitempty"`
-		} `json:"completionItemKind,omitempty"`
-		CompletionItem struct {
-			SnippetSupport bool `json:"snippetSupport,omitempty"`
-		} `json:"completionItem,omitempty"`
-	} `json:"completion,omitempty"`
-
-	Implementation *struct {
-		DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
-	} `json:"implementation,omitempty"`
-}
-
-type InitializeResult struct {
-	Capabilities ServerCapabilities `json:"capabilities,omitempty"`
-}
-
-type InitializeError struct {
-	Retry bool `json:"retry"`
-}
+type InitializeError = lsp.InitializeError
 
 // TextDocumentSyncKind is a DEPRECATED way to describe how text
 // document syncing works. Use TextDocumentSyncOptions instead (or the
 // Options field of TextDocumentSyncOptionsOrKind if you need to
 // support JSON-(un)marshaling both).
-type TextDocumentSyncKind int
+type TextDocumentSyncKind = lsp.TextDocumentSyncKind
 
 const (
-	TDSKNone        TextDocumentSyncKind = 0
-	TDSKFull        TextDocumentSyncKind = 1
-	TDSKIncremental TextDocumentSyncKind = 2
+	TDSKNone        = lsp.TDSKNone
+	TDSKFull        = lsp.TDSKFull
+	TDSKIncremental = lsp.TDSKIncremental
 )
 
-type TextDocumentSyncOptions struct {
-	OpenClose         bool                 `json:"openClose,omitempty"`
-	Change            TextDocumentSyncKind `json:"change"`
-	WillSave          bool                 `json:"willSave,omitempty"`
-	WillSaveWaitUntil bool                 `json:"willSaveWaitUntil,omitempty"`
-	Save              *SaveOptions         `json:"save,omitempty"`
-}
+type TextDocumentSyncOptions = lsp.TextDocumentSyncOptions
 
 // TextDocumentSyncOptions holds either a TextDocumentSyncKind or
 // TextDocumentSyncOptions. The LSP API allows either to be specified
 // in the (ServerCapabilities).TextDocumentSync field.
-type TextDocumentSyncOptionsOrKind struct {
-	Kind    *TextDocumentSyncKind
-	Options *TextDocumentSyncOptions
-}
+type TextDocumentSyncOptionsOrKind = lsp.TextDocumentSyncOptionsOrKind
 
-// MarshalJSON implements json.Marshaler.
-func (v *TextDocumentSyncOptionsOrKind) MarshalJSON() ([]byte, error) {
-	if v == nil {
-		return []byte("null"), nil
-	}
-	if v.Kind != nil {
-		return json.Marshal(v.Kind)
-	}
-	return json.Marshal(v.Options)
-}
+type SaveOptions = lsp.SaveOptions
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (v *TextDocumentSyncOptionsOrKind) UnmarshalJSON(data []byte) error {
-	if bytes.Equal(data, []byte("null")) {
-		*v = TextDocumentSyncOptionsOrKind{}
-		return nil
-	}
-	var kind TextDocumentSyncKind
-	if err := json.Unmarshal(data, &kind); err == nil {
-		// Create equivalent TextDocumentSyncOptions using the same
-		// logic as in vscode-languageclient. Also set the Kind field
-		// so that JSON-marshaling and unmarshaling are inverse
-		// operations (for backward compatibility, preserving the
-		// original input but accepting both).
-		*v = TextDocumentSyncOptionsOrKind{
-			Options: &TextDocumentSyncOptions{OpenClose: true, Change: kind},
-			Kind:    &kind,
-		}
-		return nil
-	}
-	var tmp TextDocumentSyncOptions
-	if err := json.Unmarshal(data, &tmp); err != nil {
-		return err
-	}
-	*v = TextDocumentSyncOptionsOrKind{Options: &tmp}
-	return nil
-}
+type ServerCapabilities = lsp.ServerCapabilities
 
-type SaveOptions struct {
-	IncludeText bool `json:"includeText"`
-}
+type CompletionOptions = lsp.CompletionOptions
 
-type ServerCapabilities struct {
-	TextDocumentSync                 *TextDocumentSyncOptionsOrKind   `json:"textDocumentSync,omitempty"`
-	HoverProvider                    bool                             `json:"hoverProvider,omitempty"`
-	CompletionProvider               *CompletionOptions               `json:"completionProvider,omitempty"`
-	SignatureHelpProvider            *SignatureHelpOptions            `json:"signatureHelpProvider,omitempty"`
-	DefinitionProvider               bool                             `json:"definitionProvider,omitempty"`
-	TypeDefinitionProvider           bool                             `json:"typeDefinitionProvider,omitempty"`
-	ReferencesProvider               bool                             `json:"referencesProvider,omitempty"`
-	DocumentHighlightProvider        bool                             `json:"documentHighlightProvider,omitempty"`
-	DocumentSymbolProvider           bool                             `json:"documentSymbolProvider,omitempty"`
-	WorkspaceSymbolProvider          bool                             `json:"workspaceSymbolProvider,omitempty"`
-	ImplementationProvider           bool                             `json:"implementationProvider,omitempty"`
-	CodeActionProvider               bool                             `json:"codeActionProvider,omitempty"`
-	CodeLensProvider                 *CodeLensOptions                 `json:"codeLensProvider,omitempty"`
-	DocumentFormattingProvider       bool                             `json:"documentFormattingProvider,omitempty"`
-	DocumentRangeFormattingProvider  bool                             `json:"documentRangeFormattingProvider,omitempty"`
-	DocumentOnTypeFormattingProvider *DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
-	RenameProvider                   bool                             `json:"renameProvider,omitempty"`
-	ExecuteCommandProvider           *ExecuteCommandOptions           `json:"executeCommandProvider,omitempty"`
+type DocumentOnTypeFormattingOptions = lsp.DocumentOnTypeFormattingOptions
 
-	// XWorkspaceReferencesProvider indicates the server provides support for
-	// xworkspace/references. This is a Sourcegraph extension.
-	XWorkspaceReferencesProvider bool `json:"xworkspaceReferencesProvider,omitempty"`
+type CodeLensOptions = lsp.CodeLensOptions
 
-	// XDefinitionProvider indicates the server provides support for
-	// textDocument/xdefinition. This is a Sourcegraph extension.
-	XDefinitionProvider bool `json:"xdefinitionProvider,omitempty"`
+type SignatureHelpOptions = lsp.SignatureHelpOptions
 
-	// XWorkspaceSymbolByProperties indicates the server provides support for
-	// querying symbols by properties with WorkspaceSymbolParams.symbol. This
-	// is a Sourcegraph extension.
-	XWorkspaceSymbolByProperties bool `json:"xworkspaceSymbolByProperties,omitempty"`
+type ExecuteCommandOptions = lsp.ExecuteCommandOptions
 
-	Experimental interface{} `json:"experimental,omitempty"`
-}
+type ExecuteCommandParams = lsp.ExecuteCommandParams
 
-type CompletionOptions struct {
-	ResolveProvider   bool     `json:"resolveProvider,omitempty"`
-	TriggerCharacters []string `json:"triggerCharacters,omitempty"`
-}
-
-type DocumentOnTypeFormattingOptions struct {
-	FirstTriggerCharacter string   `json:"firstTriggerCharacter"`
-	MoreTriggerCharacter  []string `json:"moreTriggerCharacter,omitempty"`
-}
-
-type CodeLensOptions struct {
-	ResolveProvider bool `json:"resolveProvider,omitempty"`
-}
-
-type SignatureHelpOptions struct {
-	TriggerCharacters []string `json:"triggerCharacters,omitempty"`
-}
-
-type ExecuteCommandOptions struct {
-	Commands []string `json:"commands"`
-}
-
-type ExecuteCommandParams struct {
-	Command   string        `json:"command"`
-	Arguments []interface{} `json:"arguments,omitempty"`
-}
-
-type CompletionItemKind int
+type CompletionItemKind = lsp.CompletionItemKind
 
 const (
-	_ CompletionItemKind = iota
-	CIKText
-	CIKMethod
-	CIKFunction
-	CIKConstructor
-	CIKField
-	CIKVariable
-	CIKClass
-	CIKInterface
-	CIKModule
-	CIKProperty
-	CIKUnit
-	CIKValue
-	CIKEnum
-	CIKKeyword
-	CIKSnippet
-	CIKColor
-	CIKFile
-	CIKReference
-	CIKFolder
-	CIKEnumMember
-	CIKConstant
-	CIKStruct
-	CIKEvent
-	CIKOperator
-	CIKTypeParameter
+	CIKText          = lsp.CIKText
+	CIKMethod        = lsp.CIKMethod
+	CIKFunction      = lsp.CIKFunction
+	CIKConstructor   = lsp.CIKConstructor
+	CIKField         = lsp.CIKField
+	CIKVariable      = lsp.CIKVariable
+	CIKClass         = lsp.CIKClass
+	CIKInterface     = lsp.CIKInterface
+	CIKModule        = lsp.CIKModule
+	CIKProperty      = lsp.CIKProperty
+	CIKUnit          = lsp.CIKUnit
+	CIKValue         = lsp.CIKValue
+	CIKEnum          = lsp.CIKEnum
+	CIKKeyword       = lsp.CIKKeyword
+	CIKSnippet       = lsp.CIKSnippet
+	CIKColor         = lsp.CIKColor
+	CIKFile          = lsp.CIKFile
+	CIKReference     = lsp.CIKReference
+	CIKFolder        = lsp.CIKFolder
+	CIKEnumMember    = lsp.CIKEnumMember
+	CIKConstant      = lsp.CIKConstant
+	CIKStruct        = lsp.CIKStruct
+	CIKEvent         = lsp.CIKEvent
+	CIKOperator      = lsp.CIKOperator
+	CIKTypeParameter = lsp.CIKTypeParameter
 )
 
-func (c CompletionItemKind) String() string {
-	return completionItemKindName[c]
-}
+type CompletionItem = lsp.CompletionItem
 
-var completionItemKindName = map[CompletionItemKind]string{
-	CIKText:          "text",
-	CIKMethod:        "method",
-	CIKFunction:      "function",
-	CIKConstructor:   "constructor",
-	CIKField:         "field",
-	CIKVariable:      "variable",
-	CIKClass:         "class",
-	CIKInterface:     "interface",
-	CIKModule:        "module",
-	CIKProperty:      "property",
-	CIKUnit:          "unit",
-	CIKValue:         "value",
-	CIKEnum:          "enum",
-	CIKKeyword:       "keyword",
-	CIKSnippet:       "snippet",
-	CIKColor:         "color",
-	CIKFile:          "file",
-	CIKReference:     "reference",
-	CIKFolder:        "folder",
-	CIKEnumMember:    "enumMember",
-	CIKConstant:      "constant",
-	CIKStruct:        "struct",
-	CIKEvent:         "event",
-	CIKOperator:      "operator",
-	CIKTypeParameter: "typeParameter",
-}
-
-type CompletionItem struct {
-	Label            string             `json:"label"`
-	Kind             CompletionItemKind `json:"kind,omitempty"`
-	Detail           string             `json:"detail,omitempty"`
-	Documentation    string             `json:"documentation,omitempty"`
-	SortText         string             `json:"sortText,omitempty"`
-	FilterText       string             `json:"filterText,omitempty"`
-	InsertText       string             `json:"insertText,omitempty"`
-	InsertTextFormat InsertTextFormat   `json:"insertTextFormat,omitempty"`
-	TextEdit         *TextEdit          `json:"textEdit,omitempty"`
-	Data             interface{}        `json:"data,omitempty"`
-}
-
-type CompletionList struct {
-	IsIncomplete bool             `json:"isIncomplete"`
-	Items        []CompletionItem `json:"items"`
-}
+type CompletionList = lsp.CompletionList
 
 type CompletionTriggerKind int
 
@@ -299,340 +96,150 @@ const (
 	CTKTriggerCharacter                       = 2
 )
 
-type InsertTextFormat int
+type InsertTextFormat = lsp.InsertTextFormat
 
 const (
-	ITFPlainText InsertTextFormat = 1
-	ITFSnippet                    = 2
+	ITFPlainText = lsp.ITFPlainText
+	ITFSnippet   = lsp.ITFSnippet
 )
 
-type CompletionContext struct {
-	TriggerKind      CompletionTriggerKind `json:"triggerKind"`
-	TriggerCharacter string                `json:"triggerCharacter,omitempty"`
-}
+type CompletionContext = lsp.CompletionContext
 
-type CompletionParams struct {
-	TextDocumentPositionParams
-	Context CompletionContext `json:"context,omitempty"`
-}
+type CompletionParams = lsp.CompletionParams
 
-type Hover struct {
-	Contents []MarkedString `json:"contents"`
-	Range    *Range         `json:"range,omitempty"`
-}
+type Hover = lsp.Hover
 
-type hover Hover
-
-func (h Hover) MarshalJSON() ([]byte, error) {
-	if h.Contents == nil {
-		return json.Marshal(hover{
-			Contents: []MarkedString{},
-			Range:    h.Range,
-		})
-	}
-	return json.Marshal(hover(h))
-}
-
-type MarkedString markedString
-
-type markedString struct {
-	Language string `json:"language"`
-	Value    string `json:"value"`
-
-	isRawString bool
-}
-
-func (m *MarkedString) UnmarshalJSON(data []byte) error {
-	if d := strings.TrimSpace(string(data)); len(d) > 0 && d[0] == '"' {
-		// Raw string
-		var s string
-		if err := json.Unmarshal(data, &s); err != nil {
-			return err
-		}
-		m.Value = s
-		m.isRawString = true
-		return nil
-	}
-	// Language string
-	ms := (*markedString)(m)
-	return json.Unmarshal(data, ms)
-}
-
-func (m MarkedString) MarshalJSON() ([]byte, error) {
-	if m.isRawString {
-		return json.Marshal(m.Value)
-	}
-	return json.Marshal((markedString)(m))
-}
+type MarkedString = lsp.MarkedString
 
 // RawMarkedString returns a MarkedString consisting of only a raw
 // string (i.e., "foo" instead of {"value":"foo", "language":"bar"}).
 func RawMarkedString(s string) MarkedString {
-	return MarkedString{Value: s, isRawString: true}
+	return lsp.RawMarkedString(s)
 }
 
-type SignatureHelp struct {
-	Signatures      []SignatureInformation `json:"signatures"`
-	ActiveSignature int                    `json:"activeSignature"`
-	ActiveParameter int                    `json:"activeParameter"`
-}
+type SignatureHelp = lsp.SignatureHelp
 
-type SignatureInformation struct {
-	Label         string                 `json:"label"`
-	Documentation string                 `json:"documentation,omitempty"`
-	Parameters    []ParameterInformation `json:"parameters,omitempty"`
-}
+type SignatureInformation = lsp.SignatureInformation
 
-type ParameterInformation struct {
-	Label         string `json:"label"`
-	Documentation string `json:"documentation,omitempty"`
-}
+type ParameterInformation = lsp.ParameterInformation
 
-type ReferenceContext struct {
-	IncludeDeclaration bool `json:"includeDeclaration"`
+type ReferenceContext = lsp.ReferenceContext
 
-	// Sourcegraph extension
-	XLimit int `json:"xlimit,omitempty"`
-}
+type ReferenceParams = lsp.ReferenceParams
 
-type ReferenceParams struct {
-	TextDocumentPositionParams
-	Context ReferenceContext `json:"context"`
-}
-
-type DocumentHighlightKind int
+type DocumentHighlightKind = lsp.DocumentHighlightKind
 
 const (
-	Text  DocumentHighlightKind = 1
-	Read                        = 2
-	Write                       = 3
+	Text  = lsp.Text
+	Read  = lsp.Read
+	Write = lsp.Write
 )
 
-type DocumentHighlight struct {
-	Range Range `json:"range"`
-	Kind  int   `json:"kind,omitempty"`
-}
+type DocumentHighlight = lsp.DocumentHighlight
 
-type DocumentSymbolParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-}
+type DocumentSymbolParams = lsp.DocumentSymbolParams
 
-type SymbolKind int
+type SymbolKind = lsp.SymbolKind
 
 // The SymbolKind values are defined at https://microsoft.github.io/language-server-protocol/specification.
 const (
-	SKFile          SymbolKind = 1
-	SKModule        SymbolKind = 2
-	SKNamespace     SymbolKind = 3
-	SKPackage       SymbolKind = 4
-	SKClass         SymbolKind = 5
-	SKMethod        SymbolKind = 6
-	SKProperty      SymbolKind = 7
-	SKField         SymbolKind = 8
-	SKConstructor   SymbolKind = 9
-	SKEnum          SymbolKind = 10
-	SKInterface     SymbolKind = 11
-	SKFunction      SymbolKind = 12
-	SKVariable      SymbolKind = 13
-	SKConstant      SymbolKind = 14
-	SKString        SymbolKind = 15
-	SKNumber        SymbolKind = 16
-	SKBoolean       SymbolKind = 17
-	SKArray         SymbolKind = 18
-	SKObject        SymbolKind = 19
-	SKKey           SymbolKind = 20
-	SKNull          SymbolKind = 21
-	SKEnumMember    SymbolKind = 22
-	SKStruct        SymbolKind = 23
-	SKEvent         SymbolKind = 24
-	SKOperator      SymbolKind = 25
-	SKTypeParameter SymbolKind = 26
+	SKFile          = lsp.SKFile
+	SKModule        = lsp.SKModule
+	SKNamespace     = lsp.SKNamespace
+	SKPackage       = lsp.SKPackage
+	SKClass         = lsp.SKClass
+	SKMethod        = lsp.SKMethod
+	SKProperty      = lsp.SKProperty
+	SKField         = lsp.SKField
+	SKConstructor   = lsp.SKConstructor
+	SKEnum          = lsp.SKEnum
+	SKInterface     = lsp.SKInterface
+	SKFunction      = lsp.SKFunction
+	SKVariable      = lsp.SKVariable
+	SKConstant      = lsp.SKConstant
+	SKString        = lsp.SKString
+	SKNumber        = lsp.SKNumber
+	SKBoolean       = lsp.SKBoolean
+	SKArray         = lsp.SKArray
+	SKObject        = lsp.SKObject
+	SKKey           = lsp.SKKey
+	SKNull          = lsp.SKNull
+	SKEnumMember    = lsp.SKEnumMember
+	SKStruct        = lsp.SKStruct
+	SKEvent         = lsp.SKEvent
+	SKOperator      = lsp.SKOperator
+	SKTypeParameter = lsp.SKTypeParameter
 )
 
-func (s SymbolKind) String() string {
-	return symbolKindName[s]
-}
+type SymbolInformation = lsp.SymbolInformation
 
-var symbolKindName = map[SymbolKind]string{
-	SKFile:          "File",
-	SKModule:        "Module",
-	SKNamespace:     "Namespace",
-	SKPackage:       "Package",
-	SKClass:         "Class",
-	SKMethod:        "Method",
-	SKProperty:      "Property",
-	SKField:         "Field",
-	SKConstructor:   "Constructor",
-	SKEnum:          "Enum",
-	SKInterface:     "Interface",
-	SKFunction:      "Function",
-	SKVariable:      "Variable",
-	SKConstant:      "Constant",
-	SKString:        "String",
-	SKNumber:        "Number",
-	SKBoolean:       "Boolean",
-	SKArray:         "Array",
-	SKObject:        "Object",
-	SKKey:           "Key",
-	SKNull:          "Null",
-	SKEnumMember:    "EnumMember",
-	SKStruct:        "Struct",
-	SKEvent:         "Event",
-	SKOperator:      "Operator",
-	SKTypeParameter: "TypeParameter",
-}
+type WorkspaceSymbolParams = lsp.WorkspaceSymbolParams
 
-type SymbolInformation struct {
-	Name          string     `json:"name"`
-	Kind          SymbolKind `json:"kind"`
-	Location      Location   `json:"location"`
-	ContainerName string     `json:"containerName,omitempty"`
-}
+type ConfigurationParams = lsp.ConfigurationParams
 
-type WorkspaceSymbolParams struct {
-	Query string `json:"query"`
-	Limit int    `json:"limit"`
-}
+type ConfigurationItem = lsp.ConfigurationItem
 
-type ConfigurationParams struct {
-	Items []ConfigurationItem `json:"items"`
-}
+type ConfigurationResult = lsp.ConfigurationResult
 
-type ConfigurationItem struct {
-	ScopeURI string `json:"scopeUri,omitempty"`
-	Section  string `json:"section,omitempty"`
-}
+type CodeActionContext = lsp.CodeActionContext
 
-type ConfigurationResult []interface{}
+type CodeActionParams = lsp.CodeActionParams
 
-type CodeActionContext struct {
-	Diagnostics []Diagnostic `json:"diagnostics"`
-}
+type CodeLensParams = lsp.CodeLensParams
 
-type CodeActionParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	Range        Range                  `json:"range"`
-	Context      CodeActionContext      `json:"context"`
-}
+type CodeLens = lsp.CodeLens
 
-type CodeLensParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-}
+type DocumentFormattingParams = lsp.DocumentFormattingParams
 
-type CodeLens struct {
-	Range   Range       `json:"range"`
-	Command Command     `json:"command,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-}
+type FormattingOptions = lsp.FormattingOptions
 
-type DocumentFormattingParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	Options      FormattingOptions      `json:"options"`
-}
+type RenameParams = lsp.RenameParams
 
-type FormattingOptions struct {
-	TabSize      int    `json:"tabSize"`
-	InsertSpaces bool   `json:"insertSpaces"`
-	Key          string `json:"key"`
-}
+type DidOpenTextDocumentParams = lsp.DidOpenTextDocumentParams
 
-type RenameParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	Position     Position               `json:"position"`
-	NewName      string                 `json:"newName"`
-}
+type DidChangeTextDocumentParams = lsp.DidChangeTextDocumentParams
 
-type DidOpenTextDocumentParams struct {
-	TextDocument TextDocumentItem `json:"textDocument"`
-}
+type TextDocumentContentChangeEvent = lsp.TextDocumentContentChangeEvent
 
-type DidChangeTextDocumentParams struct {
-	TextDocument   VersionedTextDocumentIdentifier  `json:"textDocument"`
-	ContentChanges []TextDocumentContentChangeEvent `json:"contentChanges"`
-}
+type DidCloseTextDocumentParams = lsp.DidCloseTextDocumentParams
 
-type TextDocumentContentChangeEvent struct {
-	Range       *Range `json:"range,omitEmpty"`
-	RangeLength uint   `json:"rangeLength,omitEmpty"`
-	Text        string `json:"text"`
-}
+type DidSaveTextDocumentParams = lsp.DidSaveTextDocumentParams
 
-type DidCloseTextDocumentParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-}
-
-type DidSaveTextDocumentParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-}
-
-type MessageType int
+type MessageType = lsp.MessageType
 
 const (
-	MTError   MessageType = 1
-	MTWarning             = 2
-	Info                  = 3
-	Log                   = 4
+	MTError   = lsp.MTError
+	MTWarning = lsp.MTWarning
+	Info      = lsp.Info
+	Log       = lsp.Log
 )
 
-type ShowMessageParams struct {
-	Type    MessageType `json:"type"`
-	Message string      `json:"message"`
-}
+type ShowMessageParams = lsp.ShowMessageParams
 
-type MessageActionItem struct {
-	Title string `json:"title"`
-}
+type MessageActionItem = lsp.MessageActionItem
 
-type ShowMessageRequestParams struct {
-	Type    MessageType         `json:"type"`
-	Message string              `json:"message"`
-	Actions []MessageActionItem `json:"actions"`
-}
+type ShowMessageRequestParams = lsp.ShowMessageRequestParams
 
-type LogMessageParams struct {
-	Type    MessageType `json:"type"`
-	Message string      `json:"message"`
-}
+type LogMessageParams = lsp.LogMessageParams
 
-type DidChangeConfigurationParams struct {
-	Settings interface{} `json:"settings"`
-}
+type DidChangeConfigurationParams = lsp.DidChangeConfigurationParams
 
-type FileChangeType int
+type FileChangeType = lsp.FileChangeType
 
 const (
-	Created FileChangeType = 1
-	Changed                = 2
-	Deleted                = 3
+	Created = lsp.Created
+	Changed = lsp.Changed
+	Deleted = lsp.Deleted
 )
 
-type FileEvent struct {
-	URI  DocumentURI `json:"uri"`
-	Type int         `json:"type"`
-}
+type FileEvent = lsp.FileEvent
 
-type DidChangeWatchedFilesParams struct {
-	Changes []FileEvent `json:"changes"`
-}
+type DidChangeWatchedFilesParams = lsp.DidChangeWatchedFilesParams
 
-type PublishDiagnosticsParams struct {
-	URI         DocumentURI  `json:"uri"`
-	Diagnostics []Diagnostic `json:"diagnostics"`
-}
+type PublishDiagnosticsParams = lsp.PublishDiagnosticsParams
 
-type DocumentRangeFormattingParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	Range        Range                  `json:"range"`
-	Options      FormattingOptions      `json:"options"`
-}
+type DocumentRangeFormattingParams = lsp.DocumentRangeFormattingParams
 
-type DocumentOnTypeFormattingParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	Position     Position               `json:"position"`
-	Ch           string                 `json:"ch"`
-	Options      FormattingOptions      `json:"formattingOptions"`
-}
+type DocumentOnTypeFormattingParams = lsp.DocumentOnTypeFormattingParams
 
-type CancelParams struct {
-	ID ID `json:"id"`
-}
+type CancelParams = lsp.CancelParams
