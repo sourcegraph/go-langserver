@@ -180,6 +180,9 @@ func TestIntegration_FileSystem_Format2(t *testing.T) {
 }
 
 func TestIntegration_FileSystem_Lint(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Test is failing on windows https://github.com/sourcegraph/go-langserver/issues/328")
+	}
 	files := map[string]string{
 		"A.go": strings.Join([]string{
 			"package p",
