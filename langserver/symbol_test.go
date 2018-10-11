@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 )
 
 func Test_resultSorter(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode"
 	"github.com/sourcegraph/go-langserver/langserver/internal/gocode/gbimporter"
 	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

@@ -17,7 +17,7 @@ import (
 	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/go-langserver/langserver/internal/godef"
 	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

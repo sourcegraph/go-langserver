@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 	"golang.org/x/tools/go/loader"
 
 	"github.com/sourcegraph/go-langserver/langserver/util"

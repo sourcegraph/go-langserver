@@ -19,9 +19,9 @@ import (
 
 	"github.com/neelance/parallel"
 	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/go-langserver/pkg/tools"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

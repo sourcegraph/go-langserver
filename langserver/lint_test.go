@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	"github.com/sourcegraph/go-lsp"
 )
 
 func TestParseLintLine(t *testing.T) {

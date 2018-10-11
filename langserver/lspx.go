@@ -1,6 +1,6 @@
 package langserver
 
-import "github.com/sourcegraph/go-langserver/pkg/lsp"
+import "github.com/sourcegraph/go-lsp"
 
 // This file contains Go-specific extensions to LSP types.
 //

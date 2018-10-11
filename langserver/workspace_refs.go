@@ -21,9 +21,9 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sourcegraph/go-langserver/langserver/internal/refs"
 	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/go-langserver/pkg/tools"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 

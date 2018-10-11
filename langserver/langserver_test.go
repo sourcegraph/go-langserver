@@ -22,8 +22,8 @@ import (
 
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/langserver/util"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/go-langserver/pkg/lspext"
+	"github.com/sourcegraph/go-lsp"
+	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 )
 
@@ -543,7 +543,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 	"go vendored dep": {
 		rootURI: "file:///src/test/pkg",
 		fs: map[string]string{
-			"a.go": `package a; import "github.com/v/vendored"; var _ = vendored.V`,
+			"a.go":                              `package a; import "github.com/v/vendored"; var _ = vendored.V`,
 			"vendor/github.com/v/vendored/v.go": "package vendored; func V() {}",
 		},
 		cases: lspTestCases{
@@ -568,7 +568,7 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 				},
 			},
 			wantSymbols: map[string][]string{
-				"a.go": {},
+				"a.go":                              {},
 				"vendor/github.com/v/vendored/v.go": {"/src/test/pkg/vendor/github.com/v/vendored/v.go:function:V:1:24"},
 			},
 			wantWorkspaceSymbols: map[*lspext.WorkspaceSymbolParams][]string{
@@ -589,13 +589,13 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 	"go vendor symbols with same name": {
 		rootURI: "file:///src/test/pkg",
 		fs: map[string]string{
-			"z.go": `package pkg; func x() bool { return true }`,
+			"z.go":                          `package pkg; func x() bool { return true }`,
 			"vendor/github.com/a/pkg2/x.go": `package pkg2; func x() bool { return true }`,
 			"vendor/github.com/x/pkg3/x.go": `package pkg3; func x() bool { return true }`,
 		},
 		cases: lspTestCases{
 			wantSymbols: map[string][]string{
-				"z.go": {"/src/test/pkg/z.go:function:x:1:19"},
+				"z.go":                          {"/src/test/pkg/z.go:function:x:1:19"},
 				"vendor/github.com/a/pkg2/x.go": {"/src/test/pkg/vendor/github.com/a/pkg2/x.go:function:x:1:20"},
 				"vendor/github.com/x/pkg3/x.go": {"/src/test/pkg/vendor/github.com/x/pkg3/x.go:function:x:1:20"},
 			},
