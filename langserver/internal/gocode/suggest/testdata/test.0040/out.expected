@@ -1,4 +1,0 @@
-Found 3 candidates:
-  func create_foo() Foo
-  type Foo struct
-  var t Foo
