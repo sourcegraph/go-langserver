@@ -116,7 +116,7 @@ func TestLinterGolint(t *testing.T) {
 			t.Errorf("unexpected error: %s", err)
 		}
 		expected := diagnostics{
-			util.UriToPath(uriA): []*lsp.Diagnostic{
+			util.UriToRealPath(uriA): []*lsp.Diagnostic{
 				{
 					Message:  "exported function A should have comment or be unexported",
 					Severity: lsp.Warning,
@@ -136,7 +136,7 @@ func TestLinterGolint(t *testing.T) {
 					},
 				},
 			},
-			util.UriToPath(uriB): []*lsp.Diagnostic{
+			util.UriToRealPath(uriB): []*lsp.Diagnostic{
 				{
 					Message:  "exported function B should have comment or be unexported",
 					Severity: lsp.Warning,
@@ -157,7 +157,7 @@ func TestLinterGolint(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
-		expected[util.UriToPath(uriD)] = []*lsp.Diagnostic{
+		expected[util.UriToRealPath(uriD)] = []*lsp.Diagnostic{
 			{
 				Message:  "exported function D should have comment or be unexported",
 				Severity: lsp.Warning,
