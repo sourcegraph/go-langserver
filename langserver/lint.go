@@ -9,6 +9,7 @@ import (
 	"log"
 	"os/exec"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -156,28 +157,25 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 	return diags, nil
 }
 
+var lintResultRe = regexp.MustCompile(`^(.+?):(\d+):(\d+:?)? (.+)$`)
+
 func parseLintResult(l string) (file string, line, char int, message string, err error) {
-	parts := strings.SplitN(l, " ", 2)
-	if len(parts) != 2 {
+	m := lintResultRe.FindStringSubmatch(l)
+	if len(m) == 0 {
 		err = fmt.Errorf("invalid result %q", l)
 		return
 	}
-	location := parts[0]
-	message = parts[1]
 
-	parts = strings.Split(location, ":")
-	if l := len(parts); l < 3 || l > 4 {
-		err = fmt.Errorf("invalid file location %q in %q", location, l)
-		return
-	}
-	file = parts[0]
-	line, err = strconv.Atoi(parts[1])
+	file = m[1]
+	message = m[4]
+
+	line, err = strconv.Atoi(m[2])
 	if err != nil {
 		err = fmt.Errorf("invalid line number in %q: %s", l, err)
 		return
 	}
-	if parts[2] != "" {
-		char, err = strconv.Atoi(parts[2])
+	if m[3] != "" {
+		char, err = strconv.Atoi(strings.TrimRight(m[3], ":"))
 		if err != nil {
 			err = fmt.Errorf("invalid char number in %q: %s", l, err)
 			return
