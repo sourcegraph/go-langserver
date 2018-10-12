@@ -6,6 +6,10 @@ go:
 
 go_import_path: github.com/sourcegraph/go-langserver
 
+os:
+  - windows
+  - linux
+
 branches:
   only:
     - master
