@@ -1,0 +1,3 @@
+# We have tests which parse files and fail if file offsets change. So disable
+# EOL conversions.
+**/testdata/* -text
