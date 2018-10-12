@@ -7,6 +7,10 @@ go:
 
 go_import_path: github.com/sourcegraph/go-langserver
 
+branches:
+  only:
+    - master
+
 install:
   - go get -d -t ./...
   - go get golang.org/x/lint/golint
