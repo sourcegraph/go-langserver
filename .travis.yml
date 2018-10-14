@@ -7,7 +7,7 @@ go:
 go_import_path: github.com/sourcegraph/go-langserver
 
 os:
-  - windows
+#  - windows
   - linux
 
 branches:
