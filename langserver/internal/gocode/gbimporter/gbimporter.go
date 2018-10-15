@@ -3,6 +3,7 @@ package gbimporter
 import (
 	"fmt"
 	"go/build"
+	goimporter "go/importer"
 	"go/types"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,8 @@ import (
 // We need to mangle go/build.Default to make gcimporter work as
 // intended, so use a lock to protect against concurrent accesses.
 var buildDefaultLock sync.Mutex
+
+var srcImporter types.ImporterFrom = goimporter.For("source", nil).(types.ImporterFrom)
 
 // importer implements types.ImporterFrom and provides transparent
 // support for gb-based projects.
@@ -81,7 +84,12 @@ func (i *importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	def.SplitPathList = i.splitPathList
 	def.JoinPath = i.joinPath
 
-	return i.underlying.ImportFrom(path, srcDir, mode)
+	pkg, err := i.underlying.ImportFrom(path, srcDir, mode)
+	if pkg == nil {
+		// If importing fails, try importing with source importer.
+		pkg, _ = srcImporter.ImportFrom(path, srcDir, mode)
+	}
+	return pkg, err
 }
 
 func (i *importer) splitPathList(list string) []string {
