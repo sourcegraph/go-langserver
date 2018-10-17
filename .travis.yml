@@ -7,16 +7,12 @@ go:
 go_import_path: github.com/sourcegraph/go-langserver
 
 os:
-#  - windows
+  - windows
   - linux
 
 branches:
   only:
     - master
-
-before_install:
-  # Go1.11 requires GCC to run go test
-  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then choco install -y mingw; export PATH=/c/tools/mingw64/bin:"$PATH"; fi
 
 install:
   - go get -d -t ./...
