@@ -12,15 +12,17 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
+	wsjsonrpc2 "github.com/sourcegraph/jsonrpc2/websocket"
 
 	_ "net/http/pprof"
 )
 
 var (
-	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr         = flag.String("addr", ":4389", "server listen address (tcp)")
+	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
+	addr         = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
 	trace        = flag.Bool("trace", false, "print all requests and responses")
 	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
 	printVersion = flag.Bool("version", false, "print version and exit")
@@ -111,14 +113,47 @@ func run(cfg langserver.Config) error {
 		}
 		defer lis.Close()
 
-		log.Println("langserver-go: listening on", *addr)
+		log.Println("langserver-go: listening for TCP connections on", *addr)
+
+		connectionCount := 0
+
 		for {
 			conn, err := lis.Accept()
 			if err != nil {
 				return err
 			}
-			jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
+			connectionCount = connectionCount + 1
+			connectionID := connectionCount
+			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
+			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
+			go func() {
+				<-jsonrpc2Connection.DisconnectNotify()
+				log.Printf("langserver-go: connection #%d closed\n", connectionID)
+			}()
 		}
+
+	case "websocket":
+		mux := http.NewServeMux()
+
+		connectionCount := 0
+
+		mux.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
+			var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+			connection, err := upgrader.Upgrade(responseWriter, request, nil)
+			if err != nil {
+				log.Println("error upgrading HTTP to WebSocket:", err)
+			}
+			defer connection.Close()
+			connectionCount = connectionCount + 1
+			connectionID := connectionCount
+			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
+			<-jsonrpc2.NewConn(context.Background(), wsjsonrpc2.NewObjectStream(connection), langserver.NewHandler(cfg), connOpt...).DisconnectNotify()
+			log.Printf("langserver-go: connection #%d closed\n", connectionID)
+		})
+
+		log.Println("langserver-go: listening for WebSocket connections on", *addr)
+		http.ListenAndServe(*addr, mux)
+		return nil
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")

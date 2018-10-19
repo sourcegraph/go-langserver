@@ -34,6 +34,14 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:4a0c072e44da763409da72d41492373a034baf2e6d849c76d239b4abdfbb6c49"
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
+  version = "v1.4.0"
+
+[[projects]]
   branch = "master"
   digest = "1:13e2fa5735a82a5fb044f290cfd0dba633d1c5e516b27da0509e0dbb3515a18e"
   name = "github.com/hashicorp/golang-lru"
@@ -177,9 +185,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:dc9552c84e344290692c6eed4c0942c9de801deed795fc3b169d654243d433cd"
+  digest = "1:76b5b88cf137c6081f0465a291ba02598047b68226069efca9d5229ce3696166"
   name = "github.com/sourcegraph/jsonrpc2"
-  packages = ["."]
+  packages = [
+    ".",
+    "websocket",
+  ]
   pruneopts = "NUT"
   revision = "a3d86c792f0f5a0c0c2c4ed9157125e914cb5534"
 
@@ -234,6 +245,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/gorilla/websocket",
     "github.com/hashicorp/golang-lru",
     "github.com/neelance/parallel",
     "github.com/opentracing/basictracer-go",
@@ -246,6 +258,7 @@
     "github.com/sourcegraph/go-lsp",
     "github.com/sourcegraph/go-lsp/lspext",
     "github.com/sourcegraph/jsonrpc2",
+    "github.com/sourcegraph/jsonrpc2/websocket",
     "golang.org/x/net/context",
     "golang.org/x/tools/go/ast/astutil",
     "golang.org/x/tools/go/buildutil",
