@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
 
@@ -19,8 +20,8 @@ import (
 )
 
 var (
-	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp)")
-	addr         = flag.String("addr", ":4389", "server listen address (tcp)")
+	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
+	addr         = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
 	trace        = flag.Bool("trace", false, "print all requests and responses")
 	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
 	printVersion = flag.Bool("version", false, "print version and exit")
@@ -111,7 +112,7 @@ func run(cfg langserver.Config) error {
 		}
 		defer lis.Close()
 
-		log.Println("langserver-go: listening on", *addr)
+		log.Println("langserver-go: listening for TCP connections on", *addr)
 		for {
 			conn, err := lis.Accept()
 			if err != nil {
@@ -119,6 +120,24 @@ func run(cfg langserver.Config) error {
 			}
 			jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
 		}
+
+	case "websocket":
+		mux := http.NewServeMux()
+
+		mux.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
+			var upgrader = websocket.Upgrader{}
+			connection, err := upgrader.Upgrade(responseWriter, request, nil)
+			if err != nil {
+				log.Println("error upgrading HTTP to WebSocket:", err)
+			}
+			defer connection.Close()
+			jc := jsonrpc2.NewConn(context.Background(), NewObjectStream(connection), handler, connOpt...)
+			<-jc.DisconnectNotify()
+		})
+
+		log.Println("PRE langserver-go: listening for WebSocket connections on", *addr)
+		http.ListenAndServe(*addr, mux)
+		return nil
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
