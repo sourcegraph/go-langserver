@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sourcegraph/ctxvfs"
-	"github.com/sourcegraph/sourcegraph/pkg/gosrc"
+	"github.com/sourcegraph/go-langserver/pkg/gosrc"
 )
 
 // addSysZversionFile adds the zversion.go file, which is generated

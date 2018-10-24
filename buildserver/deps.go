@@ -19,10 +19,10 @@ import (
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/go-langserver/langserver/util"
+	"github.com/sourcegraph/go-langserver/pkg/gosrc"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/sourcegraph/pkg/api"
 	"github.com/sourcegraph/sourcegraph/pkg/gitserver"
-	"github.com/sourcegraph/sourcegraph/pkg/gosrc"
 	"github.com/sourcegraph/sourcegraph/pkg/vcs/git"
 	"github.com/sourcegraph/sourcegraph/xlang/vfsutil"
 )
