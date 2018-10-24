@@ -1,4 +1,4 @@
-package server_test
+package buildserver_test
 
 import (
 	"bytes"
