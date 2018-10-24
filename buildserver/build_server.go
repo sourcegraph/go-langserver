@@ -43,15 +43,13 @@ var Debug = true
 // and mapping local file system paths to logical URIs (e.g.,
 // /goroot/src/fmt/print.go ->
 // git://github.com/golang/go?go1.7.1#src/fmt/print.go).
-func NewHandler() jsonrpc2.Handler {
+func NewHandler(defaultCfg langserver.Config) jsonrpc2.Handler {
 	shared := &langserver.HandlerShared{Shared: true}
 	h := &BuildHandler{
 		HandlerShared: shared,
 		lang: &langserver.LangHandler{
 			HandlerShared: shared,
-			DefaultConfig: langserver.Config{
-				MaxParallelism: runtime.GOMAXPROCS(0),
-			},
+			DefaultConfig: defaultCfg,
 		},
 	}
 	shared.FindPackage = h.findPackageCached

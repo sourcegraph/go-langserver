@@ -29,7 +29,9 @@ func (h *BuildHandler) handleWorkspacePackages(ctx context.Context, conn jsonrpc
 	findPackage := h.FindPackage
 	var pkgs []*lspext.PackageInformation
 	for _, pkg := range tools.ListPkgsUnderDir(bctx, rootPath) {
-		bpkg, err := findPackage(ctx, bctx, pkg, rootPath, 0)
+		// TODO copying rootPath might not work - need to ask @imjustfly
+		// https://github.com/sourcegraph/go-langserver/commit/a1bea1b60875305ed766a1411006c3a333de869d
+		bpkg, err := findPackage(ctx, bctx, pkg, rootPath, rootPath, 0)
 		if err != nil && !isMultiplePackageError(err) {
 			log.Printf("skipping possible package %s: %s", pkg, err)
 			continue

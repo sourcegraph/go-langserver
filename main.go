@@ -104,7 +104,7 @@ func run(cfg langserver.Config) error {
 		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
 	}
 
-	var handler Handler
+	var handler jsonrpc2.Handler
 	if useBuildServer != nil && *useBuildServer {
 		handler = buildserver.NewHandler(cfg)
 	} else {
