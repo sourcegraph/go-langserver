@@ -113,16 +113,28 @@ func run(cfg langserver.Config) error {
 		defer lis.Close()
 
 		log.Println("langserver-go: listening for TCP connections on", *addr)
+
+		newConnectionCount := 0
+
 		for {
 			conn, err := lis.Accept()
 			if err != nil {
 				return err
 			}
-			jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
+			newConnectionCount = newConnectionCount + 1
+			connectionID := newConnectionCount
+			log.Printf("langserver-go: received incoming WebSocket connection #%d\n", connectionID)
+			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
+			go func() {
+				<-jsonrpc2Connection.DisconnectNotify()
+				log.Printf("langserver-go: disconnected WebSocket connection #%d\n", connectionID)
+			}()
 		}
 
 	case "websocket":
 		mux := http.NewServeMux()
+
+		newConnectionCount := 0
 
 		mux.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
 			var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
@@ -131,7 +143,11 @@ func run(cfg langserver.Config) error {
 				log.Println("error upgrading HTTP to WebSocket:", err)
 			}
 			defer connection.Close()
+			newConnectionCount = newConnectionCount + 1
+			connectionID := newConnectionCount
+			log.Printf("langserver-go: received incoming WebSocket connection #%d\n", connectionID)
 			<-jsonrpc2.NewConn(context.Background(), NewObjectStream(connection), langserver.NewHandler(cfg), connOpt...).DisconnectNotify()
+			log.Printf("langserver-go: disconnected WebSocket connection #%d\n", connectionID)
 		})
 
 		log.Println("langserver-go: listening for WebSocket connections on", *addr)
