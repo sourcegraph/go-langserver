@@ -9,7 +9,7 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/sourcegraph/sourcegraph/pkg/api"
-	"github.com/sourcegraph/sourcegraph/xlang/lspext"
+	"github.com/sourcegraph/go-langserver/pkg/lspproxy"
 	"github.com/sourcegraph/sourcegraph/xlang/proxy"
 	"github.com/sourcegraph/sourcegraph/xlang/uri"
 )

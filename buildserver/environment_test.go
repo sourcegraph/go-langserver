@@ -7,7 +7,7 @@ import (
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-lsp"
 
-	"github.com/sourcegraph/sourcegraph/xlang/lspext"
+	"github.com/sourcegraph/go-langserver/pkg/lspproxy"
 )
 
 func TestDetermineEnvironment(t *testing.T) {

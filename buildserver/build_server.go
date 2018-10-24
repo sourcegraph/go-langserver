@@ -27,7 +27,7 @@ import (
 	"github.com/sourcegraph/go-lsp"
 	lsext "github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	"github.com/sourcegraph/sourcegraph/xlang/lspext"
+	"github.com/sourcegraph/go-langserver/pkg/lspproxy"
 )
 
 // Debug if true will cause extra logging information to be printed
