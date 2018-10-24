@@ -17,8 +17,8 @@ import (
 
 	"github.com/sourcegraph/ctxvfs"
 	gobuildserver "github.com/sourcegraph/enterprise/cmd/xlang-go/internal/server"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	lsext "github.com/sourcegraph/go-langserver/pkg/lspext"
+	"github.com/sourcegraph/go-lsp"
+	lsext "github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/sourcegraph/sourcegraph/xlang"
 	"github.com/sourcegraph/sourcegraph/xlang/lspext"

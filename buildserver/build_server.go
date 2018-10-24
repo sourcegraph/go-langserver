@@ -24,8 +24,8 @@ import (
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/gosrc"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	lsext "github.com/sourcegraph/go-langserver/pkg/lspext"
+	"github.com/sourcegraph/go-lsp"
+	lsext "github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/sourcegraph/sourcegraph/xlang/lspext"
 )
