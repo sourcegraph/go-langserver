@@ -153,7 +153,19 @@ func run(cfg langserver.Config) error {
 			newConnectionCount = newConnectionCount + 1
 			connectionID := newConnectionCount
 			log.Printf("langserver-go: received incoming WebSocket connection #%d\n", connectionID)
-			<-jsonrpc2.NewConn(context.Background(), NewObjectStream(connection), langserver.NewHandler(cfg), connOpt...).DisconnectNotify()
+
+			// I had to create a new handler on every new connection, otherwise it
+			// would throw an "already initialized" error.
+
+			// TODO figure out when to share the handler, if at all, or do not share
+			// connections at all and instead share other resources.
+			var handler jsonrpc2.Handler
+			if useBuildServer != nil && *useBuildServer {
+				handler = buildserver.NewHandler(cfg)
+			} else {
+				handler = langserver.NewHandler(cfg)
+			}
+			<-jsonrpc2.NewConn(context.Background(), NewObjectStream(connection), handler, connOpt...).DisconnectNotify()
 			log.Printf("langserver-go: disconnected WebSocket connection #%d\n", connectionID)
 		})
 
