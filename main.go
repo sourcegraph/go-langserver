@@ -1,6 +1,7 @@
 package main // import "github.com/sourcegraph/go-langserver"
 
 import (
+	"github.com/sourcegraph/go-langserver/buildserver"
 	"context"
 	"flag"
 	"fmt"
@@ -20,13 +21,14 @@ import (
 )
 
 var (
-	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
-	addr         = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
-	trace        = flag.Bool("trace", false, "print all requests and responses")
-	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
-	printVersion = flag.Bool("version", false, "print version and exit")
-	pprof        = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
-	freeosmemory = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	mode           = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
+	addr           = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
+	trace          = flag.Bool("trace", false, "print all requests and responses")
+	logfile        = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	printVersion   = flag.Bool("version", false, "print version and exit")
+	pprof          = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
+	freeosmemory   = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	useBuildServer = flag.Bool("usebuildserver", false, "use a build server to fetch dependencies, fetch files via Zip URL, etc.")
 
 	// Default Config, can be overridden by InitializationOptions
 	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance). Can be overridden by InitializationOptions.")
@@ -102,7 +104,12 @@ func run(cfg langserver.Config) error {
 		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
 	}
 
-	handler := langserver.NewHandler(cfg)
+	var handler Handler
+	if useBuildServer != nil && *useBuildServer {
+		handler = buildserver.NewHandler(cfg)
+	} else {
+		handler = langserver.NewHandler(cfg)
+	}
 
 	switch *mode {
 	case "tcp":
