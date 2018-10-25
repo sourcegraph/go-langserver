@@ -9,9 +9,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
-
-	"github.com/sourcegraph/sourcegraph/pkg/conf"
 )
 
 // Adapted from github.com/golang/gddo/gosrc.
@@ -19,48 +16,6 @@ import (
 // RuntimeVersion is the version of go stdlib to use. We allow it to be
 // different to runtime.Version for test data.
 var RuntimeVersion = runtime.Version()
-
-type noGoGetDomainsT struct {
-	mu      sync.RWMutex
-	domains []string
-}
-
-func (n *noGoGetDomainsT) get() []string {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.domains
-}
-
-func (n *noGoGetDomainsT) reconfigure() {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	// Parse noGoGetDomains to avoid needing to validate them when
-	// resolving static import paths
-	n.domains = parseCommaSeparatedList(conf.Get().NoGoGetDomains)
-}
-
-func parseCommaSeparatedList(list string) []string {
-	split := strings.Split(list, ",")
-	i := 0
-	for _, s := range split {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			split[i] = s
-			i++
-		}
-	}
-	return split[:i]
-}
-
-// noGoGetDomains is a list of domains we do not attempt standard go vanity
-// import resolution. Instead we take an educated guess based on the URL how
-// to create the directory struct.
-var noGoGetDomains = &noGoGetDomainsT{}
-
-func init() {
-	conf.Watch(noGoGetDomains.reconfigure)
-}
 
 type Directory struct {
 	ImportPath  string // the Go import path for this package
@@ -73,16 +28,16 @@ type Directory struct {
 
 var errNoMatch = errors.New("no match")
 
-func ResolveImportPath(client *http.Client, importPath string) (*Directory, error) {
-	if d, err := resolveStaticImportPath(importPath); err == nil {
+func ResolveImportPath(client *http.Client, importPath string, noGoGetDomains, blacklistGoGet []string) (*Directory, error) {
+	if d, err := resolveStaticImportPath(importPath, noGoGetDomains, blacklistGoGet); err == nil {
 		return d, nil
 	} else if err != nil && err != errNoMatch {
 		return nil, err
 	}
-	return resolveDynamicImportPath(client, importPath)
+	return resolveDynamicImportPath(client, importPath, noGoGetDomains, blacklistGoGet)
 }
 
-func resolveStaticImportPath(importPath string) (*Directory, error) {
+func resolveStaticImportPath(importPath string, noGoGetDomains, blacklistGoGet []string) (*Directory, error) {
 	if IsStdlibPkg(importPath) {
 		return &Directory{
 			ImportPath:  importPath,
@@ -102,7 +57,7 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 	// broken until they do correctly configure their monorepo (so we can
 	// identify its GOPATH), but it gives them a quick escape hatch that is
 	// better than "turn off the Sourcegraph server".
-	for _, domain := range conf.Get().BlacklistGoGet {
+	for _, domain := range blacklistGoGet {
 		if strings.HasPrefix(importPath, domain) {
 			return nil, errors.New("import path in blacklistGoGet configuration")
 		}
@@ -112,7 +67,7 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 	// non-go-gettable, i.e. standard git repositories. Some on-prem customers
 	// use setups like this, where they directly import non-go-gettable git
 	// repository URLs like "mygitolite.aws.me.org/mux.git/subpkg"
-	for _, domain := range noGoGetDomains.get() {
+	for _, domain := range noGoGetDomains {
 		if !strings.HasPrefix(importPath, domain) {
 			continue
 		}
@@ -137,7 +92,7 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 		}, nil
 
 	case strings.HasPrefix(importPath, "golang.org/x/"):
-		d, err := resolveStaticImportPath(strings.Replace(importPath, "golang.org/x/", "github.com/golang/", 1))
+		d, err := resolveStaticImportPath(strings.Replace(importPath, "golang.org/x/", "github.com/golang/", 1), noGoGetDomains, blacklistGoGet)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +141,7 @@ func guessImportPath(importPath string) (*Directory, error) {
 // popular gopkg.in
 var gopkgSrcTemplate = regexp.MustCompile(`https://(github.com/[^/]*/[^/]*)/tree/([^/]*)\{/dir\}`)
 
-func resolveDynamicImportPath(client *http.Client, importPath string) (*Directory, error) {
+func resolveDynamicImportPath(client *http.Client, importPath string, noGoGetDomains, blacklistGoGet []string) (*Directory, error) {
 	metaProto, im, sm, err := fetchMeta(client, importPath)
 	if err != nil {
 		return nil, err
@@ -220,7 +175,7 @@ func resolveDynamicImportPath(client *http.Client, importPath string) (*Director
 		m := gopkgSrcTemplate.FindStringSubmatch(sm.dirTemplate)
 		if len(m) > 0 {
 			// We are doing best effort, so we ignore err
-			dir, _ = resolveStaticImportPath(m[1] + dirName)
+			dir, _ = resolveStaticImportPath(m[1]+dirName, noGoGetDomains, blacklistGoGet)
 			if dir != nil {
 				dir.Rev = m[2]
 			}
@@ -229,7 +184,7 @@ func resolveDynamicImportPath(client *http.Client, importPath string) (*Director
 
 	if dir == nil {
 		// We are doing best effort, so we ignore err
-		dir, _ = resolveStaticImportPath(repo + dirName)
+		dir, _ = resolveStaticImportPath(repo+dirName, noGoGetDomains, blacklistGoGet)
 	}
 
 	if dir == nil {

@@ -253,7 +253,7 @@ func (h *BuildHandler) doFindPackage2(ctx context.Context, bctx *build.Context, 
 
 	// Otherwise, it's an external dependency. Fetch the package
 	// and try again.
-	d, err := gosrc.ResolveImportPath(h.cachingClient, path)
+	d, err := gosrc.ResolveImportPath(h.cachingClient, path, h.noGoGetDomains, h.blacklistGoGet)
 	if err != nil {
 		return nil, err
 	}
@@ -474,9 +474,9 @@ func isMultiplePackageError(err error) bool {
 // FetchCommonDeps will fetch our common used dependencies. This is to avoid
 // impacting the first ever typecheck we do in a repo since it will have to
 // fetch the dependency from the internet.
-func FetchCommonDeps() {
+func FetchCommonDeps(noGoGetDomains, blacklistGoGet []string) {
 	// github.com/golang/go
-	d, _ := gosrc.ResolveImportPath(http.DefaultClient, "time")
+	d, _ := gosrc.ResolveImportPath(http.DefaultClient, "time", noGoGetDomains, blacklistGoGet)
 	u, _ := url.Parse(d.CloneURL)
 	_, _ = NewDepRepoVFS(context.Background(), u, d.Rev)
 }

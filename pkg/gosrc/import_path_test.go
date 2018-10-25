@@ -13,8 +13,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/sourcegraph/sourcegraph/pkg/conf"
 )
 
 type testTransport map[string]string
@@ -34,13 +32,6 @@ func (t testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestResolveImportPath(t *testing.T) {
-	defer func(orig []string) { noGoGetDomains.domains = orig }(noGoGetDomains.domains)
-	noGoGetDomains.domains = []string{"mygitolite.aws.me.org"}
-
-	conf := conf.Get()
-	defer func(orig []string) { conf.BlacklistGoGet = orig }(conf.BlacklistGoGet)
-	conf.BlacklistGoGet = []string{"nohttp.google.com"}
-
 	tests := []struct {
 		importPath string
 		dir        *Directory
@@ -234,7 +225,7 @@ func TestResolveImportPath(t *testing.T) {
 	client := &http.Client{Transport: testTransport(pages)}
 
 	for _, tt := range tests {
-		dir, err := ResolveImportPath(client, tt.importPath)
+		dir, err := ResolveImportPath(client, tt.importPath, []string{"nohttp.google.com"})
 
 		if tt.dir == nil {
 			if err == nil {

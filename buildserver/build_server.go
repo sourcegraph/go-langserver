@@ -43,7 +43,7 @@ var Debug = true
 // and mapping local file system paths to logical URIs (e.g.,
 // /goroot/src/fmt/print.go ->
 // git://github.com/golang/go?go1.7.1#src/fmt/print.go).
-func NewHandler(defaultCfg langserver.Config) jsonrpc2.Handler {
+func NewHandler(defaultCfg langserver.Config, noGoGetDomains, blacklistGoGet []string) jsonrpc2.Handler {
 	shared := &langserver.HandlerShared{Shared: true}
 	h := &BuildHandler{
 		HandlerShared: shared,
@@ -51,6 +51,8 @@ func NewHandler(defaultCfg langserver.Config) jsonrpc2.Handler {
 			HandlerShared: shared,
 			DefaultConfig: defaultCfg,
 		},
+		noGoGetDomains: noGoGetDomains,
+		blacklistGoGet: blacklistGoGet,
 	}
 	shared.FindPackage = h.findPackageCached
 	return jsonrpc2.HandlerWithError(h.handle)
@@ -73,6 +75,8 @@ type BuildHandler struct {
 	init           *lspext.InitializeParams // set by "initialize" request
 	rootImportPath string                   // root import path of the workspace (e.g., "github.com/foo/bar")
 	cachingClient  *http.Client             // http.Client with a cache backed by the LSP Proxy, set by BuildHandler.reset()
+	noGoGetDomains []string
+	blacklistGoGet []string
 }
 
 // reset clears all internal state in h.

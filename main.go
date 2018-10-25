@@ -1,7 +1,6 @@
 package main // import "github.com/sourcegraph/go-langserver"
 
 import (
-	"github.com/sourcegraph/go-langserver/buildserver"
 	"context"
 	"flag"
 	"fmt"
@@ -11,7 +10,10 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
+
+	"github.com/sourcegraph/go-langserver/buildserver"
 
 	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/go-langserver/langserver"
@@ -29,6 +31,9 @@ var (
 	pprof          = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 	freeosmemory   = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
 	useBuildServer = flag.Bool("usebuildserver", false, "use a build server to fetch dependencies, fetch files via Zip URL, etc.")
+	// TODO remove blacklistGoGet from sourcegraph/sourcegraph https://sourcegraph.sgdev.org/search?q=repo:%5Egithub%5C.com/sourcegraph/enterprise%24+blacklistgoget
+	noGoGetDomains = flag.String("nogogetdomains", "", "List of domains in import paths to NOT perform `go get` on, but instead treat as standard Git repositories. Separated by ','. For example, if your code imports non-go-gettable packages like `\"mygitolite.aws.me.org/mux.git/subpkg\"` you may set this option to `\"mygitolite.aws.me.org\"` and the build server will effectively run `git clone mygitolite.aws.me.org/mux.git` instead of performing the usual `go get` dependency resolution behavior.")
+	blacklistGoGet = flag.String("blacklistgoget", "", "List of domains to blacklist dependency fetching from. Separated by ','. Unlike `noGoGetDomains` (which tries to use a hueristic to determine where to clone the dependencies from), this option outright prevents fetching of dependencies with the given domain name. This will prevent code intelligence from working on these dependencies, so most users should not use this option.")
 
 	// Default Config, can be overridden by InitializationOptions
 	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance). Can be overridden by InitializationOptions.")
@@ -104,9 +109,13 @@ func run(cfg langserver.Config) error {
 		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
 	}
 
+	noGoGetDomainsSlice := parseCommaSeparatedList(*noGoGetDomains)
+	blacklistGoGetSlice := parseCommaSeparatedList(*blacklistGoGet)
+
 	var handler jsonrpc2.Handler
 	if useBuildServer != nil && *useBuildServer {
-		handler = buildserver.NewHandler(cfg)
+		handler = buildserver.NewHandler(cfg, noGoGetDomainsSlice, blacklistGoGetSlice)
+		buildserver.FetchCommonDeps(noGoGetDomainsSlice, blacklistGoGetSlice)
 	} else {
 		handler = langserver.NewHandler(cfg)
 	}
@@ -154,14 +163,13 @@ func run(cfg langserver.Config) error {
 			connectionID := newConnectionCount
 			log.Printf("langserver-go: received incoming WebSocket connection #%d\n", connectionID)
 
-			// I had to create a new handler on every new connection, otherwise it
-			// would throw an "already initialized" error.
-
-			// TODO figure out when to share the handler, if at all, or do not share
-			// connections at all and instead share other resources.
+			// TODO figure out if it's possible to share the handler across
+			// connections. I had to create a new handler on every new connection,
+			// otherwise it would throw an "already initialized" error.
 			var handler jsonrpc2.Handler
 			if useBuildServer != nil && *useBuildServer {
-				handler = buildserver.NewHandler(cfg)
+				handler = buildserver.NewHandler(cfg, noGoGetDomainsSlice, blacklistGoGetSlice)
+				buildserver.FetchCommonDeps(noGoGetDomainsSlice, blacklistGoGetSlice)
 			} else {
 				handler = langserver.NewHandler(cfg)
 			}
@@ -237,4 +245,17 @@ func freeOSMemory() {
 		time.Sleep(1 * time.Second)
 		debug.FreeOSMemory()
 	}
+}
+
+func parseCommaSeparatedList(list string) []string {
+	split := strings.Split(list, ",")
+	i := 0
+	for _, s := range split {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			split[i] = s
+			i++
+		}
+	}
+	return split[:i]
 }
