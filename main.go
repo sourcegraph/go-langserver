@@ -1,6 +1,9 @@
 package main // import "github.com/sourcegraph/go-langserver"
 
 import (
+	"github.com/keegancsmith/tmpfriend"
+	"github.com/sourcegraph/sourcegraph/pkg/debugserver"
+	"github.com/sourcegraph/sourcegraph/pkg/tracer"
 	"context"
 	"flag"
 	"fmt"
@@ -9,10 +12,15 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
 
+	"github.com/sourcegraph/sourcegraph/pkg/env"
+	"github.com/sourcegraph/sourcegraph/xlang/vfsutil"
+
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/go-langserver/buildserver"
 
 	"github.com/gorilla/websocket"
@@ -43,7 +51,24 @@ var (
 	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	formatTool         = flag.String("format-tool", "goimports", "which tool is used to format documents. Supported: goimports and gofmt. Can be overridden by InitializationOptions.")
 	lintTool           = flag.String("lint-tool", "none", "which tool is used to linting. Supported: none and golint. Can be overridden by InitializationOptions.")
+
+	openGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "golangserver",
+		Subsystem: "build",
+		Name:      "open_connections",
+		Help:      "Number of open connections to the language server.",
+	})
 )
+
+func init() {
+	// If CACHE_DIR is specified, use that
+	cacheDir := env.Get("CACHE_DIR", "/tmp", "directory to store cached archives.")
+	vfsutil.ArchiveCacheDir = filepath.Join(cacheDir, "xlang-archive-cache")
+}
+
+func init() {
+	prometheus.MustRegister(openGauge)
+}
 
 // version is the version field we report back. If you are releasing a new version:
 // 1. Create commit without -dev suffix.
@@ -86,6 +111,27 @@ func main() {
 }
 
 func run(cfg langserver.Config) error {
+	tracer.Init()
+
+	go debugserver.Start()
+
+	cleanup := tmpfriend.SetupOrNOOP()
+	defer cleanup()
+
+	noGoGetDomainsSlice := parseCommaSeparatedList(*noGoGetDomains)
+	blacklistGoGetSlice := parseCommaSeparatedList(*blacklistGoGet)
+
+	if *useBuildServer {
+		// If xlang-go crashes, all the archives it has cached are not
+		// evicted. Over time this leads to us filling up the disk. This is a
+		// simple fix were we do a best-effort purge of the cache.
+		// https://github.com/sourcegraph/sourcegraph/issues/6090
+		_ = os.RemoveAll(vfsutil.ArchiveCacheDir)
+
+		// PERF: Hide latency of fetching golang/go from the first typecheck
+		go buildserver.FetchCommonDeps(noGoGetDomainsSlice, blacklistGoGetSlice)
+	}
+
 	if *printVersion {
 		fmt.Println(version)
 		return nil
@@ -109,15 +155,11 @@ func run(cfg langserver.Config) error {
 		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
 	}
 
-	noGoGetDomainsSlice := parseCommaSeparatedList(*noGoGetDomains)
-	blacklistGoGetSlice := parseCommaSeparatedList(*blacklistGoGet)
-
-	var handler jsonrpc2.Handler
-	if useBuildServer != nil && *useBuildServer {
-		handler = buildserver.NewHandler(cfg, noGoGetDomainsSlice, blacklistGoGetSlice)
-		buildserver.FetchCommonDeps(noGoGetDomainsSlice, blacklistGoGetSlice)
-	} else {
-		handler = langserver.NewHandler(cfg)
+	newHandler := func() jsonrpc2.Handler {
+		if *useBuildServer {
+				return jsonrpc2.AsyncHandler(buildserver.NewHandler(cfg, noGoGetDomainsSlice, blacklistGoGetSlice))
+		}
+		return langserver.NewHandler(cfg)
 	}
 
 	switch *mode {
@@ -140,10 +182,12 @@ func run(cfg langserver.Config) error {
 			newConnectionCount = newConnectionCount + 1
 			connectionID := newConnectionCount
 			log.Printf("langserver-go: received incoming WebSocket connection #%d\n", connectionID)
-			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
+			openGauge.Inc()
+			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), newHandler(), connOpt...)
 			go func() {
 				<-jsonrpc2Connection.DisconnectNotify()
 				log.Printf("langserver-go: disconnected WebSocket connection #%d\n", connectionID)
+				openGauge.Dec()
 			}()
 		}
 
@@ -163,18 +207,10 @@ func run(cfg langserver.Config) error {
 			connectionID := newConnectionCount
 			log.Printf("langserver-go: received incoming WebSocket connection #%d\n", connectionID)
 
-			// TODO figure out if it's possible to share the handler across
-			// connections. I had to create a new handler on every new connection,
-			// otherwise it would throw an "already initialized" error.
-			var handler jsonrpc2.Handler
-			if useBuildServer != nil && *useBuildServer {
-				handler = buildserver.NewHandler(cfg, noGoGetDomainsSlice, blacklistGoGetSlice)
-				buildserver.FetchCommonDeps(noGoGetDomainsSlice, blacklistGoGetSlice)
-			} else {
-				handler = langserver.NewHandler(cfg)
-			}
-			<-jsonrpc2.NewConn(context.Background(), NewObjectStream(connection), handler, connOpt...).DisconnectNotify()
+			openGauge.Inc()
+			<-jsonrpc2.NewConn(context.Background(), NewObjectStream(connection), newHandler(), connOpt...).DisconnectNotify()
 			log.Printf("langserver-go: disconnected WebSocket connection #%d\n", connectionID)
+			openGauge.Dec()
 		})
 
 		log.Println("langserver-go: listening for WebSocket connections on", *addr)
@@ -183,7 +219,7 @@ func run(cfg langserver.Config) error {
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
-		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...).DisconnectNotify()
+		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), newHandler(), connOpt...).DisconnectNotify()
 		log.Println("connection closed")
 		return nil
 
