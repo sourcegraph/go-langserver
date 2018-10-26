@@ -19,6 +19,7 @@ import (
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages"
 )
 
 func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
@@ -65,12 +66,18 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		}
 		return nil, fmt.Errorf("type/object not found at %+v", params.Position)
 	}
-	if o != nil && !o.Pos().IsValid() {
-		// Only builtins have invalid position, and don't have useful info.
-		return nil, nil
-	}
+
 	// Don't package-qualify the string output.
 	qf := func(*types.Package) string { return "" }
+
+	// Handle builtin types, functions and variables.
+	if o != nil && !o.Pos().IsValid() {
+		comments := builtinDoc(node.Name)
+
+		return &lsp.Hover{
+			Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: types.TypeString(t, qf)}}),
+		}, nil
+	}
 
 	var s string
 	var extra string
@@ -92,7 +99,6 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		if s == "" {
 			s = types.ObjectString(o, qf)
 		}
-
 	} else if t != nil {
 		s = types.TypeString(t, qf)
 	}
@@ -204,6 +210,83 @@ func packageDoc(files []*ast.File, pkgName string) string {
 			}
 		}
 	}
+	return ""
+}
+
+// builtinDoc finds the documentation for a builtin node.
+func builtinDoc(ident string) string {
+	// Grab files from builtin package
+	pkgs, err := packages.Load(
+		&packages.Config{
+			Mode: packages.LoadFiles,
+		},
+		"builtin",
+	)
+	if err != nil {
+		return ""
+	}
+
+	// Parse the files into ASTs
+	pkg := pkgs[0]
+	fs := token.NewFileSet()
+	asts := &ast.Package{
+		Name:  "builtin",
+		Files: make(map[string]*ast.File),
+	}
+	for _, filename := range pkg.GoFiles {
+		file, err := parser.ParseFile(fs, filename, nil, parser.ParseComments)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		asts.Files[filename] = file
+	}
+
+	// Extract documentation from the ASTs
+	docs := doc.New(asts, "builtin", doc.AllDecls)
+
+	// Search for specific doc with name ident
+	searchFuncs := func(funcs []*doc.Func) string {
+		for _, f := range funcs {
+			if f.Name == ident {
+				return f.Doc
+			}
+		}
+		return ""
+	}
+
+	searchVars := func(vars []*doc.Value) string {
+		for _, v := range vars {
+			for _, name := range v.Names {
+				if name == ident {
+					return v.Doc
+				}
+			}
+		}
+		return ""
+	}
+
+	if funcDoc := searchFuncs(docs.Funcs); funcDoc != "" {
+		return funcDoc
+	} else if constDoc := searchVars(docs.Consts); constDoc != "" {
+		return constDoc
+	} else if varDoc := searchVars(docs.Vars); varDoc != "" {
+		return varDoc
+	}
+
+	for _, t := range docs.Types {
+		if t.Name == ident {
+			return t.Doc
+		}
+
+		if funcDoc := searchFuncs(t.Funcs); funcDoc != "" {
+			return funcDoc
+		} else if constDoc := searchVars(t.Consts); constDoc != "" {
+			return constDoc
+		} else if varDoc := searchVars(t.Vars); varDoc != "" {
+			return varDoc
+		}
+	}
+
 	return ""
 }
 
@@ -324,8 +407,39 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 	}
 
 	loc := goRangeToLSPLocation(fset, res.Start, res.End)
-
 	if loc.URI == "file://" {
+		_, node, _, _, pkg, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+		if err != nil {
+			// Invalid nodes means we tried to click on something which is
+			// not an ident (eg comment/string/etc). Return no information.
+			if _, ok := err.(*invalidNodeError); ok {
+				return nil, nil
+			}
+			// This is a common error we get in production when a user is
+			// browsing a go pkg which only contains files we can't
+			// analyse (usually due to build tags). To reduce signal of
+			// actual bad errors, we return no error in this case.
+			if _, ok := err.(*build.NoGoError); ok {
+				return nil, nil
+			}
+			return nil, err
+		}
+
+		o := pkg.ObjectOf(node)
+		t := pkg.TypeOf(node)
+
+		// Don't package-qualify the string output.
+		qf := func(*types.Package) string { return "" }
+
+		// Handle builtin types, functions and variables.
+		if o != nil && !o.Pos().IsValid() {
+			comments := builtinDoc(node.Name)
+
+			return &lsp.Hover{
+				Contents: maybeAddComments(comments, []lsp.MarkedString{{Language: "go", Value: types.TypeString(t, qf)}}),
+			}, nil
+		}
+
 		// TODO: builtins do not have valid URIs or locations.
 		return &lsp.Hover{}, nil
 	}

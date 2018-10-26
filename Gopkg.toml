@@ -28,3 +28,7 @@
   go-tests = true
   unused-packages = true
   non-go = true
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/tools"
