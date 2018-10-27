@@ -30,6 +30,10 @@ type InitializationOptions struct {
 	// Config.GoimportsLocalPrefix
 	GoimportsLocalPrefix *string `json:"goimportsLocalPrefix"`
 
+	// DiagnosticsEnabled enables is an optional version of
+	// Config.DiagnosticsEnabled
+	DiagnosticsEnabled *bool `json:"diagnosticsEnabled"`
+
 	// MaxParallelism is an optional version of Config.MaxParallelism
 	MaxParallelism *int `json:"maxParallelism"`
 

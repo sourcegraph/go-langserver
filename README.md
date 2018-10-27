@@ -83,6 +83,13 @@ interface GoInitializationOptions {
    * Defaults to true if not specified.
    */
   useBinaryPkgCache?: boolean;
+
+  /**
+   * DiagnosticsEnabled enables handling of diagnostics.
+   *
+   * Defaults to false if not specified.
+   */
+  diagnosticsEnabled?: boolean;
 }
 ```
 

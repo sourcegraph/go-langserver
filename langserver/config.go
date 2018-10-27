@@ -92,6 +92,9 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o.UseBinaryPkgCache != nil {
 		c.UseBinaryPkgCache = *o.UseBinaryPkgCache
 	}
+	if o.DiagnosticsEnabled != nil {
+		c.DiagnosticsEnabled = *o.DiagnosticsEnabled
+	}
 	return c
 }
 
