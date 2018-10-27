@@ -112,6 +112,7 @@ func NewDefaultConfig() Config {
 		GocodeCompletionEnabled: false,
 		FormatTool:              formatToolGoimports,
 		LintTool:                lintToolNone,
+		DiagnosticsEnabled:      false,
 		MaxParallelism:          maxparallelism,
 		UseBinaryPkgCache:       true,
 	}
