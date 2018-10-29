@@ -201,13 +201,18 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4d168f98b1eb086ed68586133a6cc59074e0fa1c940160e9e2ac3c3ab68558a2"
+  digest = "1:ecb8795160fb26ef35aff42c46cbb94c1e87285477c1d2ac4e3342c903884d12"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
     "go/buildutil",
+    "go/gcexportdata",
     "go/internal/cgo",
+    "go/internal/gcimporter",
     "go/loader",
+    "go/packages",
+    "go/packages/golist",
+    "go/packages/raw",
     "go/types/typeutil",
     "godoc/vfs",
     "imports",
@@ -245,6 +250,7 @@
     "golang.org/x/tools/go/ast/astutil",
     "golang.org/x/tools/go/buildutil",
     "golang.org/x/tools/go/loader",
+    "golang.org/x/tools/go/packages",
     "golang.org/x/tools/go/types/typeutil",
     "golang.org/x/tools/imports",
     "golang.org/x/tools/refactor/importgraph",

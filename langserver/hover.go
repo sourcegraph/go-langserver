@@ -19,6 +19,7 @@ import (
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-lsp"
 	"github.com/sourcegraph/jsonrpc2"
+	"golang.org/x/tools/go/packages"
 )
 
 func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, req *jsonrpc2.Request, params lsp.TextDocumentPositionParams) (*lsp.Hover, error) {
@@ -65,12 +66,18 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		}
 		return nil, fmt.Errorf("type/object not found at %+v", params.Position)
 	}
-	if o != nil && !o.Pos().IsValid() {
-		// Only builtins have invalid position, and don't have useful info.
-		return nil, nil
-	}
+
 	// Don't package-qualify the string output.
 	qf := func(*types.Package) string { return "" }
+
+	// Handle builtin objects with invalid locations.
+	if o != nil && !o.Pos().IsValid() {
+		contents := builtinDoc(node.Name)
+
+		return &lsp.Hover{
+			Contents: contents,
+		}, nil
+	}
 
 	var s string
 	var extra string
@@ -92,7 +99,6 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 		if s == "" {
 			s = types.ObjectString(o, qf)
 		}
-
 	} else if t != nil {
 		s = types.TypeString(t, qf)
 	}
@@ -205,6 +211,108 @@ func packageDoc(files []*ast.File, pkgName string) string {
 		}
 	}
 	return ""
+}
+
+// builtinDoc finds the documentation for a builtin node.
+func builtinDoc(ident string) []lsp.MarkedString {
+	// Grab files from builtin package
+	pkgs, err := packages.Load(
+		&packages.Config{
+			Mode: packages.LoadFiles,
+		},
+		"builtin",
+	)
+	if err != nil {
+		return nil
+	}
+
+	// Parse the files into ASTs
+	pkg := pkgs[0]
+	fs := token.NewFileSet()
+	asts := &ast.Package{
+		Name:  "builtin",
+		Files: make(map[string]*ast.File),
+	}
+	for _, filename := range pkg.GoFiles {
+		file, err := parser.ParseFile(fs, filename, nil, parser.ParseComments)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		asts.Files[filename] = file
+	}
+
+	// Extract documentation and declaration from the ASTs
+	docs := doc.New(asts, "builtin", doc.AllDecls)
+	node, pos := findDocIdent(docs, ident)
+	contents, _ := fmtDocObject(fs, node, fs.Position(pos))
+	return contents
+}
+
+// findDocIdentt walks an input *doc.Package and locates the *doc.Value,
+// *doc.Type, or *doc.Func with the given identifier.
+func findDocIdent(docs *doc.Package, ident string) (node interface{}, pos token.Pos) {
+	searchFuncs := func(funcs []*doc.Func) bool {
+		for _, f := range funcs {
+			if f.Name == ident {
+				node = f
+				pos = f.Decl.Pos()
+				return true
+			}
+		}
+		return false
+	}
+
+	searchVars := func(vars []*doc.Value) bool {
+		for _, v := range vars {
+			for _, spec := range v.Decl.Specs {
+				switch t := spec.(type) {
+				case *ast.ValueSpec:
+					for _, name := range t.Names {
+						if name.Name == ident {
+							node = v
+							pos = name.Pos()
+							return true
+						}
+					}
+				}
+			}
+		}
+		return false
+	}
+
+	if searchFuncs(docs.Funcs) {
+		return
+	}
+
+	if searchVars(docs.Consts) {
+		return
+	}
+
+	if searchVars(docs.Vars) {
+		return
+	}
+
+	for _, t := range docs.Types {
+		if t.Name == ident {
+			node = t
+			pos = t.Decl.Pos()
+			return
+		}
+
+		if searchFuncs(t.Funcs) {
+			return
+		}
+
+		if searchVars(t.Consts) {
+			return
+		}
+
+		if searchVars(t.Vars) {
+			return
+		}
+	}
+
+	return
 }
 
 // commentsToText converts a slice of []*ast.CommentGroup to a flat string,
@@ -325,9 +433,14 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 
 	loc := goRangeToLSPLocation(fset, res.Start, res.End)
 
+	// Handle builtin objects with invalid locations.
 	if loc.URI == "file://" {
-		// TODO: builtins do not have valid URIs or locations.
-		return &lsp.Hover{}, nil
+		_, node, _, _, _, _, _ := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+
+		contents := builtinDoc(node.Name)
+		return &lsp.Hover{
+			Contents: contents,
+		}, nil
 	}
 
 	// convert the path into a real path because 3rd party tools
