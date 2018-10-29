@@ -92,6 +92,9 @@ func (c Config) Apply(o *InitializationOptions) Config {
 	if o.UseBinaryPkgCache != nil {
 		c.UseBinaryPkgCache = *o.UseBinaryPkgCache
 	}
+	if o.DiagnosticsEnabled != nil {
+		c.DiagnosticsEnabled = *o.DiagnosticsEnabled
+	}
 	return c
 }
 
@@ -109,6 +112,7 @@ func NewDefaultConfig() Config {
 		GocodeCompletionEnabled: false,
 		FormatTool:              formatToolGoimports,
 		LintTool:                lintToolNone,
+		DiagnosticsEnabled:      false,
 		MaxParallelism:          maxparallelism,
 		UseBinaryPkgCache:       true,
 	}
