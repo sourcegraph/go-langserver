@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
 	wsjsonrpc2 "github.com/sourcegraph/jsonrpc2/websocket"
@@ -140,6 +141,8 @@ func run(cfg langserver.Config) error {
 			connection, err := upgrader.Upgrade(responseWriter, request, nil)
 			if err != nil {
 				log.Println("error upgrading HTTP to WebSocket:", err)
+				http.Error(responseWriter, errors.Wrap(err, "could not upgrade to WebSocket").Error(), http.StatusBadRequest)
+				return
 			}
 			defer connection.Close()
 			connectionCount = connectionCount + 1
