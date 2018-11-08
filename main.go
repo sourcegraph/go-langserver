@@ -137,11 +137,11 @@ func run(cfg langserver.Config) error {
 
 		connectionCount := 0
 
-		mux.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
-			connection, err := upgrader.Upgrade(responseWriter, request, nil)
+		mux.HandleFunc("/", func(w http.ResponseWriter, request *http.Request) {
+			connection, err := upgrader.Upgrade(w, request, nil)
 			if err != nil {
 				log.Println("error upgrading HTTP to WebSocket:", err)
-				http.Error(responseWriter, errors.Wrap(err, "could not upgrade to WebSocket").Error(), http.StatusBadRequest)
+				http.Error(w, errors.Wrap(err, "could not upgrade to WebSocket").Error(), http.StatusBadRequest)
 				return
 			}
 			defer connection.Close()
