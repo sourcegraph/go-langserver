@@ -153,8 +153,9 @@ func run(cfg langserver.Config) error {
 		})
 
 		log.Println("langserver-go: listening for WebSocket connections on", *addr)
-		http.ListenAndServe(*addr, mux)
-		return nil
+		err := http.ListenAndServe(*addr, mux)
+		log.Println(errors.Wrap(err, "HTTP server"))
+		return err
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
