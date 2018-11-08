@@ -133,11 +133,11 @@ func run(cfg langserver.Config) error {
 
 	case "websocket":
 		mux := http.NewServeMux()
+		upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
 		connectionCount := 0
 
 		mux.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
-			var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 			connection, err := upgrader.Upgrade(responseWriter, request, nil)
 			if err != nil {
 				log.Println("error upgrading HTTP to WebSocket:", err)
