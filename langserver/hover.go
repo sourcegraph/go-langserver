@@ -435,8 +435,22 @@ func (h *LangHandler) handleHoverGodef(ctx context.Context, conn jsonrpc2.JSONRP
 
 	// Handle builtin objects with invalid locations.
 	if loc.URI == "file://" {
-		_, node, _, _, _, _, _ := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
-
+		_, node, _, _, _, _, err := h.typecheck(ctx, conn, params.TextDocument.URI, params.Position)
+		if err != nil {
+			// Invalid nodes means we tried to click on something which is
+			// not an ident (eg comment/string/etc). Return no information.
+			if _, ok := err.(*invalidNodeError); ok {
+				return nil, nil
+			}
+			// This is a common error we get in production when a user is
+			// browsing a go pkg which only contains files we can't
+			// analyse (usually due to build tags). To reduce signal of
+			// actual bad errors, we return no error in this case.
+			if _, ok := err.(*build.NoGoError); ok {
+				return nil, nil
+			}
+			return nil, err
+		}
 		contents := builtinDoc(node.Name)
 		return &lsp.Hover{
 			Contents: contents,
