@@ -446,6 +446,15 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 		}
 		return h.handleWorkspaceReferences(ctx, conn, req, params)
 
+	case "textDocument/rename":
+		if req.Params == nil {
+			return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeInvalidParams}
+		}
+		var params lsp.RenameParams
+		if err := json.Unmarshal(*req.Params, &params); err != nil {
+			return nil, err
+		}
+		return h.handleRename(ctx, conn, req, params)
 	default:
 		if isFileSystemRequest(req.Method) {
 			uri, fileChanged, err := h.handleFileSystemRequest(ctx, req)

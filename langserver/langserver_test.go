@@ -1181,6 +1181,35 @@ func main() {
 			},
 		},
 	},
+	"renaming": {
+		rootURI: "file:///src/test/pkg",
+		fs: map[string]string{
+			"a.go": `package p
+import "fmt"
+
+func main() {
+    str := A()
+    fmt.Println(str)
+}
+
+func A() string {
+	return "test"
+}
+`,
+		},
+		cases: lspTestCases{
+			wantRenames: map[string]map[string]string{
+				"a.go:5:5": map[string]string{
+					"4:4-4:7":   "/src/test/pkg/a.go",
+					"5:16-5:19": "/src/test/pkg/a.go",
+				},
+				"a.go:9:6": map[string]string{
+					"4:11-4:12": "/src/test/pkg/a.go",
+					"8:5-8:6":   "/src/test/pkg/a.go",
+				},
+			},
+		},
+	},
 }
 
 func TestServer(t *testing.T) {
@@ -1314,6 +1343,7 @@ type lspTestCases struct {
 	wantSignatures                          map[string]string
 	wantWorkspaceReferences                 map[*lspext.WorkspaceReferencesParams][]string
 	wantFormatting                          map[string]map[string]string
+	wantRenames                             map[string]map[string]string
 }
 
 func copyFileToOS(ctx context.Context, fs *AtomicFS, targetFile, srcFile string) error {
@@ -1493,6 +1523,12 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 	for file, want := range cases.wantFormatting {
 		tbRun(t, fmt.Sprintf("formatting-%s", file), func(t testing.TB) {
 			formattingTest(t, ctx, c, rootURI, file, want)
+		})
+	}
+
+	for pos, want := range cases.wantRenames {
+		tbRun(t, fmt.Sprintf("renaming-%s", strings.Replace(pos, "/", "-", -1)), func(t testing.TB) {
+			renamingTest(t, ctx, c, rootURI, pos, want)
 		})
 	}
 }
@@ -1713,6 +1749,29 @@ func formattingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI
 
 	if reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func renamingTest(t testing.TB, ctx context.Context, c *jsonrpc2.Conn, rootURI lsp.DocumentURI, pos string, want map[string]string) {
+	file, line, char, err := parsePos(pos)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	workspaceEdit, err := callRenaming(ctx, c, uriJoin(rootURI, file), line, char, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]string{}
+	for file, edits := range workspaceEdit.Changes {
+		for _, edit := range edits {
+			got[edit.Range.String()] = util.UriToPath(lsp.DocumentURI(file))
+		}
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want: %v", got, want)
 	}
 }
 
@@ -1968,6 +2027,16 @@ func callFormatting(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI) 
 		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
 	}, &edits)
 	return edits, err
+}
+
+func callRenaming(ctx context.Context, c *jsonrpc2.Conn, uri lsp.DocumentURI, line, char int, newName string) (lsp.WorkspaceEdit, error) {
+	var edit lsp.WorkspaceEdit
+	err := c.Call(ctx, "textDocument/rename", lsp.RenameParams{
+		TextDocument: lsp.TextDocumentIdentifier{URI: uri},
+		Position:     lsp.Position{Line: line, Character: char},
+		NewName:      newName,
+	}, &edit)
+	return edit, err
 }
 
 type markedStrings []lsp.MarkedString
