@@ -280,6 +280,7 @@ func (h *LangHandler) Handle(ctx context.Context, conn jsonrpc2.JSONRPC2, req *j
 				DocumentSymbolProvider:       true,
 				HoverProvider:                true,
 				ReferencesProvider:           true,
+				RenameProvider:               true,
 				WorkspaceSymbolProvider:      true,
 				ImplementationProvider:       true,
 				XWorkspaceReferencesProvider: true,
