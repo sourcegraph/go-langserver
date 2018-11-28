@@ -9,11 +9,20 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/keegancsmith/tmpfriend"
 	"github.com/pkg/errors"
+
+	"github.com/sourcegraph/go-langserver/vfsutil"
+
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/gorilla/websocket"
+	"github.com/sourcegraph/go-langserver/buildserver"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
 	wsjsonrpc2 "github.com/sourcegraph/jsonrpc2/websocket"
@@ -22,13 +31,17 @@ import (
 )
 
 var (
-	mode         = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
-	addr         = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
-	trace        = flag.Bool("trace", false, "print all requests and responses")
-	logfile      = flag.String("logfile", "", "also log to this file (in addition to stderr)")
-	printVersion = flag.Bool("version", false, "print version and exit")
-	pprof        = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
-	freeosmemory = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	mode           = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
+	addr           = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
+	trace          = flag.Bool("trace", false, "print all requests and responses")
+	logfile        = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	printVersion   = flag.Bool("version", false, "print version and exit")
+	pprof          = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
+	freeosmemory   = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	useBuildServer = flag.Bool("usebuildserver", false, "use a build server to fetch dependencies, fetch files via Zip URL, etc.")
+	noGoGetDomains = flag.String("nogogetdomains", "", "List of domains in import paths to NOT perform `go get` on, but instead treat as standard Git repositories. Separated by ','. For example, if your code imports non-go-gettable packages like `\"mygitolite.aws.me.org/mux.git/subpkg\"` you may set this option to `\"mygitolite.aws.me.org\"` and the build server will effectively run `git clone mygitolite.aws.me.org/mux.git` instead of performing the usual `go get` dependency resolution behavior.")
+	blacklistGoGet = flag.String("blacklistgoget", "", "List of domains to blacklist dependency fetching from. Separated by ','. Unlike `noGoGetDomains` (which tries to use a hueristic to determine where to clone the dependencies from), this option outright prevents fetching of dependencies with the given domain name. This will prevent code intelligence from working on these dependencies, so most users should not use this option.")
+	cacheDir       = flag.String("cachedir", "/tmp", "directory to store cached archives")
 
 	// Default Config, can be overridden by InitializationOptions
 	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance). Can be overridden by InitializationOptions.")
@@ -38,7 +51,19 @@ var (
 	funcSnippetEnabled = flag.Bool("func-snippet-enabled", true, "enable argument snippets on func completion. Can be overridden by InitializationOptions.")
 	formatTool         = flag.String("format-tool", "goimports", "which tool is used to format documents. Supported: goimports and gofmt. Can be overridden by InitializationOptions.")
 	lintTool           = flag.String("lint-tool", "none", "which tool is used to linting. Supported: none and golint. Can be overridden by InitializationOptions.")
+
+	openGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "golangserver",
+		Subsystem: "build",
+		Name:      "open_connections",
+		Help:      "Number of open connections to the language server.",
+	})
 )
+
+func init() {
+	vfsutil.ArchiveCacheDir = filepath.Join(*cacheDir, "lang-go-archive-cache")
+	prometheus.MustRegister(openGauge)
+}
 
 // version is the version field we report back. If you are releasing a new version:
 // 1. Create commit without -dev suffix.
@@ -81,6 +106,23 @@ func main() {
 }
 
 func run(cfg langserver.Config) error {
+	cleanup := tmpfriend.SetupOrNOOP()
+	defer cleanup()
+
+	// noGoGetDomainsSlice := parseCommaSeparatedList(*noGoGetDomains)
+	// blacklistGoGetSlice := parseCommaSeparatedList(*blacklistGoGet)
+
+	if *useBuildServer {
+		// If xlang-go crashes, all the archives it has cached are not
+		// evicted. Over time this leads to us filling up the disk. This is a
+		// simple fix were we do a best-effort purge of the cache.
+		// https://github.com/sourcegraph/sourcegraph/issues/6090
+		_ = os.RemoveAll(vfsutil.ArchiveCacheDir)
+
+		// PERF: Hide latency of fetching golang/go from the first typecheck
+		go buildserver.FetchCommonDeps()
+	}
+
 	if *printVersion {
 		fmt.Println(version)
 		return nil
@@ -104,6 +146,13 @@ func run(cfg langserver.Config) error {
 		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
 	}
 
+	newHandler := func() jsonrpc2.Handler {
+		if *useBuildServer {
+			return jsonrpc2.AsyncHandler(buildserver.NewHandler(cfg))
+		}
+		return langserver.NewHandler(cfg)
+	}
+
 	switch *mode {
 	case "tcp":
 		lis, err := net.Listen("tcp", *addr)
@@ -124,10 +173,12 @@ func run(cfg langserver.Config) error {
 			connectionCount = connectionCount + 1
 			connectionID := connectionCount
 			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
-			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), langserver.NewHandler(cfg), connOpt...)
+			openGauge.Inc()
+			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), newHandler(), connOpt...)
 			go func() {
 				<-jsonrpc2Connection.DisconnectNotify()
 				log.Printf("langserver-go: connection #%d closed\n", connectionID)
+				openGauge.Dec()
 			}()
 		}
 
@@ -147,9 +198,12 @@ func run(cfg langserver.Config) error {
 			defer connection.Close()
 			connectionCount = connectionCount + 1
 			connectionID := connectionCount
+
+			openGauge.Inc()
 			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
-			<-jsonrpc2.NewConn(context.Background(), wsjsonrpc2.NewObjectStream(connection), langserver.NewHandler(cfg), connOpt...).DisconnectNotify()
+			<-jsonrpc2.NewConn(context.Background(), wsjsonrpc2.NewObjectStream(connection), newHandler(), connOpt...).DisconnectNotify()
 			log.Printf("langserver-go: connection #%d closed\n", connectionID)
+			openGauge.Dec()
 		})
 
 		log.Println("langserver-go: listening for WebSocket connections on", *addr)
@@ -159,7 +213,7 @@ func run(cfg langserver.Config) error {
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
-		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), langserver.NewHandler(cfg), connOpt...).DisconnectNotify()
+		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), newHandler(), connOpt...).DisconnectNotify()
 		log.Println("connection closed")
 		return nil
 
@@ -221,4 +275,17 @@ func freeOSMemory() {
 		time.Sleep(1 * time.Second)
 		debug.FreeOSMemory()
 	}
+}
+
+func parseCommaSeparatedList(list string) []string {
+	split := strings.Split(list, ",")
+	i := 0
+	for _, s := range split {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			split[i] = s
+			i++
+		}
+	}
+	return split[:i]
 }
