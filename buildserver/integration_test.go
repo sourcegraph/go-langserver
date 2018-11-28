@@ -13,10 +13,10 @@ import (
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	lsext "github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/go-lsp/lspext"
-	gobuildserver "github.com/sourcegraph/sourcegraph/enterprise/cmd/xlang-go/internal/server"
-	"github.com/sourcegraph/sourcegraph/pkg/gituri"
-	"github.com/sourcegraph/sourcegraph/pkg/gosrc"
-	"github.com/sourcegraph/sourcegraph/pkg/vfsutil"
+	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
+	"github.com/sourcegraph/go-langserver/gituri"
+	"github.com/sourcegraph/go-langserver/gosrc"
+	"github.com/sourcegraph/go-langserver/vfsutil"
 )
 
 func init() {

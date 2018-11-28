@@ -16,8 +16,8 @@ import (
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	gobuildserver "github.com/sourcegraph/sourcegraph/enterprise/cmd/xlang-go/internal/server"
-	"github.com/sourcegraph/sourcegraph/pkg/gituri"
+	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
+	"github.com/sourcegraph/go-langserver/gituri"
 )
 
 // BenchmarkStress benchmarks performing "textDocument/definition",

@@ -1,11 +1,13 @@
 package gosrc
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"runtime"
 	"strings"
@@ -16,6 +18,27 @@ import (
 // RuntimeVersion is the version of go stdlib to use. We allow it to be
 // different to runtime.Version for test data.
 var RuntimeVersion = runtime.Version()
+
+var noGoGetDomains = getenvArray("NO_GO_GET_DOMAINS")
+var blacklistGoGet = getenvArray("BLACKLIST_GO_GET")
+
+func getenv(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func getenvArray(key string) []string {
+	var value []string
+	err := json.Unmarshal([]byte(getenv(key, "[]")), &value)
+	if err != nil {
+		fmt.Println("Unable to parse environment variable", key, getenv(key, "[]"), "as a JSON array")
+		return []string{}
+	}
+	return value
+}
 
 type Directory struct {
 	ImportPath  string // the Go import path for this package

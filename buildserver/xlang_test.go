@@ -23,7 +23,7 @@ import (
 	lsext "github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	"github.com/sourcegraph/sourcegraph/pkg/gituri"
+	"github.com/sourcegraph/go-langserver/gituri"
 )
 
 var update = flag.Bool("update", false, "update golden files on disk")

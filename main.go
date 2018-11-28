@@ -17,6 +17,8 @@ import (
 	"github.com/keegancsmith/tmpfriend"
 	"github.com/pkg/errors"
 
+	"github.com/sourcegraph/go-langserver/debugserver"
+	"github.com/sourcegraph/go-langserver/tracer"
 	"github.com/sourcegraph/go-langserver/vfsutil"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -106,6 +108,10 @@ func main() {
 }
 
 func run(cfg langserver.Config) error {
+	tracer.Init()
+
+	go debugserver.Start()
+
 	cleanup := tmpfriend.SetupOrNOOP()
 	defer cleanup()
 

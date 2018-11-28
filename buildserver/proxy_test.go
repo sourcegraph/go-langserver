@@ -12,12 +12,13 @@ import (
 	"testing"
 
 	"github.com/sourcegraph/ctxvfs"
+	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
+	"github.com/sourcegraph/go-langserver/gituri"
+	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	lsext "github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	gobuildserver "github.com/sourcegraph/sourcegraph/enterprise/cmd/xlang-go/internal/server"
-	"github.com/sourcegraph/sourcegraph/pkg/gituri"
 )
 
 func TestProxy(t *testing.T) {
@@ -700,7 +701,7 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 		}
 	}
 
-	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(gobuildserver.NewHandler()))
+	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(gobuildserver.NewHandler(langserver.Config{})))
 
 	conn := jsonrpc2.NewConn(context.Background(), b, NoopHandler{}, jsonrpc2.OnRecv(onRecv), jsonrpc2.OnSend(onSend))
 	done := func() {
