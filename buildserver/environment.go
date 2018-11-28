@@ -1,4 +1,4 @@
-package server
+package buildserver
 
 import (
 	"bufio"
@@ -18,11 +18,11 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/sourcegraph/ctxvfs"
+	"github.com/sourcegraph/go-langserver/gituri"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonx"
-	"github.com/sourcegraph/sourcegraph/pkg/gituri"
 )
 
 const (

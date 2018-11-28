@@ -1,4 +1,4 @@
-package server
+package buildserver
 
 import (
 	"context"
@@ -17,14 +17,11 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	otlog "github.com/opentracing/opentracing-go/log"
 	"github.com/sourcegraph/ctxvfs"
+	"github.com/sourcegraph/go-langserver/gosrc"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	"github.com/sourcegraph/sourcegraph/pkg/api"
-	"github.com/sourcegraph/sourcegraph/pkg/gitserver"
-	"github.com/sourcegraph/sourcegraph/pkg/gosrc"
-	"github.com/sourcegraph/sourcegraph/pkg/vcs/git"
-	"github.com/sourcegraph/sourcegraph/pkg/vfsutil"
+	"github.com/sourcegraph/go-langserver/vfsutil"
 )
 
 type keyMutex struct {
@@ -483,23 +480,11 @@ func FetchCommonDeps() {
 // is always backed by a zip archive in memory. The following sources are
 // tried in sequence, and the first one that has the repo is used:
 //
-// 1. Directly from gitserver (will be removed in favor of the raw API soon)
-// 2. GitHub's codeload endpoint
-// 3. A full `git clone` followed by `git archive --format=zip <rev>`
+// 1. GitHub's codeload endpoint
+// 2. A full `git clone` followed by `git archive --format=zip <rev>`
 //
-// Sources 1 and 2 are performance optimizations over cloning the whole repo.
+// Source 1 is a performance optimization over cloning the whole repo.
 var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string) (ctxvfs.FileSystem, error) {
-	// First check if we can clone from gitserver. gitserver automatically
-	// clones missing repositories, so to prevent cloning unmanaged
-	// repositories we first check to see if it is present.
-	name := api.RepoName(cloneURL.Host + cloneURL.Path)
-	if cloned, _ := gitserver.DefaultClient.IsRepoCloned(ctx, name); cloned {
-		repo := gitserver.Repo{Name: name}
-		if commit, err := git.ResolveRevision(ctx, repo, nil, rev, nil); err == nil {
-			return vfsutil.NewGitServer(name, commit), nil
-		}
-	}
-
 	// Fast-path for GitHub repos, which we can fetch on-demand from
 	// GitHub's repo .zip archive download endpoint.
 	if cloneURL.Host == "github.com" {

@@ -1,4 +1,4 @@
-package server
+package buildserver
 
 import (
 	"context"
@@ -22,12 +22,12 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	otlog "github.com/opentracing/opentracing-go/log"
 	"github.com/sourcegraph/ctxvfs"
+	"github.com/sourcegraph/go-langserver/gosrc"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/go-langserver/langserver/util"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	lspext "github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	"github.com/sourcegraph/sourcegraph/pkg/gosrc"
 )
 
 // Debug if true will cause extra logging information to be printed
@@ -43,15 +43,13 @@ var Debug = true
 // and mapping local file system paths to logical URIs (e.g.,
 // /goroot/src/fmt/print.go ->
 // git://github.com/golang/go?go1.7.1#src/fmt/print.go).
-func NewHandler() jsonrpc2.Handler {
+func NewHandler(defaultCfg langserver.Config) jsonrpc2.Handler {
 	shared := &langserver.HandlerShared{Shared: true}
 	h := &BuildHandler{
 		HandlerShared: shared,
 		lang: &langserver.LangHandler{
 			HandlerShared: shared,
-			DefaultConfig: langserver.Config{
-				MaxParallelism: runtime.GOMAXPROCS(0),
-			},
+			DefaultConfig: defaultCfg,
 		},
 	}
 	shared.FindPackage = h.findPackageCached

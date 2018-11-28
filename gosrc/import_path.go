@@ -9,9 +9,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
-
-	"github.com/sourcegraph/sourcegraph/pkg/conf"
 )
 
 // Adapted from github.com/golang/gddo/gosrc.
@@ -19,48 +16,6 @@ import (
 // RuntimeVersion is the version of go stdlib to use. We allow it to be
 // different to runtime.Version for test data.
 var RuntimeVersion = runtime.Version()
-
-type noGoGetDomainsT struct {
-	mu      sync.RWMutex
-	domains []string
-}
-
-func (n *noGoGetDomainsT) get() []string {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	return n.domains
-}
-
-func (n *noGoGetDomainsT) reconfigure() {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	// Parse noGoGetDomains to avoid needing to validate them when
-	// resolving static import paths
-	n.domains = parseCommaSeparatedList(conf.Get().NoGoGetDomains)
-}
-
-func parseCommaSeparatedList(list string) []string {
-	split := strings.Split(list, ",")
-	i := 0
-	for _, s := range split {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			split[i] = s
-			i++
-		}
-	}
-	return split[:i]
-}
-
-// noGoGetDomains is a list of domains we do not attempt standard go vanity
-// import resolution. Instead we take an educated guess based on the URL how
-// to create the directory struct.
-var noGoGetDomains = &noGoGetDomainsT{}
-
-func init() {
-	conf.Watch(noGoGetDomains.reconfigure)
-}
 
 type Directory struct {
 	ImportPath  string // the Go import path for this package
@@ -102,17 +57,23 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 	// broken until they do correctly configure their monorepo (so we can
 	// identify its GOPATH), but it gives them a quick escape hatch that is
 	// better than "turn off the Sourcegraph server".
-	for _, domain := range conf.Get().BlacklistGoGet {
+	// TODO(chris) consider passing blacklistGoGet from the command line.
+	for _, domain := range []string{} {
 		if strings.HasPrefix(importPath, domain) {
 			return nil, errors.New("import path in blacklistGoGet configuration")
 		}
 	}
 
+	// noGoGetDomains is a list of domains we do not attempt standard go vanity
+	// import resolution. Instead we take an educated guess based on the URL how
+	// to create the directory struct.
+	//
 	// This allows a user to set a list of domains that are considered to be
 	// non-go-gettable, i.e. standard git repositories. Some on-prem customers
 	// use setups like this, where they directly import non-go-gettable git
 	// repository URLs like "mygitolite.aws.me.org/mux.git/subpkg"
-	for _, domain := range noGoGetDomains.get() {
+	// TODO(chris) consider passing noGoGetDomains from the command line.
+	for _, domain := range []string{} {
 		if !strings.HasPrefix(importPath, domain) {
 			continue
 		}

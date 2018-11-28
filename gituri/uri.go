@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-
-	"github.com/sourcegraph/sourcegraph/pkg/api"
 )
 
 // A URI is a wrapper around url.URL that makes it easier to get and
@@ -55,7 +53,7 @@ func (u *URI) CloneURL() *url.URL {
 }
 
 // Repo returns the repository name (e.g., "github.com/foo/bar").
-func (u *URI) Repo() api.RepoName { return api.RepoName(u.Host + strings.TrimPrefix(u.Path, ".git")) }
+func (u *URI) Repo() string { return u.Host + strings.TrimPrefix(u.Path, ".git") }
 
 // Rev returns the repository revision component of the URI (the raw
 // query string).

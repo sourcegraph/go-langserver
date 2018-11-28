@@ -1,10 +1,10 @@
-package server
+package buildserver
 
 import (
 	"fmt"
 
 	"github.com/sourcegraph/ctxvfs"
-	"github.com/sourcegraph/sourcegraph/pkg/gosrc"
+	"github.com/sourcegraph/go-langserver/gosrc"
 )
 
 // addSysZversionFile adds the zversion.go file, which is generated
