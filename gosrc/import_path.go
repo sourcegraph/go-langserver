@@ -80,8 +80,7 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 	// broken until they do correctly configure their monorepo (so we can
 	// identify its GOPATH), but it gives them a quick escape hatch that is
 	// better than "turn off the Sourcegraph server".
-	// TODO(chris) consider passing blacklistGoGet from the command line.
-	for _, domain := range []string{} {
+	for _, domain := range blacklistGoGet {
 		if strings.HasPrefix(importPath, domain) {
 			return nil, errors.New("import path in blacklistGoGet configuration")
 		}
@@ -95,8 +94,7 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 	// non-go-gettable, i.e. standard git repositories. Some on-prem customers
 	// use setups like this, where they directly import non-go-gettable git
 	// repository URLs like "mygitolite.aws.me.org/mux.git/subpkg"
-	// TODO(chris) consider passing noGoGetDomains from the command line.
-	for _, domain := range []string{} {
+	for _, domain := range noGoGetDomains {
 		if !strings.HasPrefix(importPath, domain) {
 			continue
 		}

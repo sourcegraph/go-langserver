@@ -701,7 +701,7 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 		}
 	}
 
-	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(gobuildserver.NewHandler(langserver.Config{})))
+	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(gobuildserver.NewHandler(langserver.NewDefaultConfig())))
 
 	conn := jsonrpc2.NewConn(context.Background(), b, NoopHandler{}, jsonrpc2.OnRecv(onRecv), jsonrpc2.OnSend(onSend))
 	done := func() {
