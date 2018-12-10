@@ -76,12 +76,13 @@ func TestGitRepoVFS_cache(t *testing.T) {
 		for _, cmd := range cmds {
 			c := exec.Command("bash", "-c", cmd)
 			c.Dir = cloneURL
-			c.Env = []string{
+			c.Env = os.Environ()
+			c.Env = append(c.Env, []string{
 				"GIT_COMMITTER_NAME=a",
 				"GIT_COMMITTER_EMAIL=a@a.com",
 				"GIT_AUTHOR_NAME=a",
 				"GIT_AUTHOR_EMAIL=a@a.com",
-			}
+			}...)
 			out, err = c.CombinedOutput()
 			if err != nil {
 				t.Fatalf("Command %q failed. Output was:\n\n%s", cmd, out)
