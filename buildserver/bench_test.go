@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
+	"github.com/sourcegraph/go-langserver/gituri"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
-	"github.com/sourcegraph/go-langserver/gituri"
 )
 
 // Notable benchmark results:

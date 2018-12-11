@@ -9,10 +9,6 @@ import (
 )
 
 func TestGitRepoVFS(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skip network-intensive test")
-	}
-
 	fs := &GitRepoVFS{
 		CloneURL: "git://github.com/gorilla/schema",
 		Rev:      "0164a00ab4cd01d814d8cd5bf63fd9fcea30e23b",
@@ -32,10 +28,6 @@ func TestGitRepoVFS(t *testing.T) {
 }
 
 func TestGitRepoVFS_subtree(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skip network-intensive test")
-	}
-
 	// Any public repo will work.
 	fs := &GitRepoVFS{
 		CloneURL: "git://github.com/gorilla/rpc",

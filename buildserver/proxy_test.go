@@ -22,10 +22,6 @@ import (
 )
 
 func TestProxy(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	tests := map[string]struct {
 		rootURI           lsp.DocumentURI
 		mode              string
@@ -700,7 +696,6 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 			}
 		}
 	}
-
 
 	config := langserver.NewDefaultConfig()
 	// do not use the pkg cache because tests won't install any pkgs

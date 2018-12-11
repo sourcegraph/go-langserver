@@ -7,10 +7,6 @@ import (
 )
 
 func TestGitHubRepoVFS(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skip network-intensive test")
-	}
-
 	// Ensure fetch logic works
 	cleanup := useEmptyArchiveCacheDir()
 	defer cleanup()
