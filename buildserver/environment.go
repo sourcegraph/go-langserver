@@ -321,6 +321,11 @@ func determineRootImportPath(ctx context.Context, originalRootURI lsp.DocumentUR
 	if err != nil {
 		return "", err
 	}
+
+	if path.Join(u.Host, u.Path) == "github.com/golang/go" {
+		return "github.com/golang/go", nil
+	}
+
 	switch u.Scheme {
 	case "git":
 		rootImportPath = path.Join(u.Host, strings.TrimSuffix(u.Path, ".git"), u.FilePath())

@@ -10,13 +10,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/ctxvfs"
-	"github.com/sourcegraph/go-langserver/pkg/lsp"
-	lsext "github.com/sourcegraph/go-langserver/pkg/lspext"
-	"github.com/sourcegraph/go-lsp/lspext"
 	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
 	"github.com/sourcegraph/go-langserver/gituri"
 	"github.com/sourcegraph/go-langserver/gosrc"
+	"github.com/sourcegraph/go-langserver/pkg/lsp"
+	lsext "github.com/sourcegraph/go-langserver/pkg/lspext"
 	"github.com/sourcegraph/go-langserver/vfsutil"
+	"github.com/sourcegraph/go-lsp/lspext"
 )
 
 func init() {
@@ -115,7 +115,10 @@ func TestIntegration(t *testing.T) {
 		"git://github.com/golang/go?f75aafdf56dd90eab75cfeac8cf69358f73ba171": {
 			// SHA is equivalent to go1.7.1 tag, but make sure we
 			// retain the original rev spec in definition results.
-			mode:        "go",
+			mode: "go",
+			pinDepReposToRev: map[string]string{
+				"https://github.com/foobar/externalprintf": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			},
 			ciBlacklist: true, // skip on CI since the repo is large
 			wantHover: map[string]string{
 				"src/encoding/hex/hex.go:70:12":  "func fromHexChar(c byte) (byte, bool)", // func decl
