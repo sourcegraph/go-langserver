@@ -2,6 +2,8 @@ package buildserver
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/sourcegraph/ctxvfs"
@@ -101,10 +103,10 @@ func TestDetermineEnvironment(t *testing.T) {
 			WantImportPath: "",
 			WantGoPath:     "/workspace/third_party:/workspace/code:/",
 			FS: map[string]string{
-				".vscode/settings.json": `{
+				".vscode/settings.json": fmt.Sprintf(`{
 // this JSON document has comments!
-  "go.gopath": "${workspaceRoot}/third_party:${workspaceRoot}/code",
-}`,
+  "go.gopath": "${workspaceRoot}/third_party%s${workspaceRoot}/code",
+}`, string(os.PathListSeparator)),
 			},
 		},
 
