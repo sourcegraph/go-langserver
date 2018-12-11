@@ -701,7 +701,12 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 		}
 	}
 
-	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(gobuildserver.NewHandler(langserver.Config{})))
+
+	config := langserver.NewDefaultConfig()
+	// do not use the pkg cache because tests won't install any pkgs
+	config.UseBinaryPkgCache = false
+
+	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(gobuildserver.NewHandler(config)))
 
 	conn := jsonrpc2.NewConn(context.Background(), b, NoopHandler{}, jsonrpc2.OnRecv(onRecv), jsonrpc2.OnSend(onSend))
 	done := func() {

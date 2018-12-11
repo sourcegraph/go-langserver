@@ -44,6 +44,9 @@ var Debug = true
 // /goroot/src/fmt/print.go ->
 // git://github.com/golang/go?go1.7.1#src/fmt/print.go).
 func NewHandler(defaultCfg langserver.Config) jsonrpc2.Handler {
+	if (defaultCfg.MaxParallelism <= 0) {
+		panic(fmt.Sprintf("langserver.Config.MaxParallelism must be at least 1 (got %d)", defaultCfg.MaxParallelism))
+	}
 	shared := &langserver.HandlerShared{Shared: true}
 	h := &BuildHandler{
 		HandlerShared: shared,
