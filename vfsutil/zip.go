@@ -108,10 +108,7 @@ func setAuthFromNetrc(req *http.Request) error {
 		return nil
 	}
 	machine, err := netrc.FindMachine(netrcFile, host)
-	if err != nil {
-		return err
-	}
-	if machine == nil {
+	if err != nil || machine == nil {
 		return nil
 	}
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", machine.Login, machine.Password))))
