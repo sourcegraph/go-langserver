@@ -738,7 +738,7 @@ func RelWorkspaceURI(root gituri.URI, uriStr string) (*gituri.URI, error) {
 		return u, nil
 	}
 	if p := path.Clean(u.FilePath()); strings.HasPrefix(p, "/") || strings.HasPrefix(p, "..") {
-		return nil, fmt.Errorf("invalid file path in URI %q in LSP proxy client request (must not begin with '/', '..', or contain '.' or '..' components)", uriStr)
+		return nil, fmt.Errorf("invalid file path in URI %q in client request (must not begin with '/', '..', or contain '.' or '..' components)", uriStr)
 	} else if u.FilePath() != "" && p != u.FilePath() {
 		return nil, fmt.Errorf("invalid file path in URI %q (raw file path %q != cleaned file path %q)", uriStr, u.FilePath(), p)
 	}

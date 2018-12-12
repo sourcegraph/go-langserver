@@ -75,7 +75,7 @@ type BuildHandler struct {
 	*langserver.HandlerShared
 	init           *lspext.InitializeParams // set by "initialize" request
 	rootImportPath string                   // root import path of the workspace (e.g., "github.com/foo/bar")
-	cachingClient  *http.Client             // http.Client with a cache backed by the LSP Proxy, set by BuildHandler.reset()
+	cachingClient  *http.Client             // http.Client with a cache backed by an in-memory LRU cache
 }
 
 // reset clears all internal state in h.
@@ -468,7 +468,7 @@ func (h *BuildHandler) rewriteURIFromLangServer(uri lsp.DocumentURI) (lsp.Docume
 			if h.rootImportPath == "" {
 				// The workspace is the Go stdlib and this refers to
 				// something in the Go stdlib, so let's use file:///
-				// so that the LSP proxy adds our current rev, instead
+				// so that the client adds our current rev, instead
 				// of using runtime.Version() (which is not
 				// necessarily the commit of the Go stdlib we're
 				// analyzing).
