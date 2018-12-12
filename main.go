@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"github.com/keegancsmith/tmpfriend"
@@ -41,8 +40,6 @@ var (
 	pprof          = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
 	freeosmemory   = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
 	useBuildServer = flag.Bool("usebuildserver", false, "use a build server to fetch dependencies, fetch files via Zip URL, etc.")
-	noGoGetDomains = flag.String("nogogetdomains", "", "List of domains in import paths to NOT perform `go get` on, but instead treat as standard Git repositories. Separated by ','. For example, if your code imports non-go-gettable packages like `\"mygitolite.aws.me.org/mux.git/subpkg\"` you may set this option to `\"mygitolite.aws.me.org\"` and the build server will effectively run `git clone mygitolite.aws.me.org/mux.git` instead of performing the usual `go get` dependency resolution behavior.")
-	blacklistGoGet = flag.String("blacklistgoget", "", "List of domains to blacklist dependency fetching from. Separated by ','. Unlike `noGoGetDomains` (which tries to use a hueristic to determine where to clone the dependencies from), this option outright prevents fetching of dependencies with the given domain name. This will prevent code intelligence from working on these dependencies, so most users should not use this option.")
 	cacheDir       = flag.String("cachedir", "/tmp", "directory to store cached archives")
 
 	// Default Config, can be overridden by InitializationOptions
@@ -114,9 +111,6 @@ func run(cfg langserver.Config) error {
 
 	cleanup := tmpfriend.SetupOrNOOP()
 	defer cleanup()
-
-	// noGoGetDomainsSlice := parseCommaSeparatedList(*noGoGetDomains)
-	// blacklistGoGetSlice := parseCommaSeparatedList(*blacklistGoGet)
 
 	if *useBuildServer {
 		// If go-langserver crashes, all the archives it has cached are not
@@ -281,17 +275,4 @@ func freeOSMemory() {
 		time.Sleep(1 * time.Second)
 		debug.FreeOSMemory()
 	}
-}
-
-func parseCommaSeparatedList(list string) []string {
-	split := strings.Split(list, ",")
-	i := 0
-	for _, s := range split {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			split[i] = s
-			i++
-		}
-	}
-	return split[:i]
 }
