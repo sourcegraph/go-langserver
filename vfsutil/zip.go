@@ -27,10 +27,10 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 		return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", url)
 	}
 	err = setAuthFromNetrc(request)
-	response, err := ctxhttp.Do(ctx, nil, request)
 	if err != nil {
 		log.Printf("Unable to set auth from netrc: %s", err)
 	}
+	response, err := ctxhttp.Do(ctx, nil, request)
 	if err != nil {
 		return nil, err
 	}
