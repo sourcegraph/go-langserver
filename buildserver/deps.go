@@ -496,7 +496,7 @@ func FetchCommonDeps() {
 var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zipURLTemplate *string) (ctxvfs.FileSystem, error) {
 	if zipURLTemplate != nil {
 		zipURL := fmt.Sprintf(*zipURLTemplate, path.Join(cloneURL.Host, cloneURL.Path), rev)
-		archive, err := vfsutil.NewZipVFS(zipURL, depZipFetch.Inc, depZipFetchFailed.Inc, false)
+		archive, err := vfsutil.NewZipVFS(ctx, zipURL, depZipFetch.Inc, depZipFetchFailed.Inc, false)
 		if archive != nil && err == nil {
 			return archive, nil
 		}
@@ -506,7 +506,7 @@ var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zip
 	// GitHub's repo .zip archive download endpoint.
 	if cloneURL.Host == "github.com" {
 		fullName := cloneURL.Host + strings.TrimSuffix(cloneURL.Path, ".git") // of the form "github.com/foo/bar"
-		archive, err := vfsutil.NewGitHubRepoVFS(fullName, rev)
+		archive, err := vfsutil.NewGitHubRepoVFS(ctx, fullName, rev)
 		if archive != nil && err == nil {
 			return archive, nil
 		}

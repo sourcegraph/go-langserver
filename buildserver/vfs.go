@@ -27,7 +27,7 @@ var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParam
 		return url
 	}()
 	if zipURL != "" {
-		return vfsutil.NewZipVFS(zipURL, zipFetch.Inc, zipFetchFailed.Inc, true)
+		return vfsutil.NewZipVFS(ctx, zipURL, zipFetch.Inc, zipFetchFailed.Inc, true)
 	}
 	return nil, errors.Errorf("no zipURL was provided in the initializeOptions")
 }

@@ -275,7 +275,7 @@ func useGithubForVFS() func() {
 		if u.Rev() == "" {
 			return nil, errors.Errorf("rev is required in uri: %s", initializeParams.OriginalRootURI)
 		}
-		return vfsutil.NewGitHubRepoVFS(string(u.Repo()), u.Rev())
+		return vfsutil.NewGitHubRepoVFS(context.Background(), string(u.Repo()), u.Rev())
 	}
 
 	return func() {

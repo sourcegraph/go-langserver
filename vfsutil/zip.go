@@ -21,8 +21,16 @@ import (
 
 // NewZipVFS downloads a zip archive from a URL (or fetches from the local cache
 // on disk) and returns a new VFS backed by that zip archive.
-func NewZipVFS(url string, onFetchStart, onFetchFailed func(), evictOnClose bool) (*ArchiveFS, error) {
-	response, err := http.Head(url)
+func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func(), evictOnClose bool) (*ArchiveFS, error) {
+	request, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", url)
+	}
+	err = setAuthFromNetrc(request)
+	response, err := ctxhttp.Do(ctx, nil, request)
+	if err != nil {
+		log.Printf("Unable to set auth from netrc: %s", err)
+	}
 	if err != nil {
 		return nil, err
 	}
