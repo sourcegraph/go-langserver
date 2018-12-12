@@ -627,8 +627,6 @@ func yza() {}
 // It can be used, for example, to run an in-memory JSON-RPC handler
 // that speaks to an in-memory client, without needin to open a Unix
 // or TCP connection.
-//
-// Copied from xlang/proxy/servers.go, which will get deleted soon.
 func InMemoryPeerConns() (jsonrpc2.ObjectStream, jsonrpc2.ObjectStream) {
 	sr, cw := io.Pipe()
 	cr, sw := io.Pipe()
@@ -718,9 +716,6 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 type NoopHandler struct{}
 
 func (NoopHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) {}
-
-// RelWorkspaceURI and AbsWorkspaceURI were copied from xlang/proxy/uris.go,
-// which will get deleted soon.
 
 // RelWorkspaceURI maps absolute URIs like
 // "git://github.com/facebook/react.git?master#dir/file.txt" to
