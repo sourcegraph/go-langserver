@@ -517,13 +517,13 @@ var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zip
 }
 
 var depZipFetch = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "go-langserver",
+	Namespace: "golangserver",
 	Subsystem: "vfs",
 	Name:      "dep_zip_fetch_total",
 	Help:      "Total number of zip URL fetches by NewDepRepoVFS.",
 })
 var depZipFetchFailed = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "go-langserver",
+	Namespace: "golangserver",
 	Subsystem: "vfs",
 	Name:      "dep_zip_fetch_failed_total",
 	Help:      "Total number of zip URL fetches by NewDepRepoVFS that failed.",

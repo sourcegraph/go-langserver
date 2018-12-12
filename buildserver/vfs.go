@@ -33,13 +33,13 @@ var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParam
 }
 
 var zipFetch = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "go-langserver",
+	Namespace: "golangserver",
 	Subsystem: "vfs",
 	Name:      "zip_fetch_total",
 	Help:      "Total number of times a zip archive was fetched for the currently-viewed repo.",
 })
 var zipFetchFailed = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "go-langserver",
+	Namespace: "golangserver",
 	Subsystem: "vfs",
 	Name:      "zip_fetch_failed_total",
 	Help:      "Total number of times fetching a zip archive for the currently-viewed repo failed.",
