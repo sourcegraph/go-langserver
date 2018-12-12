@@ -119,7 +119,7 @@ func run(cfg langserver.Config) error {
 	// blacklistGoGetSlice := parseCommaSeparatedList(*blacklistGoGet)
 
 	if *useBuildServer {
-		// If xlang-go crashes, all the archives it has cached are not
+		// If go-langserver crashes, all the archives it has cached are not
 		// evicted. Over time this leads to us filling up the disk. This is a
 		// simple fix were we do a best-effort purge of the cache.
 		// https://github.com/sourcegraph/sourcegraph/issues/6090

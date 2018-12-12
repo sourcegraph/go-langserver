@@ -85,7 +85,7 @@ func newDepCache() *depCache {
 // add to its overlay.
 func (h *BuildHandler) fetchTransitiveDepsOfFile(ctx context.Context, fileURI lsp.DocumentURI, dc *depCache) (err error) {
 	parentSpan := opentracing.SpanFromContext(ctx)
-	span := parentSpan.Tracer().StartSpan("xlang-go: fetch transitive dependencies",
+	span := parentSpan.Tracer().StartSpan("go-langserver-go: fetch transitive dependencies",
 		opentracing.Tags{"fileURI": fileURI},
 		opentracing.ChildOf(parentSpan.Context()),
 	)
@@ -517,13 +517,13 @@ var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zip
 }
 
 var depZipFetch = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "xlang",
+	Namespace: "go-langserver",
 	Subsystem: "vfs",
 	Name:      "dep_zip_fetch_total",
 	Help:      "Total number of zip URL fetches by NewDepRepoVFS.",
 })
 var depZipFetchFailed = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "xlang",
+	Namespace: "go-langserver",
 	Subsystem: "vfs",
 	Name:      "dep_zip_fetch_failed_total",
 	Help:      "Total number of zip URL fetches by NewDepRepoVFS that failed.",

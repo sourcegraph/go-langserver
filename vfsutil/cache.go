@@ -14,7 +14,7 @@ import (
 
 // ArchiveCacheDir is the location on disk that archives are cached. It is
 // configurable so that in production we can point it into CACHE_DIR.
-var ArchiveCacheDir = "/tmp/xlang-archive-cache"
+var ArchiveCacheDir = "/tmp/go-langserver-archive-cache"
 
 // Evicter implements Evict
 type Evicter interface {
@@ -67,7 +67,7 @@ func zipNewFileReader(f *os.File) (*zip.Reader, error) {
 }
 
 var cachedFileEvict = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "xlang",
+	Namespace: "go-langserver",
 	Subsystem: "vfs",
 	Name:      "cached_file_evict",
 	Help:      "Total number of evictions to cachedFetch archives.",
