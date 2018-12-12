@@ -16,6 +16,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	otlog "github.com/opentracing/opentracing-go/log"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sourcegraph/ctxvfs"
 	"github.com/sourcegraph/go-langserver/gosrc"
 	"github.com/sourcegraph/go-langserver/langserver"
@@ -300,7 +301,14 @@ func (h *BuildHandler) fetchDep(ctx context.Context, d *gosrc.Directory) error {
 	if err != nil {
 		return err
 	}
-	fs, err := NewDepRepoVFS(ctx, cloneURL, rev)
+
+	var zipURLTemplate *string
+	if initializationOptions, ok := h.init.InitializationOptions.(map[string]interface{}); ok {
+		if stringValue, ok := initializationOptions["zipURLTemplate"].(string); ok {
+			zipURLTemplate = &stringValue
+		}
+	}
+	fs, err := NewDepRepoVFS(ctx, cloneURL, rev, zipURLTemplate)
 	if err != nil {
 		return err
 	}
@@ -472,7 +480,7 @@ func FetchCommonDeps() {
 	// github.com/golang/go
 	d, _ := gosrc.ResolveImportPath(http.DefaultClient, "time")
 	u, _ := url.Parse(d.CloneURL)
-	_, _ = NewDepRepoVFS(context.Background(), u, d.Rev)
+	_, _ = NewDepRepoVFS(context.Background(), u, d.Rev, nil)
 }
 
 // NewDepRepoVFS returns a virtual file system interface for accessing
@@ -480,11 +488,20 @@ func FetchCommonDeps() {
 // is always backed by a zip archive in memory. The following sources are
 // tried in sequence, and the first one that has the repo is used:
 //
-// 1. GitHub's codeload endpoint
-// 2. A full `git clone` followed by `git archive --format=zip <rev>`
+// 1. A zip URL built from the template string environment variable REPO_ZIP_URL_TEMPLATE
+// 2. GitHub's codeload endpoint
+// 3. A full `git clone` followed by `git archive --format=zip <rev>`
 //
-// Source 1 is a performance optimization over cloning the whole repo.
-var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string) (ctxvfs.FileSystem, error) {
+// Source 1 and 2 are performance optimizations over cloning the whole repo.
+var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zipURLTemplate *string) (ctxvfs.FileSystem, error) {
+	if zipURLTemplate != nil {
+		zipURL := fmt.Sprintf(*zipURLTemplate, path.Join(cloneURL.Host, cloneURL.Path), rev)
+		response, err := http.Head(zipURL)
+		if err == nil && response.StatusCode == http.StatusOK {
+			return vfsutil.NewZipVFS(zipURL, depZipFetch.Inc, depZipFetchFailed.Inc, false)
+		}
+	}
+
 	// Fast-path for GitHub repos, which we can fetch on-demand from
 	// GitHub's repo .zip archive download endpoint.
 	if cloneURL.Host == "github.com" {
@@ -497,4 +514,22 @@ var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string) (ct
 		CloneURL: cloneURL.String(),
 		Rev:      rev,
 	}, nil
+}
+
+var depZipFetch = prometheus.NewCounter(prometheus.CounterOpts{
+	Namespace: "xlang",
+	Subsystem: "vfs",
+	Name:      "dep_zip_fetch_total",
+	Help:      "Total number of zip URL fetches by NewDepRepoVFS.",
+})
+var depZipFetchFailed = prometheus.NewCounter(prometheus.CounterOpts{
+	Namespace: "xlang",
+	Subsystem: "vfs",
+	Name:      "dep_zip_fetch_failed_total",
+	Help:      "Total number of zip URL fetches by NewDepRepoVFS that failed.",
+})
+
+func init() {
+	prometheus.MustRegister(depZipFetch)
+	prometheus.MustRegister(depZipFetchFailed)
 }
