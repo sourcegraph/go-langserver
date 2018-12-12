@@ -574,7 +574,7 @@ func yza() {}
 			// Mock repo and dep fetching to use test fixtures.
 			{
 				orig := gobuildserver.NewDepRepoVFS
-				gobuildserver.NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string) (ctxvfs.FileSystem, error) {
+				gobuildserver.NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zipURLTemplate *string) (ctxvfs.FileSystem, error) {
 					id := cloneURL.String() + "?" + rev
 					if fs, ok := test.depFS[id]; ok {
 						return mapFS(fs), nil
