@@ -2,6 +2,7 @@ package main // import "github.com/sourcegraph/go-langserver"
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
@@ -123,6 +124,24 @@ func run(cfg langserver.Config) error {
 		go buildserver.FetchCommonDeps()
 	}
 
+	listen := func(addr string) (*net.Listener, error) {
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			log.Fatalf("Could not bind to address %s: %v", addr, err)
+			return nil, err
+		}
+		if os.Getenv("TLS_CERT") != "" && os.Getenv("TLS_KEY") != "" {
+			cert, err := tls.X509KeyPair([]byte(os.Getenv("TLS_CERT")), []byte(os.Getenv("TLS_KEY")))
+			if err != nil {
+				return nil, err
+			}
+			listener = tls.NewListener(listener, &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			})
+		}
+		return &listener, nil
+	}
+
 	if *printVersion {
 		fmt.Println(version)
 		return nil
@@ -155,18 +174,18 @@ func run(cfg langserver.Config) error {
 
 	switch *mode {
 	case "tcp":
-		lis, err := net.Listen("tcp", *addr)
+		lis, err := listen(*addr)
 		if err != nil {
 			return err
 		}
-		defer lis.Close()
+		defer (*lis).Close()
 
 		log.Println("langserver-go: listening for TCP connections on", *addr)
 
 		connectionCount := 0
 
 		for {
-			conn, err := lis.Accept()
+			conn, err := (*lis).Accept()
 			if err != nil {
 				return err
 			}
@@ -206,8 +225,18 @@ func run(cfg langserver.Config) error {
 			openGauge.Dec()
 		})
 
+		l, err := listen(*addr)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		server := &http.Server{
+			Handler:      mux,
+			ReadTimeout:  75 * time.Second,
+			WriteTimeout: 60 * time.Second,
+		}
 		log.Println("langserver-go: listening for WebSocket connections on", *addr)
-		err := http.ListenAndServe(*addr, mux)
+		err = server.Serve(*l)
 		log.Println(errors.Wrap(err, "HTTP server"))
 		return err
 
