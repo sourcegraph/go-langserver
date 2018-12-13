@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -26,10 +25,7 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", url)
 	}
-	err = setAuthFromNetrc(request)
-	if err != nil {
-		log.Printf("Unable to set auth from netrc: %s", err)
-	}
+	setAuthFromNetrc(request)
 	response, err := ctxhttp.Do(ctx, nil, request)
 	if err != nil {
 		return nil, err
@@ -57,10 +53,7 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 				return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", url)
 			}
 			request.Header.Add("Accept", "application/zip")
-			err = setAuthFromNetrc(request)
-			if err != nil {
-				log.Printf("Unable to set auth from netrc: %s", err)
-			}
+			setAuthFromNetrc(request)
 			resp, err := ctxhttp.Do(ctx, nil, request)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to fetch zip archive from %s", url)
@@ -98,19 +91,18 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 	return &ArchiveFS{fetch: fetch, EvictOnClose: evictOnClose}, nil
 }
 
-func setAuthFromNetrc(req *http.Request) error {
+func setAuthFromNetrc(req *http.Request) {
 	host := req.URL.Host
 	if i := strings.Index(host, ":"); i != -1 {
 		host = host[:i]
 	}
 	netrcFile := os.ExpandEnv("$HOME/.netrc")
 	if _, err := os.Stat(netrcFile); os.IsNotExist(err) {
-		return nil
+		return
 	}
 	machine, err := netrc.FindMachine(netrcFile, host)
 	if err != nil || machine == nil {
-		return nil
+		return
 	}
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", machine.Login, machine.Password))))
-	return nil
 }
