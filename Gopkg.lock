@@ -26,6 +26,14 @@
   revision = "f89ea99a4e435defb7c85e4e5cc5030e7cbae0dd"
 
 [[projects]]
+  digest = "1:e9fd9fdb68a32484b36fd855dcceb8938c285d12868d36b5518f36aa5e01139a"
+  name = "github.com/fhs/go-netrc"
+  packages = ["netrc"]
+  pruneopts = "NUT"
+  revision = "4ffed54ee5c32ebfb1b8c7c72fc90bb08dc3ff43"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:a1efdbc2762667c8a41cbf02b19a0549c846bf2c1d08cad4f445e3344089f1f0"
   name = "github.com/go-stack/stack"
   packages = ["."]
@@ -459,6 +467,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/die-net/lrucache",
+    "github.com/fhs/go-netrc/netrc",
     "github.com/gorilla/websocket",
     "github.com/gregjones/httpcache",
     "github.com/hashicorp/golang-lru",

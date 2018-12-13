@@ -1,6 +1,7 @@
 package vfsutil
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -12,7 +13,7 @@ func TestGitHubRepoVFS(t *testing.T) {
 	defer cleanup()
 
 	// Any public repo will work.
-	fs, err := NewGitHubRepoVFS("github.com/gorilla/schema", "0164a00ab4cd01d814d8cd5bf63fd9fcea30e23b")
+	fs, err := NewGitHubRepoVFS(context.Background(), "github.com/gorilla/schema", "0164a00ab4cd01d814d8cd5bf63fd9fcea30e23b")
 	if err != nil {
 		t.Fatal(err)
 	}
