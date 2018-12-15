@@ -1,0 +1,7 @@
+steps:
+  # Build & deploy Docker image
+  - command: ./deploy.sh
+    branches: master
+    label: ':rocket:'
+    concurrency: 1
+    concurrency_group: deploy
