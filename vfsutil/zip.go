@@ -31,7 +31,7 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 		return nil, err
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, nil
+		return nil, fmt.Errorf("unable to fetch zip from %s (expected HTTP response code 200, but got %d)", url, response.StatusCode)
 	}
 
 	fetch := func(ctx context.Context) (ar *archiveReader, err error) {
