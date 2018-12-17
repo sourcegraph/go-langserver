@@ -29,7 +29,7 @@ var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParam
 	if zipURL != "" {
 		return vfsutil.NewZipVFS(ctx, zipURL, zipFetch.Inc, zipFetchFailed.Inc, true)
 	}
-	return nil, errors.Errorf("no zipURL was provided in the initializeOptions")
+	return nil, errors.Errorf("no zipURL was provided in the initializationOptions")
 }
 
 var zipFetch = prometheus.NewCounter(prometheus.CounterOpts{

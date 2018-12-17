@@ -488,7 +488,7 @@ func FetchCommonDeps() {
 // is always backed by a zip archive in memory. The following sources are
 // tried in sequence, and the first one that has the repo is used:
 //
-// 1. A zip URL built from the template string environment variable REPO_ZIP_URL_TEMPLATE
+// 1. A zip URL built from the template string passed via `initializationOptions.zipURLTemplate`
 // 2. GitHub's codeload endpoint
 // 3. A full `git clone` followed by `git archive --format=zip <rev>`
 //
