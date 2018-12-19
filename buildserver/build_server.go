@@ -11,6 +11,7 @@ import (
 	"path"
 	pathpkg "path"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -497,7 +498,9 @@ func (h *BuildHandler) rewriteURIFromLangServer(uri lsp.DocumentURI) (lsp.Docume
 			h.HandlerShared.Mu.Unlock()
 			var d *gosrc.Directory
 			for _, dep := range deps {
-				if strings.HasPrefix(p, dep.ProjectRoot) {
+				pathComponents := strings.Split(p, "/")
+				depComponents := strings.Split(dep.ProjectRoot, "/")
+				if reflect.DeepEqual(pathComponents[:len(depComponents)], depComponents) {
 					d = dep
 				}
 			}
