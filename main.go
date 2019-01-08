@@ -76,6 +76,10 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
+	flag.Visit(func(f *flag.Flag) {
+		fmt.Printf("Command line flag %s: %q (default %q)\n", f.Name, f.Value.String(), f.DefValue)
+	})
+
 	// Start pprof server, if desired.
 	if *pprof != "" {
 		go func() {
