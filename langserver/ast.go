@@ -23,7 +23,7 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 			return offset, true, ""
 		}
 		if (line == p.Line && col > p.Character) || line > p.Line {
-			return 0, false, fmt.Sprintf("character %d is beyond line %d boundary", p.Character, p.Line)
+			return 0, false, fmt.Sprintf("character %d (zero-based) is beyond line %d boundary (zero-based)", p.Character, p.Line)
 		}
 		offset++
 		if b == '\n' {
@@ -37,7 +37,7 @@ func offsetForPosition(contents []byte, p lsp.Position) (offset int, valid bool,
 		return offset, true, ""
 	}
 	if line == 0 {
-		return 0, false, fmt.Sprintf("character %d is beyond first line boundary", p.Character)
+		return 0, false, fmt.Sprintf("character %d (zero-based) is beyond first line boundary", p.Character)
 	}
 	return 0, false, fmt.Sprintf("file only has %d lines", line+1)
 }
