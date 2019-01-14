@@ -76,7 +76,7 @@ func main() {
 	log.SetFlags(0)
 
 	flag.Visit(func(f *flag.Flag) {
-		fmt.Printf("Command line flag %s: %q (default %q)\n", f.Name, f.Value.String(), f.DefValue)
+		log.Printf("Command line flag %s: %q (default %q)\n", f.Name, f.Value.String(), f.DefValue)
 	})
 
 	vfsutil.ArchiveCacheDir = filepath.Join(*cacheDir, "lang-go-archive-cache")
