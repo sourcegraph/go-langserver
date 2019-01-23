@@ -125,6 +125,14 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 		}
 		d.ProjectRoot = strings.Replace(d.ProjectRoot, "github.com/golang/", "golang.org/x/", 1)
 		return d, nil
+
+	case strings.HasPrefix(importPath, "golang_org/x/"):
+		d, err := resolveStaticImportPath(strings.Replace(importPath, "golang_org/x/", "github.com/golang/", 1))
+		if err != nil {
+			return nil, err
+		}
+		d.ProjectRoot = strings.Replace(d.ProjectRoot, "github.com/golang/", "golang_org/x/", 1)
+		return d, nil
 	}
 	return nil, errNoMatch
 }
