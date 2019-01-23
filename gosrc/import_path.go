@@ -118,12 +118,28 @@ func resolveStaticImportPath(importPath string) (*Directory, error) {
 			VCS:         "git",
 		}, nil
 
+	// The next two cases check for dependencies that actually come from the Go
+	// standard library. This approach to resolving the import paths could link
+	// the user to a newer version of a golang/org/x/ package than what is in use
+	// when go-langserver is released. That's acceptable because we don't support
+	// multiple Go versions, we don't publish which Go version our language server
+	// is using anywhere, and these dependencies are very rare in practive (99% of
+	// users are unlikely to encounter them).
 	case strings.HasPrefix(importPath, "golang.org/x/"):
 		d, err := resolveStaticImportPath(strings.Replace(importPath, "golang.org/x/", "github.com/golang/", 1))
 		if err != nil {
 			return nil, err
 		}
 		d.ProjectRoot = strings.Replace(d.ProjectRoot, "github.com/golang/", "golang.org/x/", 1)
+		return d, nil
+
+	// This is the same as the previous case, except with the `.` replaced with an `_`.
+	case strings.HasPrefix(importPath, "golang_org/x/"):
+		d, err := resolveStaticImportPath(strings.Replace(importPath, "golang_org/x/", "github.com/golang/", 1))
+		if err != nil {
+			return nil, err
+		}
+		d.ProjectRoot = strings.Replace(d.ProjectRoot, "github.com/golang/", "golang_org/x/", 1)
 		return d, nil
 	}
 	return nil, errNoMatch
