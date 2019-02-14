@@ -112,7 +112,7 @@ func BenchmarkIntegration(b *testing.B) {
 		label := strings.Replace(root.Host+root.Path, "/", "-", -1)
 
 		b.Run(label, func(b *testing.B) {
-			fs, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: rootURI})
+			fs, _, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: rootURI})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -232,11 +232,11 @@ func BenchmarkIntegrationShared(b *testing.B) {
 	ctx := context.Background()
 	for label, test := range tests {
 		b.Run(label, func(b *testing.B) {
-			oldfs, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: lsp.DocumentURI(test.oldRootURI)})
+			oldfs, _, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: lsp.DocumentURI(test.oldRootURI)})
 			if err != nil {
 				b.Fatal(err)
 			}
-			fs, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: lsp.DocumentURI(test.rootURI)})
+			fs, _, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: lsp.DocumentURI(test.rootURI)})
 			if err != nil {
 				b.Fatal(err)
 			}

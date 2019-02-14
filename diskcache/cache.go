@@ -35,6 +35,10 @@ type Store struct {
 	// BeforeEvict, when non-nil, is a function to call before evicting a file.
 	// It is passed the path to the file to be evicted.
 	BeforeEvict func(string)
+
+	// MaxCacheSizeBytes is the maximum size of the cache directory after evicting
+	// entries.
+	MaxCacheSizeBytes int64
 }
 
 // File is an os.File, but includes the Path
@@ -185,8 +189,14 @@ type EvictStats struct {
 }
 
 // Evict will remove files from Store.Dir until it is smaller than
+// Store.MaxCacheSizeBytes. It evicts files with the oldest modification time first.
+func (s *Store) Evict() {
+	s.EvictMaxSize(s.MaxCacheSizeBytes)
+}
+
+// Evict will remove files from Store.Dir until it is smaller than
 // maxCacheSizeBytes. It evicts files with the oldest modification time first.
-func (s *Store) Evict(maxCacheSizeBytes int64) (stats EvictStats, err error) {
+func (s *Store) EvictMaxSize(maxCacheSizeBytes int64) (stats EvictStats, err error) {
 	isZip := func(fi os.FileInfo) bool {
 		return strings.HasSuffix(fi.Name(), ".zip")
 	}

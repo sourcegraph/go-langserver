@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -15,6 +14,10 @@ import (
 // ArchiveCacheDir is the location on disk that archives are cached. It is
 // configurable so that in production we can point it into CACHE_DIR.
 var ArchiveCacheDir = "/tmp/go-langserver-archive-cache"
+
+// MaxCacheSizeBytes is the maximum size of the cache directory after evicting
+// entries. Defaults to 50 GB.
+var MaxCacheSizeBytes = int64(50 * 1024 * 1024 * 1024)
 
 // Evicter implements Evict
 type Evicter interface {
@@ -41,13 +44,7 @@ func (f *cachedFile) Evict() {
 // cachedFetch will open a file from the local cache with key. If missing,
 // fetcher will fill the cache first. cachedFetch also performs
 // single-flighting.
-func cachedFetch(ctx context.Context, component, key string, fetcher func(context.Context) (io.ReadCloser, error)) (ff *cachedFile, err error) {
-	s := &diskcache.Store{
-		// Dir uses component as a subdir to prevent conflicts between
-		// components with the same key.
-		Dir:       filepath.Join(ArchiveCacheDir, component),
-		Component: component,
-	}
+func cachedFetch(ctx context.Context, key string, s *diskcache.Store, fetcher func(context.Context) (io.ReadCloser, error)) (ff *cachedFile, err error) {
 	f, err := s.Open(ctx, key, fetcher)
 	if err != nil {
 		return nil, err

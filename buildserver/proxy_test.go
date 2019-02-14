@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -586,8 +587,8 @@ func yza() {}
 				}()
 
 				origRemoteFS := gobuildserver.RemoteFS
-				gobuildserver.RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, error) {
-					return mapFS(test.fs), nil
+				gobuildserver.RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, io.Closer, error) {
+					return mapFS(test.fs), ioutil.NopCloser(strings.NewReader("")), nil
 				}
 
 				defer func() {
@@ -703,7 +704,7 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 	// do not use the pkg cache because tests won't install any pkgs
 	config.UseBinaryPkgCache = false
 
-	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(gobuildserver.NewHandler(config)))
+	jsonrpc2.NewConn(context.Background(), a, jsonrpc2.AsyncHandler(jsonrpc2.HandlerWithError(gobuildserver.NewHandler(config).Handle)))
 
 	conn := jsonrpc2.NewConn(context.Background(), b, NoopHandler{}, jsonrpc2.OnRecv(onRecv), jsonrpc2.OnSend(onSend))
 	done := func() {

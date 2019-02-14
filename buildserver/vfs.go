@@ -2,6 +2,9 @@ package buildserver
 
 import (
 	"context"
+	"io"
+	"io/ioutil"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,7 +20,7 @@ import (
 // SECURITY NOTE: This DOES NOT check that the user or context has permissions
 // to read the repo. We assume permission checks happen before a request reaches
 // a build server.
-var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, error) {
+var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, io.Closer, error) {
 	zipURL := func() string {
 		initializationOptions, ok := initializeParams.InitializationOptions.(map[string]interface{})
 		if !ok {
@@ -27,9 +30,10 @@ var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParam
 		return url
 	}()
 	if zipURL != "" {
-		return vfsutil.NewZipVFS(ctx, zipURL, zipFetch.Inc, zipFetchFailed.Inc, true)
+		vfs, err := vfsutil.NewZipVFS(ctx, zipURL, zipFetch.Inc, zipFetchFailed.Inc, true)
+		return vfs, vfs, err
 	}
-	return nil, errors.Errorf("no zipURL was provided in the initializationOptions")
+	return nil, ioutil.NopCloser(strings.NewReader("")), errors.Errorf("no zipURL was provided in the initializationOptions")
 }
 
 var zipFetch = prometheus.NewCounter(prometheus.CounterOpts{
