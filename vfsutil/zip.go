@@ -7,12 +7,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/fhs/go-netrc/netrc"
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/go-langserver/diskcache"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -46,7 +48,13 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 			span.Finish()
 		}()
 
-		ff, err := cachedFetch(ctx, "zipvfs", url, func(ctx context.Context) (io.ReadCloser, error) {
+		store := &diskcache.Store{
+			Dir:               filepath.Join(ArchiveCacheDir, "zipvfs"),
+			Component:         "zipvfs",
+			MaxCacheSizeBytes: MaxCacheSizeBytes,
+		}
+
+		ff, err := cachedFetch(ctx, url, store, func(ctx context.Context) (io.ReadCloser, error) {
 			onFetchStart()
 			request, err := http.NewRequest("GET", url, nil)
 			if err != nil {
@@ -85,6 +93,7 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 			Reader:           zr,
 			Closer:           f,
 			StripTopLevelDir: true,
+			Evicter:          store,
 		}, nil
 	}
 

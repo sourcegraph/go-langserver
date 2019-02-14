@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -16,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/die-net/lrucache"
 	"github.com/gregjones/httpcache"
@@ -44,7 +47,7 @@ var Debug = true
 // and mapping local file system paths to logical URIs (e.g.,
 // /goroot/src/fmt/print.go ->
 // git://github.com/golang/go?go1.7.1#src/fmt/print.go).
-func NewHandler(defaultCfg langserver.Config) jsonrpc2.Handler {
+func NewHandler(defaultCfg langserver.Config) *BuildHandler {
 	if defaultCfg.MaxParallelism <= 0 {
 		panic(fmt.Sprintf("langserver.Config.MaxParallelism must be at least 1 (got %d)", defaultCfg.MaxParallelism))
 	}
@@ -57,7 +60,7 @@ func NewHandler(defaultCfg langserver.Config) jsonrpc2.Handler {
 		},
 	}
 	shared.FindPackage = h.findPackageCached
-	return jsonrpc2.HandlerWithError(h.handle)
+	return h
 }
 
 // BuildHandler is a Go build server LSP/JSON-RPC handler that wraps a
@@ -77,6 +80,7 @@ type BuildHandler struct {
 	init           *lspext.InitializeParams // set by "initialize" request
 	rootImportPath string                   // root import path of the workspace (e.g., "github.com/foo/bar")
 	cachingClient  *http.Client             // http.Client with a cache backed by an in-memory LRU cache
+	closers        []io.Closer              // values to dispose of when Close() is called
 }
 
 // reset clears all internal state in h.
@@ -102,7 +106,7 @@ func (h *BuildHandler) reset(init *lspext.InitializeParams, conn *jsonrpc2.Conn,
 	return nil
 }
 
-func (h *BuildHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {
+func (h *BuildHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (result interface{}, err error) {
 	// Prevent any uncaught panics from taking the entire server down.
 	defer func() {
 		if r := recover(); r != nil {
@@ -187,10 +191,11 @@ func (h *BuildHandler) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jso
 
 		// Determine the root import path of this workspace (e.g., "github.com/user/repo").
 		span.SetTag("originalRootPath", params.OriginalRootURI)
-		fs, err := RemoteFS(ctx, params)
+		fs, closer, err := RemoteFS(ctx, params)
 		if err != nil {
 			return nil, err
 		}
+		h.closers = append(h.closers, closer)
 
 		langInitParams, err := determineEnvironment(ctx, fs, params)
 		if err != nil {
@@ -570,4 +575,16 @@ func (h *BuildHandler) callLangServer(ctx context.Context, conn *jsonrpc2.Conn, 
 		}
 	}
 	return nil
+}
+
+// Close implements io.Closer
+func (h *BuildHandler) Close() error {
+	var result error
+	for _, closer := range h.closers {
+		err := closer.Close()
+		if err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+	return result
 }

@@ -3,6 +3,8 @@ package buildserver_test
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"strings"
@@ -267,15 +269,16 @@ func TestIntegration(t *testing.T) {
 // test.
 func useGithubForVFS() func() {
 	origRemoteFS := gobuildserver.RemoteFS
-	gobuildserver.RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, error) {
+	gobuildserver.RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, io.Closer, error) {
 		u, err := gituri.Parse(string(initializeParams.OriginalRootURI))
 		if err != nil {
-			return nil, errors.Wrap(err, "could not parse workspace URI for remotefs")
+			return nil, ioutil.NopCloser(strings.NewReader("")), errors.Wrap(err, "could not parse workspace URI for remotefs")
 		}
 		if u.Rev() == "" {
-			return nil, errors.Errorf("rev is required in uri: %s", initializeParams.OriginalRootURI)
+			return nil, ioutil.NopCloser(strings.NewReader("")), errors.Errorf("rev is required in uri: %s", initializeParams.OriginalRootURI)
 		}
-		return vfsutil.NewGitHubRepoVFS(ctx, string(u.Repo()), u.Rev())
+		fs, err := vfsutil.NewGitHubRepoVFS(ctx, string(u.Repo()), u.Rev())
+		return fs, ioutil.NopCloser(strings.NewReader("")), err
 	}
 
 	return func() {

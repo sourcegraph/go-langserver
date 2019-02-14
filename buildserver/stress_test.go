@@ -13,11 +13,11 @@ import (
 
 	"github.com/neelance/parallel"
 	"github.com/sourcegraph/ctxvfs"
+	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
+	"github.com/sourcegraph/go-langserver/gituri"
 	"github.com/sourcegraph/go-langserver/pkg/lsp"
 	"github.com/sourcegraph/go-lsp/lspext"
 	"github.com/sourcegraph/jsonrpc2"
-	gobuildserver "github.com/sourcegraph/go-langserver/buildserver"
-	"github.com/sourcegraph/go-langserver/gituri"
 )
 
 // BenchmarkStress benchmarks performing "textDocument/definition",
@@ -60,7 +60,7 @@ func BenchmarkStress(b *testing.B) {
 		label := strings.Replace(root.Host+root.Path, "/", "-", -1)
 
 		b.Run(label, func(b *testing.B) {
-			fs, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: rootURI})
+			fs, _, err := gobuildserver.RemoteFS(context.Background(), lspext.InitializeParams{OriginalRootURI: rootURI})
 			if err != nil {
 				b.Fatal(err)
 			}

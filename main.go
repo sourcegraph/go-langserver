@@ -6,12 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/keegancsmith/tmpfriend"
@@ -33,15 +35,16 @@ import (
 )
 
 var (
-	mode           = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
-	addr           = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
-	trace          = flag.Bool("trace", false, "print all requests and responses")
-	logfile        = flag.String("logfile", "", "also log to this file (in addition to stderr)")
-	printVersion   = flag.Bool("version", false, "print version and exit")
-	pprof          = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
-	freeosmemory   = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
-	useBuildServer = flag.Bool("usebuildserver", false, "use a build server to fetch dependencies, fetch files via Zip URL, etc.")
-	cacheDir       = flag.String("cachedir", "/tmp", "directory to store cached archives")
+	mode              = flag.String("mode", "stdio", "communication mode (stdio|tcp|websocket)")
+	addr              = flag.String("addr", ":4389", "server listen address (tcp or websocket)")
+	trace             = flag.Bool("trace", false, "print all requests and responses")
+	logfile           = flag.String("logfile", "", "also log to this file (in addition to stderr)")
+	printVersion      = flag.Bool("version", false, "print version and exit")
+	pprof             = flag.String("pprof", "", "start a pprof http server (https://golang.org/pkg/net/http/pprof/)")
+	freeosmemory      = flag.Bool("freeosmemory", true, "aggressively free memory back to the OS")
+	useBuildServer    = flag.Bool("usebuildserver", false, "use a build server to fetch dependencies, fetch files via Zip URL, etc.")
+	cacheDir          = flag.String("cachedir", "/tmp", "directory to store cached archives")
+	maxCacheSizeBytes = flag.Int64("maxCacheSizeBytes", 50*1024*1024*1024, "the maximum size of the cache directory after evicting entries")
 
 	// Default Config, can be overridden by InitializationOptions
 	usebinarypkgcache  = flag.Bool("usebinarypkgcache", true, "use $GOPATH/pkg binary .a files (improves performance). Can be overridden by InitializationOptions.")
@@ -76,6 +79,7 @@ func main() {
 	log.SetFlags(0)
 
 	vfsutil.ArchiveCacheDir = filepath.Join(*cacheDir, "lang-go-archive-cache")
+	vfsutil.MaxCacheSizeBytes = *maxCacheSizeBytes
 
 	// Start pprof server, if desired.
 	if *pprof != "" {
@@ -166,11 +170,12 @@ func run(cfg langserver.Config) error {
 		connOpt = append(connOpt, jsonrpc2.LogMessages(log.New(logW, "", 0)))
 	}
 
-	newHandler := func() jsonrpc2.Handler {
+	newHandler := func() (jsonrpc2.Handler, io.Closer) {
 		if *useBuildServer {
-			return jsonrpc2.AsyncHandler(buildserver.NewHandler(cfg))
+			handler := buildserver.NewHandler(cfg)
+			return jsonrpc2.AsyncHandler(jsonrpc2.HandlerWithError(handler.Handle)), handler
 		}
-		return langserver.NewHandler(cfg)
+		return langserver.NewHandler(cfg), ioutil.NopCloser(strings.NewReader(""))
 	}
 
 	switch *mode {
@@ -194,9 +199,14 @@ func run(cfg langserver.Config) error {
 			connectionID := connectionCount
 			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
 			openGauge.Inc()
-			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), newHandler(), connOpt...)
+			handler, closer := newHandler()
+			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
 			go func() {
 				<-jsonrpc2Connection.DisconnectNotify()
+				err := closer.Close()
+				if err != nil {
+					log.Println(err)
+				}
 				log.Printf("langserver-go: connection #%d closed\n", connectionID)
 				openGauge.Dec()
 			}()
@@ -221,7 +231,12 @@ func run(cfg langserver.Config) error {
 
 			openGauge.Inc()
 			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
-			<-jsonrpc2.NewConn(context.Background(), wsjsonrpc2.NewObjectStream(connection), newHandler(), connOpt...).DisconnectNotify()
+			handler, closer := newHandler()
+			<-jsonrpc2.NewConn(context.Background(), wsjsonrpc2.NewObjectStream(connection), handler, connOpt...).DisconnectNotify()
+			err = closer.Close()
+			if err != nil {
+				log.Println(err)
+			}
 			log.Printf("langserver-go: connection #%d closed\n", connectionID)
 			openGauge.Dec()
 		})
@@ -243,7 +258,12 @@ func run(cfg langserver.Config) error {
 
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
-		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), newHandler(), connOpt...).DisconnectNotify()
+		handler, closer := newHandler()
+		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...).DisconnectNotify()
+		err := closer.Close()
+		if err != nil {
+			log.Println(err)
+		}
 		log.Println("connection closed")
 		return nil
 
