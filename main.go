@@ -2,6 +2,7 @@ package main // import "github.com/sourcegraph/go-langserver"
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -218,7 +220,7 @@ func run(cfg langserver.Config) error {
 
 		connectionCount := 0
 
-		mux.HandleFunc("/", func(w http.ResponseWriter, request *http.Request) {
+		handleFunc := func(w http.ResponseWriter, request *http.Request) {
 			connection, err := upgrader.Upgrade(w, request, nil)
 			if err != nil {
 				log.Println("error upgrading HTTP to WebSocket:", err)
@@ -239,7 +241,11 @@ func run(cfg langserver.Config) error {
 			}
 			log.Printf("langserver-go: connection #%d closed\n", connectionID)
 			openGauge.Dec()
-		})
+		}
+
+		handleFunc = wrapInBasicAuth(handleFunc)
+
+		mux.HandleFunc("/", handleFunc)
 
 		l, err := listen(*addr)
 		if err != nil {
@@ -325,4 +331,60 @@ func freeOSMemory() {
 		time.Sleep(1 * time.Second)
 		debug.FreeOSMemory()
 	}
+}
+
+// wrapInBasicAuth wraps a handler and requires HTTP basic auth for it using the
+// username and password set in the environment variables:
+//
+// - BASIC_AUTH_USERNAME
+// - BASIC_AUTH_PASSWORD
+//
+// Auth is skipped if NO_BASIC_AUTH is truthy.
+//
+// Fails when set but TLS_KEY or TLS_CERT are not set (otherwise the password
+// would be visible in transit), unless NO_TLS is truthy.
+func wrapInBasicAuth(handler http.HandlerFunc) http.HandlerFunc {
+	// Copied from https://stackoverflow.com/a/39591234/2061958
+	basicAuth := func(handler http.HandlerFunc, username, password, realm string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			user, pass, ok := r.BasicAuth()
+
+			if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(password)) != 1 {
+				w.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`"`)
+				w.WriteHeader(401)
+				w.Write([]byte("Unauthorized.\n"))
+				return
+			}
+
+			handler(w, r)
+		}
+	}
+
+	noBasicAuth, err := strconv.ParseBool(os.Getenv("NO_BASIC_AUTH"))
+	if os.Getenv("NO_BASIC_AUTH") != "" && err != nil {
+		log.Fatalf("Could not parse NO_BASIC_AUTH=%s as a bool.", os.Getenv("NO_BASIC_AUTH"))
+	}
+
+	switch {
+	case os.Getenv("BASIC_AUTH_USERNAME") != "" || os.Getenv("BASIC_AUTH_PASSWORD") != "":
+		noTLS, err := strconv.ParseBool(os.Getenv("NO_TLS"))
+		if os.Getenv("NO_TLS") != "" && err != nil {
+			log.Fatalf("Could not parse NO_TLS=%s as a bool.", os.Getenv("NO_TLS"))
+		}
+
+		switch {
+		case os.Getenv("TLS_CERT") != "" && os.Getenv("TLS_KEY") != "":
+			return basicAuth(handler, os.Getenv("BASIC_AUTH_USERNAME"), os.Getenv("BASIC_AUTH_PASSWORD"), "HTTP basic auth username and password must be set")
+		case noTLS:
+			// The user specified no TLS
+		default:
+			log.Fatal("You must set TLS_CERT=... and TLS_KEY=..., or NO_TLS=true")
+		}
+	case noBasicAuth:
+		// The user specified no basic authentication
+	default:
+		log.Fatal("You must set BASIC_AUTH_USERNAME=..., BASIC_AUTH_PASSWORD=..., or NO_BASIC_AUTH=true")
+	}
+
+	return handler
 }
