@@ -73,7 +73,6 @@ func NewZipVFS(ctx context.Context, urlString string, onFetchStart, onFetchFaile
 			}
 			request.Header.Add("Accept", "application/zip")
 			setAuthFromNetrc(request)
-			fmt.Println("**** REQ ", urlString)
 			resp, err := ctxhttp.Do(ctx, nil, request)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to fetch zip archive from %s", urlString)
