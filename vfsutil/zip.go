@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,7 +55,7 @@ func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func
 			MaxCacheSizeBytes: MaxCacheSizeBytes,
 		}
 
-		ff, err := cachedFetch(ctx, url, store, func(ctx context.Context) (io.ReadCloser, error) {
+		ff, err := cachedFetch(ctx, withoutAuth(url), store, func(ctx context.Context) (io.ReadCloser, error) {
 			onFetchStart()
 			request, err := http.NewRequest("GET", url, nil)
 			if err != nil {
@@ -114,4 +115,16 @@ func setAuthFromNetrc(req *http.Request) {
 		return
 	}
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", machine.Login, machine.Password))))
+}
+
+// Create a new URL that doesn't include the user:password (the access
+// token) so that the same repository at a revision for a different user
+// results in a cache hit.
+func withoutAuth(urlString string) string {
+	u, err := url.Parse(urlString)
+	if err != nil {
+		return urlString
+	}
+	u.User = nil
+	return u.String()
 }
