@@ -23,10 +23,10 @@ import (
 
 // NewZipVFS downloads a zip archive from a URL (or fetches from the local cache
 // on disk) and returns a new VFS backed by that zip archive.
-func NewZipVFS(ctx context.Context, urlString string, onFetchStart, onFetchFailed func(), evictOnClose bool) (*ArchiveFS, error) {
-	request, err := http.NewRequest("HEAD", urlString, nil)
+func NewZipVFS(ctx context.Context, url string, onFetchStart, onFetchFailed func(), evictOnClose bool) (*ArchiveFS, error) {
+	request, err := http.NewRequest("HEAD", url, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", urlString)
+		return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", url)
 	}
 	setAuthFromNetrc(request)
 	response, err := ctxhttp.Do(ctx, nil, request)
@@ -34,13 +34,13 @@ func NewZipVFS(ctx context.Context, urlString string, onFetchStart, onFetchFaile
 		return nil, err
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unable to fetch zip from %s (expected HTTP response code 200, but got %d)", urlString, response.StatusCode)
+		return nil, fmt.Errorf("unable to fetch zip from %s (expected HTTP response code 200, but got %d)", url, response.StatusCode)
 	}
 
 	fetch := func(ctx context.Context) (ar *archiveReader, err error) {
 		span, ctx := opentracing.StartSpanFromContext(ctx, "zip Fetch")
 		ext.Component.Set(span, "zipvfs")
-		span.SetTag("url", urlString)
+		span.SetTag("url", url)
 		defer func() {
 			if err != nil {
 				ext.Error.Set(span, true)
@@ -55,39 +55,39 @@ func NewZipVFS(ctx context.Context, urlString string, onFetchStart, onFetchFaile
 			MaxCacheSizeBytes: MaxCacheSizeBytes,
 		}
 
-		ff, err := cachedFetch(ctx, withoutAuth(urlString), store, func(ctx context.Context) (io.ReadCloser, error) {
+		ff, err := cachedFetch(ctx, withoutAuth(url), store, func(ctx context.Context) (io.ReadCloser, error) {
 			onFetchStart()
-			request, err := http.NewRequest("GET", urlString, nil)
+			request, err := http.NewRequest("GET", url, nil)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", urlString)
+				return nil, errors.Wrapf(err, "failed to construct a new request with URL %s", url)
 			}
 			request.Header.Add("Accept", "application/zip")
 			setAuthFromNetrc(request)
 			resp, err := ctxhttp.Do(ctx, nil, request)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to fetch zip archive from %s", urlString)
+				return nil, errors.Wrapf(err, "failed to fetch zip archive from %s", url)
 			}
 			if resp.StatusCode != http.StatusOK {
 				resp.Body.Close()
-				return nil, errors.Errorf("zip URL %s returned HTTP %d", urlString, resp.StatusCode)
+				return nil, errors.Errorf("zip URL %s returned HTTP %d", url, resp.StatusCode)
 			}
 			return resp.Body, nil
 		})
 		if err != nil {
 			onFetchFailed()
-			return nil, errors.Wrapf(err, "failed to fetch/write/open zip archive from %s", urlString)
+			return nil, errors.Wrapf(err, "failed to fetch/write/open zip archive from %s", url)
 		}
 		f := ff.File
 
 		zr, err := zipNewFileReader(f)
 		if err != nil {
 			f.Close()
-			return nil, errors.Wrapf(err, "failed to read zip archive from %s", urlString)
+			return nil, errors.Wrapf(err, "failed to read zip archive from %s", url)
 		}
 
 		if len(zr.File) == 0 {
 			f.Close()
-			return nil, errors.Errorf("zip archive from %s is empty", urlString)
+			return nil, errors.Errorf("zip archive from %s is empty", url)
 		}
 
 		return &archiveReader{
