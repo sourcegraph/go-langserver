@@ -495,16 +495,19 @@ func FetchCommonDeps() {
 // Source 1 and 2 are performance optimizations over cloning the whole repo.
 var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zipURLTemplate *string) (ctxvfs.FileSystem, error) {
 	if zipURLTemplate != nil {
-		var repoName string
-		if strings.HasSuffix(cloneURL.Path, ".git") {
-			repoName = strings.TrimSuffix(cloneURL.Path, ".git")
-		} else {
-			repoName = cloneURL.Path
-		}
-		zipURL := fmt.Sprintf(*zipURLTemplate, path.Join(cloneURL.Host, repoName), rev)
+		zipURL := fmt.Sprintf(*zipURLTemplate, path.Join(cloneURL.Host, cloneURL.Path), rev)
 		archive, err := vfsutil.NewZipVFS(ctx, zipURL, depZipFetch.Inc, depZipFetchFailed.Inc, false)
 		if archive != nil && err == nil {
 			return archive, nil
+		}
+
+		// If the repository name ends with `.git` then try again without it.
+		if strings.HasSuffix(cloneURL.Path, ".git") {
+			zipURL := fmt.Sprintf(*zipURLTemplate, path.Join(cloneURL.Host, strings.TrimSuffix(cloneURL.Path, ".git")), rev)
+			archive, err := vfsutil.NewZipVFS(ctx, zipURL, depZipFetch.Inc, depZipFetchFailed.Inc, false)
+			if archive != nil && err == nil {
+				return archive, nil
+			}
 		}
 	}
 
