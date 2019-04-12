@@ -500,6 +500,15 @@ var NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zip
 		if archive != nil && err == nil {
 			return archive, nil
 		}
+
+		// If the repository name ends with `.git` then try again without it.
+		if strings.HasSuffix(cloneURL.Path, ".git") {
+			zipURL := fmt.Sprintf(*zipURLTemplate, path.Join(cloneURL.Host, strings.TrimSuffix(cloneURL.Path, ".git")), rev)
+			archive, err := vfsutil.NewZipVFS(ctx, zipURL, depZipFetch.Inc, depZipFetchFailed.Inc, false)
+			if archive != nil && err == nil {
+				return archive, nil
+			}
+		}
 	}
 
 	// Fast-path for GitHub repos, which we can fetch on-demand from
