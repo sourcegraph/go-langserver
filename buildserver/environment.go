@@ -278,7 +278,7 @@ type sourcegraphConfig struct {
 		// This is to support monorepos such as the ones described in
 		// https://blog.gopheracademy.com/advent-2015/go-in-a-monorepo/
 		//
-		// See https://docs.sourcegraph.com/extensions/language_servers/go#custom-gopaths-go-monorepos.
+		// See https://github.com/sourcegraph/go-langserver#custom-gopaths-go-monorepos.
 		GOPATH []string
 
 		// RootImportPath defines what Go import path corresponds to the
@@ -289,7 +289,7 @@ type sourcegraphConfig struct {
 		// information (from glide.yml or canonical import path comments) and
 		// gives you an opportunity to specify it directly.
 		//
-		// See https://docs.sourcegraph.com/extensions/language_servers/go#vanity-import-paths.
+		// See https://github.com/sourcegraph/go-langserver#vanity-import-paths.
 		RootImportPath string
 	} `json:"go"`
 }
