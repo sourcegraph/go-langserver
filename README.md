@@ -1,11 +1,9 @@
 # Go Language Server [![Build Status](https://travis-ci.org/sourcegraph/go-langserver.svg)](https://travis-ci.org/sourcegraph/go-langserver)
 
 > *Note:* We have deprioritized work on this language server for use in
-> editors in favor of Google's upcoming Go language server. It is in the best
-> interests of the community to only have a single language server. If you
-> want to use a Go language server with your editor in the meantime, try
-> https://github.com/saibing/bingo, which is a partial fork of this repository
-> with fixes for Go modules and other editor bugs.
+> editors in favor of Google's Go language server,
+> [gopls](https://github.com/golang/go/wiki/gopls). It is in the best
+> interests of the community to only have a single language server.
 
 go-langserver is a [Go](https://golang.org) language server that
 speaks
