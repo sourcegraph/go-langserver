@@ -178,6 +178,19 @@ func (h *BuildHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jso
 			return nil, err
 		}
 
+		// Fall back to reading the `originalRootURI` from
+		// `InitializeParams.intitializationOptions` if absent from the
+		// `InitializeParams`. This makes go-langserver more LSP-compliant so that
+		// clients don't need to go outside of the LSP specification to communicate
+		// with it.
+		if params.OriginalRootURI == "" {
+			if initializationOptions, ok := params.InitializationOptions.(map[string]interface{}); ok {
+				if originalRootURI, ok := initializationOptions["originalRootURI"].(string); ok {
+					params.OriginalRootURI = lsp.DocumentURI(originalRootURI)
+				}
+			}
+		}
+
 		if Debug {
 			var b []byte
 			if req.Params != nil {

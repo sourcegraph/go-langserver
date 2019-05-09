@@ -22,24 +22,33 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+type OriginalRootURIParent int
+
+const (
+	parentInitializeParams OriginalRootURIParent = iota
+	parentInitializationOptions
+)
+
 func TestProxy(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
 
 	tests := map[string]struct {
-		rootURI           lsp.DocumentURI
-		mode              string
-		fs                map[string]string
-		wantHover         map[string]string
-		wantDefinition    map[string]string
-		wantXDefinition   map[string]string
-		wantReferences    map[string][]string
-		wantSymbols       map[string][]string
-		wantXDependencies string
-		wantXReferences   map[*lsext.WorkspaceReferencesParams][]string
-		wantXPackages     []string
-		depFS             map[string]map[string]string // dep clone URL -> map VFS
+		rootURI lsp.DocumentURI
+		mode    string
+		// defaults to "intializeParams"
+		originalRootURIParent OriginalRootURIParent
+		fs                    map[string]string
+		wantHover             map[string]string
+		wantDefinition        map[string]string
+		wantXDefinition       map[string]string
+		wantReferences        map[string][]string
+		wantSymbols           map[string][]string
+		wantXDependencies     string
+		wantXReferences       map[*lsext.WorkspaceReferencesParams][]string
+		wantXPackages         []string
+		depFS                 map[string]map[string]string // dep clone URL -> map VFS
 	}{
 		"go basic": {
 			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
@@ -569,6 +578,17 @@ func yza() {}
 				"is:exported": []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#abc.go:class:XYZ:2:5", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#bcd.go:class:YZA:2:5", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#abc.go:method:XYZ.ABC:4:13", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#bcd.go:method:YZA.BCD:4:13"},
 			},
 		},
+		"originalRootURI in initalizationOptions instead of initializeParams": {
+			rootURI:               "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			originalRootURIParent: parentInitializationOptions,
+			mode:                  "go",
+			fs: map[string]string{
+				"a.go": "package p; func A() { A() }",
+			},
+			wantHover: map[string]string{
+				"a.go:1:17": "func A()",
+			},
+		},
 	}
 	for label, test := range tests {
 		t.Run(label, func(t *testing.T) {
@@ -610,10 +630,26 @@ func yza() {}
 			defer done()
 
 			// Prepare the connection.
-			if err := c.Call(ctx, "initialize", lspext.InitializeParams{
-				InitializeParams: lsp.InitializeParams{RootURI: "file:///"},
-				OriginalRootURI:  test.rootURI,
-			}, nil); err != nil {
+			var initializeParams lspext.InitializeParams
+			switch test.originalRootURIParent {
+			case parentInitializeParams:
+				initializeParams = lspext.InitializeParams{
+					InitializeParams: lsp.InitializeParams{RootURI: "file:///"},
+					OriginalRootURI:  test.rootURI,
+				}
+			case parentInitializationOptions:
+				initializeParams = lspext.InitializeParams{
+					InitializeParams: lsp.InitializeParams{
+						RootURI: "file:///",
+						InitializationOptions: map[string]string{
+							"originalRootURI": string(test.rootURI),
+						},
+					},
+				}
+			default:
+				t.Fatalf("invalid originalRootURIParent: %d", test.originalRootURIParent)
+			}
+			if err := c.Call(ctx, "initialize", initializeParams, nil); err != nil {
 				t.Fatal("initialize:", err)
 			}
 
