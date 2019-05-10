@@ -4,7 +4,7 @@ clone_folder: c:\gopath\src\github.com\sourcegraph\go-langserver
 environment:
   GOPATH: c:\gopath
 install:
-  - set PATH=C:\msys64\mingw64\bin;%PATH%;%GOPATH%\bin
+  - set PATH=C:\go112;C:\msys64\mingw64\bin;%PATH%;%GOPATH%\bin
   - echo %PATH%
   - echo %GOPATH%
   - go version
