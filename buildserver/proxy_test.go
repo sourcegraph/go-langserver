@@ -29,6 +29,8 @@ func TestProxy(t *testing.T) {
 
 	tests := map[string]struct {
 		rootURI           lsp.DocumentURI
+		originalRootURI   lsp.DocumentURI
+		doNotRewriteURIs  bool
 		mode              string
 		fs                map[string]string
 		wantHover         map[string]string
@@ -42,8 +44,9 @@ func TestProxy(t *testing.T) {
 		depFS             map[string]map[string]string // dep clone URL -> map VFS
 	}{
 		"go basic": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 				"b.go": "package p; func B() { A() }",
@@ -94,8 +97,9 @@ func TestProxy(t *testing.T) {
 			wantXPackages: []string{"test/pkg"},
 		},
 		"go detailed": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": "package p; type T struct { F string }",
 			},
@@ -109,8 +113,9 @@ func TestProxy(t *testing.T) {
 			},
 		},
 		"exported defs unexported type": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": "package p; type t struct { F string }",
 			},
@@ -119,8 +124,9 @@ func TestProxy(t *testing.T) {
 			},
 		},
 		"go xtest": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go":      "package p; var A int",
 				"a_test.go": `package p_test; import "test/pkg"; var X = p.A`,
@@ -132,8 +138,9 @@ func TestProxy(t *testing.T) {
 			},
 		},
 		"go subdirectory in repo": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go":    "package d; func A() { A() }",
 				"d2/b.go": `package d2; import "test/pkg/d"; func B() { d.A(); B() }`,
@@ -218,8 +225,9 @@ func TestProxy(t *testing.T) {
 			wantXPackages: []string{"test/pkg/d", "test/pkg/d/d2"},
 		},
 		"go multiple packages in dir": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": "package p; func A() { A() }",
 				"main.go": `// +build ignore
@@ -255,8 +263,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantXPackages: []string{"test/pkg"},
 		},
 		"goroot": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": `package p; import "fmt"; var _ = fmt.Println; var x int`,
 			},
@@ -283,8 +292,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"gopath": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a/a.go": `package a; func A() {}`,
 				"b/b.go": `package b; import "test/pkg/a"; var _ = a.A`,
@@ -319,8 +329,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go vendored dep": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go":                              `package a; import "github.com/v/vendored"; var _ = vendored.V`,
 				"vendor/github.com/v/vendored/v.go": "package vendored; func V() {}",
@@ -347,8 +358,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			wantXPackages: []string{"test/pkg", "test/pkg/vendor/github.com/v/vendored"},
 		},
 		"go vendor symbols with same name": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"z.go":                          `package pkg; func x() bool { return true }`,
 				"vendor/github.com/a/pkg2/x.go": `package pkg2; func x() bool { return true }`,
@@ -379,8 +391,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go external dep": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": `package a; import "github.com/d/dep"; var _ = dep.D; var _ = dep.D`,
 			},
@@ -409,8 +422,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"external dep with vendor": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": `package p; import "github.com/d/dep"; var _ = dep.D().F`,
 			},
@@ -428,8 +442,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go external dep at subtree": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": `package a; import "github.com/d/dep/subp"; var _ = subp.D`,
 			},
@@ -449,8 +464,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go nested external dep": { // a depends on dep1, dep1 depends on dep2
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": `package a; import "github.com/d/dep1"; var _ = dep1.D1().D2`,
 			},
@@ -476,8 +492,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 			},
 		},
 		"go external dep at vanity import path": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a.go": `package a; import "golang.org/x/text"; var _ = text.F`,
 			},
@@ -510,8 +527,9 @@ package main; import "test/pkg"; func B() { p.A(); B() }`,
 		// separate (HEAD) copy of the entire kubernetes repo at the
 		// k8s.io/kubernetes/... root.
 		"go packages with canonical import path different from its repo": {
-			rootURI: "git://test/foo?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/foo?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"a/a.go": `package a // import "other/foo/a"
 
@@ -540,8 +558,9 @@ var (
 		},
 
 		"go symbols": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			mode:    "go",
+			rootURI:         "file:///",
+			originalRootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			mode:            "go",
 			fs: map[string]string{
 				"abc.go": `package a
 
@@ -567,6 +586,18 @@ func yza() {}
 				"abc":         []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#abc.go:method:XYZ.ABC:4:13", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#abc.go:class:XYZ:2:5"},
 				"bcd":         []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#bcd.go:method:YZA.BCD:4:13", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#bcd.go:class:YZA:2:5"},
 				"is:exported": []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#abc.go:class:XYZ:2:5", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#bcd.go:class:YZA:2:5", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#abc.go:method:XYZ.ABC:4:13", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#bcd.go:method:YZA.BCD:4:13"},
+			},
+		},
+		"git:// rootURI and an empty originalRootURI": {
+			rootURI:          "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+			originalRootURI:  "",
+			doNotRewriteURIs: true,
+			mode:             "go",
+			fs: map[string]string{
+				"a.go": "package p; func A() { A() }",
+			},
+			wantHover: map[string]string{
+				"a.go:1:1": "func A()",
 			},
 		},
 	}
@@ -597,22 +628,25 @@ func yza() {}
 			}
 
 			ctx := context.Background()
-			if test.rootURI == "" {
-				t.Fatal("no rootPath set in test fixture")
-			}
 
-			root, err := gituri.Parse(string(test.rootURI))
+			var root *gituri.URI
+			var err error
+			if test.originalRootURI != "" {
+				root, err = gituri.Parse(string(test.originalRootURI))
+			} else {
+				root, err = gituri.Parse(string(test.rootURI))
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			c, done := connectionToNewBuildServer(string(test.rootURI), t)
+			c, done := connectionToNewBuildServer(string(root.String()), t, !test.doNotRewriteURIs)
 			defer done()
 
 			// Prepare the connection.
 			if err := c.Call(ctx, "initialize", lspext.InitializeParams{
-				InitializeParams: lsp.InitializeParams{RootURI: "file:///"},
-				OriginalRootURI:  test.rootURI,
+				InitializeParams: lsp.InitializeParams{RootURI: test.rootURI},
+				OriginalRootURI:  test.originalRootURI,
 			}, nil); err != nil {
 				t.Fatal("initialize:", err)
 			}
@@ -649,7 +683,7 @@ func (c *pipeReadWriteCloser) Close() error {
 	return err2
 }
 
-func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func()) {
+func connectionToNewBuildServer(root string, t testing.TB, rewriteURIs bool) (*jsonrpc2.Conn, func()) {
 	rootURI, err := gituri.Parse(root)
 	if err != nil {
 		t.Fatal(err)
@@ -684,18 +718,22 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 
 	onSend := func(req *jsonrpc2.Request, res *jsonrpc2.Response) {
 		if res == nil {
-			err := convertURIs(req.Params, RelWorkspaceURI)
-			if err != nil {
-				t.Fatal(err)
+			if rewriteURIs {
+				err := convertURIs(req.Params, RelWorkspaceURI)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 	}
 
 	onRecv := func(req *jsonrpc2.Request, res *jsonrpc2.Response) {
 		if res != nil && res.Result != nil {
-			err := convertURIs(res.Result, AbsWorkspaceURI)
-			if err != nil {
-				t.Fatal(err)
+			if rewriteURIs {
+				err := convertURIs(res.Result, AbsWorkspaceURI)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 	}

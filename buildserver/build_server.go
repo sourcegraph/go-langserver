@@ -81,6 +81,11 @@ type BuildHandler struct {
 	rootImportPath string                   // root import path of the workspace (e.g., "github.com/foo/bar")
 	cachingClient  *http.Client             // http.Client with a cache backed by an in-memory LRU cache
 	closers        []io.Closer              // values to dispose of when Close() is called
+	// Whether URIs in the same workspace begin with:
+	// - `file://` (true)
+	// - `git://` (false)
+	// This affects URI rewriting between the client and server.
+	clientUsesFileSchemeWithinWorkspace bool
 }
 
 // reset clears all internal state in h.
@@ -176,6 +181,23 @@ func (h *BuildHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jso
 		var params lspext.InitializeParams
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return nil, err
+		}
+
+		// In the `rootUri`, clients can send either:
+		//
+		// - A `file://` URI, which indicates that:
+		//   - Same-workspace file paths will also be `file://` URIs
+		//   - Out-of-workspace file paths will be `git://` URIs
+		//   - `originalRootUri` is present
+		// - A `git://` URI, which indicates that:
+		//   - Both same-workspace and out-of-workspace file paths will be non-`file://` URIs
+		//   - `originalRootUri` is absent and `rootUri` contains the original root URI
+		if strings.HasPrefix(string(params.RootURI), "file://") {
+			h.clientUsesFileSchemeWithinWorkspace = true
+		} else {
+			params.OriginalRootURI = params.RootURI
+			params.RootURI = "file:///"
+			h.clientUsesFileSchemeWithinWorkspace = false
 		}
 
 		if Debug {
@@ -327,10 +349,27 @@ func (h *BuildHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jso
 			}
 		}
 		rewriteURIFromClient := func(uri lsp.DocumentURI) lsp.DocumentURI {
-			if !strings.HasPrefix(string(uri), "file:///") {
-				return uri // refers to a resource outside of this workspace
+			var path string
+			if h.clientUsesFileSchemeWithinWorkspace {
+				if !strings.HasPrefix(string(uri), "file:///") {
+					return uri // refers to a resource outside of this workspace
+				}
+				path = strings.TrimPrefix(string(uri), "file://")
+			} else {
+				currentURL, err := url.Parse(string(uri))
+				if err != nil {
+					return uri
+				}
+				originalRootURI, err := url.Parse(string(h.init.OriginalRootURI))
+				if err != nil {
+					return uri
+				}
+				if currentURL.Hostname() == originalRootURI.Hostname() && currentURL.RawPath == originalRootURI.RawPath {
+					path = currentURL.Fragment
+				} else {
+					return uri // refers to a resource outside of this workspace
+				}
 			}
-			path := strings.TrimPrefix(string(uri), "file://")
 			path = pathpkg.Join(h.RootFSPath, path)
 			if !util.PathHasPrefix(path, h.RootFSPath) {
 				panic(fmt.Sprintf("file path %q must have prefix %q (file URI is %q, root URI is %q)", path, h.RootFSPath, uri, h.init.RootPath))
@@ -472,21 +511,37 @@ func (h *BuildHandler) rewriteURIFromLangServer(uri lsp.DocumentURI) (lsp.Docume
 		if util.PathHasPrefix(u.Path, goroot) {
 			fileInGoStdlib := util.PathTrimPrefix(u.Path, goroot)
 			if h.rootImportPath == "" {
-				// The workspace is the Go stdlib and this refers to
-				// something in the Go stdlib, so let's use file:///
-				// so that the client adds our current rev, instead
-				// of using runtime.Version() (which is not
-				// necessarily the commit of the Go stdlib we're
-				// analyzing).
-				return lsp.DocumentURI("file:///" + fileInGoStdlib), nil
+				if h.clientUsesFileSchemeWithinWorkspace {
+					// The workspace is the Go stdlib and this refers to
+					// something in the Go stdlib, so let's use file:///
+					// so that the client adds our current rev, instead
+					// of using runtime.Version() (which is not
+					// necessarily the commit of the Go stdlib we're
+					// analyzing).
+					return lsp.DocumentURI("file:///" + fileInGoStdlib), nil
+				}
+				newURI, err := url.Parse(string(h.init.OriginalRootURI))
+				if err != nil {
+					return uri, nil
+				}
+				newURI.Fragment = fileInGoStdlib
+				return lsp.DocumentURI(newURI.String()), nil
 			}
 			return lsp.DocumentURI("git://github.com/golang/go?" + gosrc.RuntimeVersion + "#" + fileInGoStdlib), nil
 		}
 
 		// Refers to a file in the same workspace?
 		if util.PathHasPrefix(u.Path, h.RootFSPath) {
-			pathInThisWorkspace := util.PathTrimPrefix(u.Path, h.RootFSPath)
-			return lsp.DocumentURI("file:///" + pathInThisWorkspace), nil
+			if h.clientUsesFileSchemeWithinWorkspace {
+				pathInThisWorkspace := util.PathTrimPrefix(u.Path, h.RootFSPath)
+				return lsp.DocumentURI("file:///" + pathInThisWorkspace), nil
+			}
+			newURI, err := url.Parse(string(h.init.OriginalRootURI))
+			if err != nil {
+				return uri, nil
+			}
+			newURI.Fragment = util.PathTrimPrefix(u.Path, h.RootFSPath)
+			return lsp.DocumentURI(newURI.String()), nil
 		}
 
 		// Refers to a file in the GOPATH (that's from another repo)?
