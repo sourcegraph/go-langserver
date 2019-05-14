@@ -2,8 +2,11 @@ package buildserver
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -26,8 +29,19 @@ var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParam
 		if !ok {
 			return ""
 		}
-		url, _ := initializationOptions["zipURL"].(string)
-		return url
+		zipURL, _ := initializationOptions["zipURL"].(string)
+		if zipURL != "" {
+			return zipURL
+		}
+		zipURLTemplate, _ := initializationOptions["zipURLTemplate"].(string)
+		if zipURLTemplate == "" {
+			return ""
+		}
+		root, err := url.Parse(string(initializeParams.OriginalRootURI))
+		if err != nil {
+			return ""
+		}
+		return fmt.Sprintf(zipURLTemplate, path.Join(root.Host, root.Path), root.RawQuery)
 	}()
 	if zipURL != "" {
 		vfs, err := vfsutil.NewZipVFS(ctx, zipURL, zipFetch.Inc, zipFetchFailed.Inc, true)
