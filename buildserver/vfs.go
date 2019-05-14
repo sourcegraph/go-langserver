@@ -34,6 +34,9 @@ var RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParam
 			return zipURL
 		}
 		zipURLTemplate, _ := initializationOptions["zipURLTemplate"].(string)
+		if zipURLTemplate == "" {
+			return ""
+		}
 		root, err := url.Parse(string(initializeParams.OriginalRootURI))
 		if err != nil {
 			return ""
