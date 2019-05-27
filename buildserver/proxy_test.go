@@ -597,7 +597,7 @@ func yza() {}
 				"a.go": "package p; func A() { A() }",
 			},
 			wantHover: map[string]string{
-				"a.go:1:1": "func A()",
+				"a.go:1:23": "func A()",
 			},
 		},
 	}
