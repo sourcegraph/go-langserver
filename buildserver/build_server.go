@@ -77,10 +77,11 @@ type BuildHandler struct {
 	findPkg        map[findPkgKey]*findPkgValue
 	langserver.HandlerCommon
 	*langserver.HandlerShared
-	init           *lspext.InitializeParams // set by "initialize" request
-	rootImportPath string                   // root import path of the workspace (e.g., "github.com/foo/bar")
-	cachingClient  *http.Client             // http.Client with a cache backed by an in-memory LRU cache
-	closers        []io.Closer              // values to dispose of when Close() is called
+	init            *lspext.InitializeParams // set by "initialize" request
+	originalRootURI *url.URL                 // derived from InitializeParams.OriginalRootURI
+	rootImportPath  string                   // root import path of the workspace (e.g., "github.com/foo/bar")
+	cachingClient   *http.Client             // http.Client with a cache backed by an in-memory LRU cache
+	closers         []io.Closer              // values to dispose of when Close() is called
 	// Whether URIs in the same workspace begin with:
 	// - `file://` (true)
 	// - `git://` (false)
@@ -101,6 +102,11 @@ func (h *BuildHandler) reset(init *lspext.InitializeParams, conn *jsonrpc2.Conn,
 		return err
 	}
 	h.init = init
+	var err error
+	h.originalRootURI, err = url.Parse(string(h.init.OriginalRootURI))
+	if h.init.OriginalRootURI == "" || err != nil {
+		h.originalRootURI = nil
+	}
 	// 100 MiB cache, no age-based eviction
 	h.cachingClient = &http.Client{Transport: httpcache.NewTransport(lrucache.New(100*1024*1024, 0))}
 	h.depURLMutex = newKeyMutex()
@@ -360,11 +366,10 @@ func (h *BuildHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jso
 				if err != nil {
 					return uri
 				}
-				originalRootURI, err := url.Parse(string(h.init.OriginalRootURI))
-				if err != nil {
+				if h.originalRootURI == nil {
 					return uri
 				}
-				if currentURL.Hostname() == originalRootURI.Hostname() && currentURL.RawPath == originalRootURI.RawPath {
+				if currentURL.Hostname() == h.originalRootURI.Hostname() && currentURL.RawPath == h.originalRootURI.RawPath {
 					path = currentURL.Fragment
 				} else {
 					return uri // refers to a resource outside of this workspace
@@ -520,10 +525,10 @@ func (h *BuildHandler) rewriteURIFromLangServer(uri lsp.DocumentURI) (lsp.Docume
 					// analyzing).
 					return lsp.DocumentURI("file:///" + fileInGoStdlib), nil
 				}
-				newURI, err := url.Parse(string(h.init.OriginalRootURI))
-				if err != nil {
+				if h.originalRootURI == nil {
 					return uri, nil
 				}
+				newURI, _ := url.Parse(h.originalRootURI.String())
 				newURI.Fragment = fileInGoStdlib
 				return lsp.DocumentURI(newURI.String()), nil
 			}
@@ -536,10 +541,10 @@ func (h *BuildHandler) rewriteURIFromLangServer(uri lsp.DocumentURI) (lsp.Docume
 				pathInThisWorkspace := util.PathTrimPrefix(u.Path, h.RootFSPath)
 				return lsp.DocumentURI("file:///" + pathInThisWorkspace), nil
 			}
-			newURI, err := url.Parse(string(h.init.OriginalRootURI))
-			if err != nil {
+			if h.originalRootURI == nil {
 				return uri, nil
 			}
+			newURI, _ := url.Parse(h.originalRootURI.String())
 			newURI.Fragment = util.PathTrimPrefix(u.Path, h.RootFSPath)
 			return lsp.DocumentURI(newURI.String()), nil
 		}
