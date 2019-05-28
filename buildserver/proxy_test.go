@@ -131,92 +131,6 @@ func TestProxy(t *testing.T) {
 				"a_test.go:1:46": "A int",
 			},
 		},
-		"go subdirectory in repo": {
-			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d",
-			mode:    "go",
-			fs: map[string]string{
-				"a.go":    "package d; func A() { A() }",
-				"d2/b.go": `package d2; import "test/pkg/d"; func B() { d.A(); B() }`,
-			},
-			wantHover: map[string]string{
-				"a.go:1:17":    "func A()",
-				"a.go:1:23":    "func A()",
-				"d2/b.go:1:39": "func B()",
-				"d2/b.go:1:47": "func A()",
-				"d2/b.go:1:52": "func B()",
-			},
-			wantDefinition: map[string]string{
-				"a.go:1:17":    "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:1:17",
-				"a.go:1:23":    "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:1:17",
-				"d2/b.go:1:39": "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:39",
-				"d2/b.go:1:47": "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:1:17",
-				"d2/b.go:1:52": "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:39",
-			},
-			wantXDefinition: map[string]string{
-				"a.go:1:17":    "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				"a.go:1:23":    "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				"d2/b.go:1:39": "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:39 id:test/pkg/d/d2/-/B name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
-				"d2/b.go:1:47": "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:1:17 id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				"d2/b.go:1:52": "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:39 id:test/pkg/d/d2/-/B name:B package:test/pkg/d/d2 packageName:d2 recv: vendor:false",
-			},
-			wantSymbols: map[string][]string{
-				"":            []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:function:A:0:16", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:function:B:0:38"},
-				"is:exported": []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/a.go:function:A:0:16", "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:function:B:0:38"},
-			},
-			wantXReferences: map[*lsext.WorkspaceReferencesParams][]string{
-				// Non-matching name query.
-				{Query: lsext.SymbolDescriptor{"name": "nope"}}: []string{},
-
-				// Matching against invalid field name.
-				{Query: lsext.SymbolDescriptor{"nope": "A"}}: []string{},
-
-				// Matching against an invalid dirs hint.
-				{Query: lsext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///src/test/pkg/d/d3"}}}: []string{},
-
-				// Matching against a dirs hint with multiple dirs.
-				{Query: lsext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///d2", "file:///invalid"}}}: []string{
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				},
-
-				// Matching against a dirs hint.
-				{Query: lsext.SymbolDescriptor{"package": "test/pkg/d"}, Hints: map[string]interface{}{"dirs": []string{"file:///d2"}}}: []string{
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				},
-
-				// Matching against single field.
-				{Query: lsext.SymbolDescriptor{"package": "test/pkg/d"}}: []string{
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				},
-
-				// Matching against no fields.
-				{Query: lsext.SymbolDescriptor{}}: []string{
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false",
-					"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false",
-				},
-				{
-					Query: lsext.SymbolDescriptor{
-						"name":        "",
-						"package":     "test/pkg/d",
-						"packageName": "d",
-						"recv":        "",
-						"vendor":      false,
-					},
-				}: []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:20-1:32 -> id:test/pkg/d name: package:test/pkg/d packageName:d recv: vendor:false"},
-				{
-					Query: lsext.SymbolDescriptor{
-						"name":        "A",
-						"package":     "test/pkg/d",
-						"packageName": "d",
-						"recv":        "",
-						"vendor":      false,
-					},
-				}: []string{"git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef#d/d2/b.go:1:47-1:48 -> id:test/pkg/d/-/A name:A package:test/pkg/d packageName:d recv: vendor:false"},
-			},
-			wantXPackages: []string{"test/pkg/d", "test/pkg/d/d2"},
-		},
 		"go multiple packages in dir": {
 			rootURI: "git://test/pkg?deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 			mode:    "go",
@@ -606,18 +520,32 @@ func yza() {}
 				t.Fatal(err)
 			}
 
-			c, done := connectionToNewBuildServer(string(test.rootURI), t)
-			defer done()
+			r := func(clientUsesFileSchemeWithinWorkspace bool) {
+				c, done := connectionToNewBuildServer(string(test.rootURI), t, clientUsesFileSchemeWithinWorkspace)
+				defer done()
 
-			// Prepare the connection.
-			if err := c.Call(ctx, "initialize", lspext.InitializeParams{
-				InitializeParams: lsp.InitializeParams{RootURI: "file:///"},
-				OriginalRootURI:  test.rootURI,
-			}, nil); err != nil {
-				t.Fatal("initialize:", err)
+				// Prepare the connection.
+				var initializeParams lspext.InitializeParams
+				if clientUsesFileSchemeWithinWorkspace {
+					initializeParams = lspext.InitializeParams{
+						InitializeParams: lsp.InitializeParams{RootURI: "file:///"},
+						OriginalRootURI:  test.rootURI,
+					}
+				} else {
+					initializeParams = lspext.InitializeParams{
+						InitializeParams: lsp.InitializeParams{RootURI: test.rootURI},
+						OriginalRootURI:  "",
+					}
+				}
+				if err := c.Call(ctx, "initialize", initializeParams, nil); err != nil {
+					t.Fatal("initialize:", err)
+				}
+
+				lspTests(t, ctx, c, root, test.wantHover, test.wantDefinition, test.wantXDefinition, test.wantReferences, test.wantSymbols, test.wantXDependencies, test.wantXReferences, test.wantXPackages)
 			}
 
-			lspTests(t, ctx, c, root, test.wantHover, test.wantDefinition, test.wantXDefinition, test.wantReferences, test.wantSymbols, test.wantXDependencies, test.wantXReferences, test.wantXPackages)
+			r(true)
+			r(false)
 		})
 	}
 }
@@ -649,7 +577,7 @@ func (c *pipeReadWriteCloser) Close() error {
 	return err2
 }
 
-func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func()) {
+func connectionToNewBuildServer(root string, t testing.TB, rewriteURIs bool) (*jsonrpc2.Conn, func()) {
 	rootURI, err := gituri.Parse(root)
 	if err != nil {
 		t.Fatal(err)
@@ -684,18 +612,22 @@ func connectionToNewBuildServer(root string, t testing.TB) (*jsonrpc2.Conn, func
 
 	onSend := func(req *jsonrpc2.Request, res *jsonrpc2.Response) {
 		if res == nil {
-			err := convertURIs(req.Params, RelWorkspaceURI)
-			if err != nil {
-				t.Fatal(err)
+			if rewriteURIs {
+				err := convertURIs(req.Params, RelWorkspaceURI)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 	}
 
 	onRecv := func(req *jsonrpc2.Request, res *jsonrpc2.Response) {
 		if res != nil && res.Result != nil {
-			err := convertURIs(res.Result, AbsWorkspaceURI)
-			if err != nil {
-				t.Fatal(err)
+			if rewriteURIs {
+				err := convertURIs(res.Result, AbsWorkspaceURI)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 	}
