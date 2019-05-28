@@ -369,9 +369,9 @@ func (h *BuildHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jso
 				if h.originalRootURI == nil {
 					return uri
 				}
-				if currentURL.Hostname() == h.originalRootURI.Hostname() && currentURL.RawPath == h.originalRootURI.RawPath {
-					path = currentURL.Fragment
-				} else {
+				path = currentURL.Fragment
+				currentURL.Fragment = ""
+				if *currentURL != *h.originalRootURI {
 					return uri // refers to a resource outside of this workspace
 				}
 			}
