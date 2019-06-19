@@ -353,7 +353,7 @@ func defSymbolDescriptor(ctx context.Context, bctx *build.Context, rootPath stri
 	switch {
 	case len(fields) == 0:
 		// reference to just a package
-		desc.ID = fmt.Sprintf("%s", desc.Package)
+		desc.ID = desc.Package
 	case len(fields) >= 2:
 		desc.Recv = fields[0]
 		desc.Name = fields[1]
