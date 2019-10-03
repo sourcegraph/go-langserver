@@ -2,7 +2,7 @@
 
 > *Note:* We have deprioritized work on this language server for use in
 > editors in favor of Google's Go language server,
-> [gopls](https://github.com/golang/go/wiki/gopls). It is in the best
+> [gopls](https://github.com/golang/tools/tree/master/gopls). It is in the best
 > interests of the community to only have a single language server.
 
 go-langserver is a [Go](https://golang.org) language server that
