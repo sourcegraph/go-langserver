@@ -97,7 +97,7 @@ func (h *LangHandler) handleHover(ctx context.Context, conn jsonrpc2.JSONRPC2, r
 			}
 		}
 		if s == "" {
-			s = types.ObjectString(o, qf)
+			s = objectString(o, qf)
 		}
 	} else if t != nil {
 		s = types.TypeString(t, qf)
@@ -665,6 +665,16 @@ func typeName(fset *token.FileSet, typ ast.Expr) string {
 	default:
 		return fmtNode(fset, typ)
 	}
+}
+
+// objectString wraps types.ObjectString for specific type formatting.
+func objectString(obj types.Object, qf types.Qualifier) string {
+	str := types.ObjectString(obj, qf)
+	switch obj := obj.(type) {
+	case *types.Const:
+		str = fmt.Sprintf("%s = %s", str, obj.Val())
+	}
+	return str
 }
 
 // fmtNode formats the given node as a string.
