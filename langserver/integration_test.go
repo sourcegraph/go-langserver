@@ -26,6 +26,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 		"A.go":    "package p; func A() int { return 0 }",
 		"B.go":    "package p; var _ = A",
 		"P2/C.go": `package p2; import "test/p"; var _ = p.A`,
+		"P2/D.go": `package p2; const D int = 1`,
 	}
 	integrationTest(t, files, nil, func(ctx context.Context, rootURI lsp.DocumentURI, conn *jsonrpc2.Conn, notifies chan *jsonrpc2.Request) {
 		// Test some hovers using files on disk.
@@ -34,6 +35,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 				"A.go:1:17":    "func A() int",
 				"B.go:1:20":    "func A() int",
 				"P2/C.go:1:40": "func A() int",
+				"P2/D.go:1:19": "const D int = 1",
 			},
 		}
 		lspTests(t, ctx, nil, conn, rootURI, cases)
@@ -53,6 +55,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 				"A.go:1:17":    "func A() int",
 				"B.go:1:20":    "func A() int",
 				"P2/C.go:1:40": "func A() int",
+				"P2/D.go:1:19": "const D int = 1",
 			},
 		}
 		lspTests(t, ctx, nil, conn, rootURI, cases)
@@ -95,6 +98,7 @@ func TestIntegration_FileSystem(t *testing.T) {
 				"A.go:1:28":    "func A(i int)",
 				"B.go:1:20":    "func A(i int)",
 				"P2/C.go:1:40": "func A(i int)",
+				"P2/D.go:1:19": "const D int = 1",
 			},
 		}
 		lspTests(t, ctx, nil, conn, rootURI, cases)
