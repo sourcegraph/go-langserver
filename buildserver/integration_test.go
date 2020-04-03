@@ -22,12 +22,19 @@ import (
 )
 
 func init() {
-	gosrc.RuntimeVersion = "go1.7.1"
+	gosrc.RuntimeVersion = "go1.14"
 }
 
 func TestIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skip long integration test")
+	}
+
+	defaultPinDepReposToRev := map[string]string{
+		"https://github.com/golang/net":    "d3edc9973b7eb1fb302b0ff2c62357091cea9a30",
+		"https://github.com/golang/crypto": "0ec3e9974c59449edd84298612e9f16fa13368e8",
+		"https://github.com/golang/text":   "06d492aade888ab8698aad35476286b7b555c961",
+		"https://github.com/golang/sys":    "c3d80250170dec19bf61949c81233cede5ddaf61",
 	}
 
 	tests := map[lsp.DocumentURI]struct { // map key is rootURI
@@ -52,10 +59,10 @@ func TestIntegration(t *testing.T) {
 				"mux.go:61:38": "type Request struct", // stdlib
 			},
 			wantDefinition: map[string]string{
-				"mux.go:61:38": "git://github.com/golang/go?go1.7.1#src/net/http/request.go:76:6", // stdlib
+				"mux.go:61:38": "git://github.com/golang/go?go1.14#src/net/http/request.go:76:6", // stdlib
 			},
 			wantXDefinition: map[string]string{
-				"mux.go:61:38": "git://github.com/golang/go?go1.7.1#src/net/http/request.go:76:6 id:net/http/-/Request name:Request package:net/http packageName:http recv: vendor:false",
+				"mux.go:61:38": "git://github.com/golang/go?go1.14#src/net/http/request.go:76:6 id:net/http/-/Request name:Request package:net/http packageName:http recv: vendor:false",
 			},
 			wantXDependencies: "gorilla-mux.json",
 			wantXPackages:     []string{"github.com/gorilla/mux"},
@@ -114,8 +121,8 @@ func TestIntegration(t *testing.T) {
 			},
 			wantXDependencies: "gorilla-csrf.json",
 		},
-		"git://github.com/golang/go?f75aafdf56dd90eab75cfeac8cf69358f73ba171": {
-			// SHA is equivalent to go1.7.1 tag, but make sure we
+		"git://github.com/golang/go?20a838ab94178c55bc4dc23ddc332fce8545a493": {
+			// SHA is equivalent to go1.14 tag, but make sure we
 			// retain the original rev spec in definition results.
 			mode: "go",
 			pinDepReposToRev: map[string]string{
@@ -218,6 +225,8 @@ func TestIntegration(t *testing.T) {
 				orig := gobuildserver.NewDepRepoVFS
 				gobuildserver.NewDepRepoVFS = func(ctx context.Context, cloneURL *url.URL, rev string, zipURLTemplate *string) (ctxvfs.FileSystem, error) {
 					if pinRev, ok := test.pinDepReposToRev[cloneURL.String()]; ok {
+						rev = pinRev
+					} else if pinRev, ok = defaultPinDepReposToRev[cloneURL.String()]; ok {
 						rev = pinRev
 					} else if len(rev) != 40 && rev != gosrc.RuntimeVersion {
 						// It's OK to hardcode allowable Git tags
