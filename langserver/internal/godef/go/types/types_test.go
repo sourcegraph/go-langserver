@@ -107,12 +107,12 @@ func checkExprs(t *testing.T, pkg *ast.File, importer Importer, fset *token.File
 		default:
 			return true
 		}
-		defer func() {
+		t.Cleanup(func() {
 			if err := recover(); err != nil {
 				t.Fatalf("panic (%v) on %T", err, e)
 				//t.Fatalf("panic (%v) on %v at %v\n", err, e, FileSet.Position(e.Pos()))
 			}
-		}()
+		})
 		obj, _ := ExprType(e, importer, fset)
 		if obj == nil && mustResolve {
 			t.Errorf("no object for %v(%p, %T) at %v\n", e, e, e, fset.Position(e.Pos()))
@@ -127,9 +127,9 @@ func TestStdLib(t *testing.T) {
 		t.SkipNow()
 	}
 	Panic = false
-	defer func() {
+	t.Cleanup(func() {
 		Panic = true
-	}()
+	})
 	root := os.Getenv("GOROOT") + "/src"
 	cache := make(map[string]*ast.Package)
 	fset := token.NewFileSet()
