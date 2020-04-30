@@ -24,28 +24,20 @@ var (
 	cacheID int64
 
 	typecheckCacheSize = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "golangserver",
-		Subsystem: "typecheck",
-		Name:      "cache_size",
-		Help:      "Number of items in the typecheck cache",
+		Name: "golangserver_typecheck_cache_size",
+		Help: "Number of items in the typecheck cache",
 	})
 	typecheckCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "golangserver",
-		Subsystem: "typecheck",
-		Name:      "cache_request_total",
-		Help:      "Count of requests to cache.",
+		Name: "golangserver_typecheck_cache_request_total",
+		Help: "Count of requests to cache.",
 	}, []string{"type"})
 	symbolCacheSize = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "golangserver",
-		Subsystem: "symbol",
-		Name:      "cache_size",
-		Help:      "Number of items in the symbol cache",
+		Name: "golangserver_symbol_cache_size",
+		Help: "Number of items in the symbol cache",
 	})
 	symbolCacheTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "golangserver",
-		Subsystem: "symbol",
-		Name:      "cache_request_total",
-		Help:      "Count of requests to cache.",
+		Name: "golangserver_symbol_cache_request_total",
+		Help: "Count of requests to cache.",
 	}, []string{"type"})
 )
 

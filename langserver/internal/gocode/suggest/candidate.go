@@ -75,12 +75,12 @@ func classifyObject(obj types.Object) string {
 }
 
 type candidateCollector struct {
-	exact      []types.Object
-	badcase    []types.Object
-	localpkg   *types.Package
-	partial    string
-	filter     objectFilter
-	builtin    bool
+	exact    []types.Object
+	badcase  []types.Object
+	localpkg *types.Package
+	partial  string
+	filter   objectFilter
+	builtin  bool
 }
 
 func (b *candidateCollector) getCandidates() []Candidate {

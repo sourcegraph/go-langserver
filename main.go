@@ -56,10 +56,8 @@ var (
 	lintTool           = flag.String("lint-tool", "none", "which tool is used to linting. Supported: none and golint. Can be overridden by InitializationOptions.")
 
 	openGauge = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "golangserver",
-		Subsystem: "build",
-		Name:      "open_connections",
-		Help:      "Number of open connections to the language server.",
+		Name: "golangserver_build_open_connections",
+		Help: "Number of open connections to the language server.",
 	})
 )
 
