@@ -477,11 +477,11 @@ func integrationTest(
 		notifies <- req
 		return nil, nil
 	}))
-	defer func() {
+	t.Cleanup(func() {
 		if err := conn.Close(); err != nil {
 			t.Fatal("conn.Close:", err)
 		}
-	}()
+	})
 
 	rootURI := util.PathToURI(rootFSPath)
 	params := InitializeParams{

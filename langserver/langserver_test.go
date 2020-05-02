@@ -1233,11 +1233,11 @@ func TestServer(t *testing.T) {
 			addr, done := startServer(t, jsonrpc2.HandlerWithError(h.handle))
 			defer done()
 			conn := dialServer(t, addr)
-			defer func() {
+			t.Cleanup(func() {
 				if err := conn.Close(); err != nil {
 					t.Fatal("conn.Close:", err)
 				}
-			}()
+			})
 
 			rootFSPath := util.UriToPath(test.rootURI)
 
