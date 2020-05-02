@@ -64,10 +64,8 @@ func zipNewFileReader(f *os.File) (*zip.Reader, error) {
 }
 
 var cachedFileEvict = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "golangserver",
-	Subsystem: "vfs",
-	Name:      "cached_file_evict",
-	Help:      "Total number of evictions to cachedFetch archives.",
+	Name: "golangserver_vfs_cached_file_evict",
+	Help: "Total number of evictions to cachedFetch archives.",
 })
 
 func init() {

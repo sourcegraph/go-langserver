@@ -22,16 +22,12 @@ func NewGitHubRepoVFS(ctx context.Context, repo, rev string) (*ArchiveFS, error)
 var githubRepoRx = regexp.MustCompile(`^github\.com/[\w.-]{1,100}/[\w.-]{1,100}$`)
 
 var ghFetch = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "golangserver",
-	Subsystem: "vfs",
-	Name:      "github_fetch_total",
-	Help:      "Total number of fetches by GitHubRepoVFS.",
+	Name: "golangserver_vfs_github_fetch_total",
+	Help: "Total number of fetches by GitHubRepoVFS.",
 })
 var ghFetchFailed = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "golangserver",
-	Subsystem: "vfs",
-	Name:      "github_fetch_failed_total",
-	Help:      "Total number of fetches by GitHubRepoVFS that failed.",
+	Name: "golangserver_vfs_github_fetch_failed_total",
+	Help: "Total number of fetches by GitHubRepoVFS that failed.",
 })
 
 func init() {
