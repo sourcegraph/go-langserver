@@ -104,13 +104,13 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("lint command error: %s", err)
+		return nil, fmt.Errorf("lint command error: %w", err)
 	}
 	defer stdout.Close()
 
 	err = cmd.Start()
 	if err != nil {
-		return nil, fmt.Errorf("lint command error: %s", err)
+		return nil, fmt.Errorf("lint command error: %w", err)
 	}
 
 	diags := diagnostics{}
@@ -142,12 +142,12 @@ func (l golint) Lint(ctx context.Context, bctx *build.Context, args ...string) (
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("could not read lint command output: %s", err)
+		return nil, fmt.Errorf("could not read lint command output: %w", err)
 	}
 
 	cmd.Wait()
 	if err != nil {
-		return nil, fmt.Errorf("lint command error: %s", err)
+		return nil, fmt.Errorf("lint command error: %w", err)
 	}
 
 	if errBuff.Len() > 0 {
