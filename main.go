@@ -1,23 +1,20 @@
 package main // import "github.com/sourcegraph/go-langserver"
 
 import (
+	"bytes"
 	"context"
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"syscall/js"
 	"time"
-
-	"github.com/keegancsmith/tmpfriend"
-	"github.com/pkg/errors"
 
 	"github.com/sourcegraph/go-langserver/debugserver"
 	"github.com/sourcegraph/go-langserver/tracer"
@@ -25,11 +22,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/gorilla/websocket"
 	"github.com/sourcegraph/go-langserver/buildserver"
 	"github.com/sourcegraph/go-langserver/langserver"
 	"github.com/sourcegraph/jsonrpc2"
-	wsjsonrpc2 "github.com/sourcegraph/jsonrpc2/websocket"
 
 	_ "net/http/pprof"
 )
@@ -73,6 +68,8 @@ func init() {
 const version = "v3-dev"
 
 func main() {
+	c := make(chan struct{}, 0)
+
 	flag.Parse()
 	log.SetFlags(0)
 
@@ -102,19 +99,23 @@ func main() {
 		cfg.MaxParallelism = *maxparallelism
 	}
 
-	if err := run(cfg); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+
+	js.Global().Set("wasmGoProcess", js.FuncOf(process));
+
+	run(cfg)
+
+	<-c
+
+	// if err := run(cfg); err != nil {
+	// 	fmt.Fprintln(os.Stderr, err)
+	// 	os.Exit(1)
+	// }
 }
 
 func run(cfg langserver.Config) error {
 	tracer.Init()
 
 	go debugserver.Start()
-
-	cleanup := tmpfriend.SetupOrNOOP()
-	defer cleanup()
 
 	if *useBuildServer {
 		// If go-langserver crashes, all the archives it has cached are not
@@ -125,24 +126,6 @@ func run(cfg langserver.Config) error {
 
 		// PERF: Hide latency of fetching golang/go from the first typecheck
 		go buildserver.FetchCommonDeps()
-	}
-
-	listen := func(addr string) (*net.Listener, error) {
-		listener, err := net.Listen("tcp", addr)
-		if err != nil {
-			log.Fatalf("Could not bind to address %s: %v", addr, err)
-			return nil, err
-		}
-		if os.Getenv("TLS_CERT") != "" && os.Getenv("TLS_KEY") != "" {
-			cert, err := tls.X509KeyPair([]byte(os.Getenv("TLS_CERT")), []byte(os.Getenv("TLS_KEY")))
-			if err != nil {
-				return nil, err
-			}
-			listener = tls.NewListener(listener, &tls.Config{
-				Certificates: []tls.Certificate{cert},
-			})
-		}
-		return &listener, nil
 	}
 
 	if *printVersion {
@@ -177,87 +160,10 @@ func run(cfg langserver.Config) error {
 	}
 
 	switch *mode {
-	case "tcp":
-		lis, err := listen(*addr)
-		if err != nil {
-			return err
-		}
-		defer (*lis).Close()
-
-		log.Println("langserver-go: listening for TCP connections on", *addr)
-
-		connectionCount := 0
-
-		for {
-			conn, err := (*lis).Accept()
-			if err != nil {
-				return err
-			}
-			connectionCount = connectionCount + 1
-			connectionID := connectionCount
-			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
-			openGauge.Inc()
-			handler, closer := newHandler()
-			jsonrpc2Connection := jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(conn, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...)
-			go func() {
-				<-jsonrpc2Connection.DisconnectNotify()
-				err := closer.Close()
-				if err != nil {
-					log.Println(err)
-				}
-				log.Printf("langserver-go: connection #%d closed\n", connectionID)
-				openGauge.Dec()
-			}()
-		}
-
-	case "websocket":
-		mux := http.NewServeMux()
-		upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-
-		connectionCount := 0
-
-		mux.HandleFunc("/", func(w http.ResponseWriter, request *http.Request) {
-			connection, err := upgrader.Upgrade(w, request, nil)
-			if err != nil {
-				log.Println("error upgrading HTTP to WebSocket:", err)
-				http.Error(w, errors.Wrap(err, "could not upgrade to WebSocket").Error(), http.StatusBadRequest)
-				return
-			}
-			defer connection.Close()
-			connectionCount = connectionCount + 1
-			connectionID := connectionCount
-
-			openGauge.Inc()
-			log.Printf("langserver-go: received incoming connection #%d\n", connectionID)
-			handler, closer := newHandler()
-			<-jsonrpc2.NewConn(context.Background(), wsjsonrpc2.NewObjectStream(connection), handler, connOpt...).DisconnectNotify()
-			err = closer.Close()
-			if err != nil {
-				log.Println(err)
-			}
-			log.Printf("langserver-go: connection #%d closed\n", connectionID)
-			openGauge.Dec()
-		})
-
-		l, err := listen(*addr)
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		server := &http.Server{
-			Handler:      mux,
-			ReadTimeout:  75 * time.Second,
-			WriteTimeout: 60 * time.Second,
-		}
-		log.Println("langserver-go: listening for WebSocket connections on", *addr)
-		err = server.Serve(*l)
-		log.Println(errors.Wrap(err, "HTTP server"))
-		return err
-
 	case "stdio":
 		log.Println("langserver-go: reading on stdin, writing on stdout")
 		handler, closer := newHandler()
-		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(stdrwc{}, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...).DisconnectNotify()
+		<-jsonrpc2.NewConn(context.Background(), jsonrpc2.NewBufferedStream(wasmRWC{}, jsonrpc2.VSCodeObjectCodec{}), handler, connOpt...).DisconnectNotify()
 		err := closer.Close()
 		if err != nil {
 			log.Println(err)
@@ -270,22 +176,49 @@ func run(cfg langserver.Config) error {
 	}
 }
 
-type stdrwc struct{}
+// jsHandler:= nil
 
-func (stdrwc) Read(p []byte) (int, error) {
-	return os.Stdin.Read(p)
+// jsHandler:
+// type jsHandlerType func(x string)
+
+// var jsHandler jsHandlerType
+
+// //go:export
+// func onMessage(cb jsHandlerType) {
+// 	jsHandler = cb;
+// }
+
+// jsonRPCData:= nill;
+var jsonRPCReadBuffer bytes.Buffer
+var jsonRPCWriteBuffer bytes.Buffer
+
+//go:export
+func process(this js.Value, args []js.Value) interface {} {
+	jsonRPCReadBuffer.WriteString(args[0].String());
+	log.Println(jsonRPCReadBuffer.String())
+	return nil
 }
 
-func (stdrwc) Write(p []byte) (int, error) {
-	return os.Stdout.Write(p)
+type wasmRWC struct{}
+
+func (wasmRWC) Read(p []byte) (int, error) {
+	log.Println(p, jsonRPCReadBuffer.String())
+	return jsonRPCReadBuffer.Read(p)
 }
 
-func (stdrwc) Close() error {
-	if err := os.Stdin.Close(); err != nil {
-		return err
-	}
-	return os.Stdout.Close()
+func (wasmRWC) Write(p []byte) (int, error) {
+	js.Global().Call("wasmGoHandler", string (p));
+	return jsonRPCWriteBuffer.Write(p)
 }
+
+func (wasmRWC) Close() error {
+	// if err := os.Stdin.Close(); err != nil {
+	// 	return err
+	// }
+	// return os.Stdout.Close()
+	return nil
+}
+
 
 // freeOSMemory should be called in a goroutine, it invokes
 // runtime/debug.FreeOSMemory() more aggressively than the runtime default of

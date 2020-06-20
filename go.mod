@@ -10,7 +10,6 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/keegancsmith/tmpfriend v0.0.0-20180423180255-86e88902a513
 	github.com/lightstep/lightstep-tracer-go v0.20.0
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/neelance/parallel v0.0.0-20160708114440-4de9ce63d14c
