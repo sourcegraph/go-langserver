@@ -68,8 +68,6 @@ func init() {
 const version = "v3-dev"
 
 func main() {
-	c := make(chan struct{}, 0)
-
 	flag.Parse()
 	log.SetFlags(0)
 
@@ -99,17 +97,14 @@ func main() {
 		cfg.MaxParallelism = *maxparallelism
 	}
 
-
 	js.Global().Set("wasmGoProcess", js.FuncOf(process));
 
 	run(cfg)
 
-	<-c
-
-	// if err := run(cfg); err != nil {
-	// 	fmt.Fprintln(os.Stderr, err)
-	// 	os.Exit(1)
-	// }
+	if err := run(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
 func run(cfg langserver.Config) error {
@@ -176,37 +171,33 @@ func run(cfg langserver.Config) error {
 	}
 }
 
-// jsHandler:= nil
-
-// jsHandler:
-// type jsHandlerType func(x string)
-
-// var jsHandler jsHandlerType
-
-// //go:export
-// func onMessage(cb jsHandlerType) {
-// 	jsHandler = cb;
-// }
-
-// jsonRPCData:= nill;
-var jsonRPCReadBuffer bytes.Buffer
 var jsonRPCWriteBuffer bytes.Buffer
 
-//go:export
+var readChannel chan string =  make(chan string);
+
 func process(this js.Value, args []js.Value) interface {} {
-	jsonRPCReadBuffer.WriteString(args[0].String());
-	log.Println(jsonRPCReadBuffer.String())
+	readChannel <- args[0].String();
 	return nil
 }
 
 type wasmRWC struct{}
 
+
 func (wasmRWC) Read(p []byte) (int, error) {
-	log.Println(p, jsonRPCReadBuffer.String())
+	jsonRPCData:= <- readChannel
+
+	var jsonRPCReadBuffer bytes.Buffer
+
+	jsonRPCReadBuffer.WriteString(jsonRPCData);
+	log.Println("readBuffer", jsonRPCData)
+
+	readChannel = make(chan string)
 	return jsonRPCReadBuffer.Read(p)
 }
 
 func (wasmRWC) Write(p []byte) (int, error) {
+	log.Println("writeBuffer", string (p))
+
 	js.Global().Call("wasmGoHandler", string (p));
 	return jsonRPCWriteBuffer.Write(p)
 }

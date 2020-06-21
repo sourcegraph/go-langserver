@@ -24,6 +24,8 @@ require (
 	github.com/sourcegraph/go-lsp v0.0.0-20200117082640-b19bb38222e2
 	github.com/sourcegraph/jsonrpc2 v0.0.0-20191222043438-96c4efab7ee2
 	github.com/sourcegraph/jsonx v0.0.0-20190114210550-ba8cb36a8614
+	github.com/spf13/afero v1.3.0
+	github.com/traherom/memstream v0.0.0-20151017195931-b2247a2040b3
 	github.com/uber/jaeger-client-go v2.22.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
 	go.uber.org/atomic v1.6.0 // indirect

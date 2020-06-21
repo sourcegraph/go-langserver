@@ -5,15 +5,6 @@
     <script src="wasm_exec.js"></script>
     <script>
       if (WebAssembly) {
-        // WebAssembly.instantiateStreaming is not currently available in Safari
-        if (WebAssembly && !WebAssembly.instantiateStreaming) {
-          // polyfill
-          WebAssembly.instantiateStreaming = async (resp, importObject) => {
-            const source = await (await resp).arrayBuffer();
-            return await WebAssembly.instantiate(source, importObject);
-          };
-        }
-
         const go = new Go();
         fetch("golangd.wasm")
           .then((response) => response.arrayBuffer())
@@ -29,7 +20,7 @@
       }
 
       window.wasmGoHandler = function (data) {
-        console.log(data);
+        console.log("write something", data);
       };
     </script>
   </head>
