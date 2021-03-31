@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
@@ -126,7 +125,7 @@ func TestParseFile(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Filename, func(t *testing.T) {
-			cont, err := ioutil.ReadFile(c.Filename)
+			cont, err := os.ReadFile(c.Filename)
 			if err != nil {
 				t.Fatal(err)
 			}

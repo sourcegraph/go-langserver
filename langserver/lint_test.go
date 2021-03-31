@@ -3,7 +3,6 @@ package langserver
 import (
 	"context"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -175,7 +174,7 @@ func TestLinterGolint(t *testing.T) {
 }
 
 func linterTest(t *testing.T, files map[string]string, fn func(ctx context.Context, bctx *build.Context, rootURI lsp.DocumentURI)) {
-	tmpDir, err := ioutil.TempDir("", "langserver-go-linter")
+	tmpDir, err := os.MkdirTemp("", "langserver-go-linter")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +195,7 @@ func linterTest(t *testing.T, files map[string]string, fn func(ctx context.Conte
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)
 		}
-		if err := ioutil.WriteFile(path, []byte(contents), 0600); err != nil {
+		if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}

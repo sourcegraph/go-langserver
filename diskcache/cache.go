@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -201,7 +200,7 @@ func (s *Store) EvictMaxSize(maxCacheSizeBytes int64) (stats EvictStats, err err
 		return strings.HasSuffix(fi.Name(), ".zip")
 	}
 
-	list, err := ioutil.ReadDir(s.Dir)
+	list, err := os.ReadDir(s.Dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return EvictStats{

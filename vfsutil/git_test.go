@@ -1,7 +1,6 @@
 package vfsutil
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -46,7 +45,7 @@ func TestGitRepoVFS_subtree(t *testing.T) {
 func TestGitRepoVFS_cache(t *testing.T) {
 	// We use a different gitArchiveBasePath to ensure it is empty
 	{
-		d, err := ioutil.TempDir("", "vfsutil_test")
+		d, err := os.MkdirTemp("", "vfsutil_test")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,7 +54,7 @@ func TestGitRepoVFS_cache(t *testing.T) {
 		gitArchiveBasePath = d
 	}
 
-	cloneURL, err := ioutil.TempDir("", "vfsutil_test")
+	cloneURL, err := os.MkdirTemp("", "vfsutil_test")
 	if err != nil {
 		t.Fatal(err)
 	}

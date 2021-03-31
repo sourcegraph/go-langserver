@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -1412,7 +1411,7 @@ func lspTests(t testing.TB, ctx context.Context, h *LangHandler, c *jsonrpc2.Con
 		h.config.UseBinaryPkgCache = true
 
 		// Copy the VFS into a temp directory, which will be our $GOPATH.
-		tmpDir, err := ioutil.TempDir("", "godef-definition")
+		tmpDir, err := os.MkdirTemp("", "godef-definition")
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -8,7 +8,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -188,7 +187,7 @@ func (c *Config) findOtherPackageFiles(filename, pkgName string) ([]string, erro
 	}
 
 	dir, file := filepath.Split(filename)
-	dents, err := ioutil.ReadDir(dir)
+	dents, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("could not read dir: %v", err)
 	}

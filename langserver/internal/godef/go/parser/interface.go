@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -53,7 +52,7 @@ func readSource(filename string, src interface{}) ([]byte, error) {
 		}
 	}
 
-	return ioutil.ReadFile(filename)
+	return os.ReadFile(filename)
 }
 
 func (p *parser) parseEOF() error {

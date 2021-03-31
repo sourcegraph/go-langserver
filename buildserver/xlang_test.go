@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -194,7 +193,7 @@ func jsonTest(t testing.TB, gotData interface{}, testName string) {
 		t.Fatal(err)
 	}
 	wantFile := filepath.Join("testdata", "want-"+testName)
-	want, err := ioutil.ReadFile(wantFile)
+	want, err := os.ReadFile(wantFile)
 	if err != nil {
 		t.Fatal(err)
 		return
@@ -202,11 +201,11 @@ func jsonTest(t testing.TB, gotData interface{}, testName string) {
 	if strings.TrimSpace(string(got)) != strings.TrimSpace(string(want)) {
 		if *update {
 			t.Logf("updating %s", wantFile)
-			ioutil.WriteFile(wantFile, got, 0777)
+			os.WriteFile(wantFile, got, 0777)
 			return
 		}
 		gotFile := filepath.Join("testdata", "got-"+testName)
-		ioutil.WriteFile(gotFile, got, 0777)
+		os.WriteFile(gotFile, got, 0777)
 
 		cmd := exec.Command("git", "diff", "--color", "--no-index", wantFile, gotFile)
 		cmd.Dir, err = os.Getwd()

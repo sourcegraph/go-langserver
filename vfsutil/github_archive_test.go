@@ -2,7 +2,6 @@ package vfsutil
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -33,7 +32,7 @@ func TestGitHubRepoVFS(t *testing.T) {
 }
 
 func useEmptyArchiveCacheDir() func() {
-	d, err := ioutil.TempDir("", "vfsutil_test")
+	d, err := os.MkdirTemp("", "vfsutil_test")
 	if err != nil {
 		panic(err)
 	}

@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -173,7 +172,7 @@ func TestStdLib(t *testing.T) {
 func TestCompile(t *testing.T) {
 	return // avoid usually
 	code, _ := translateSymbols(testCode)
-	err := ioutil.WriteFile("/tmp/testcode.go", code, 0666)
+	err := os.WriteFile("/tmp/testcode.go", code, 0666)
 	if err != nil {
 		t.Errorf("write file failed: %v", err)
 	}

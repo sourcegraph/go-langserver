@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -173,7 +172,7 @@ func run(cfg langserver.Config) error {
 			handler := buildserver.NewHandler(cfg)
 			return jsonrpc2.AsyncHandler(jsonrpc2.HandlerWithError(handler.Handle)), handler
 		}
-		return langserver.NewHandler(cfg), ioutil.NopCloser(strings.NewReader(""))
+		return langserver.NewHandler(cfg), io.NopCloser(strings.NewReader(""))
 	}
 
 	switch *mode {

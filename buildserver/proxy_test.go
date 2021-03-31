@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -502,7 +501,7 @@ func yza() {}
 
 				origRemoteFS := gobuildserver.RemoteFS
 				gobuildserver.RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, io.Closer, error) {
-					return mapFS(test.fs), ioutil.NopCloser(strings.NewReader("")), nil
+					return mapFS(test.fs), io.NopCloser(strings.NewReader("")), nil
 				}
 
 				defer func() {

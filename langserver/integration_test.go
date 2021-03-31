@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -434,7 +433,7 @@ func integrationTest(
 	cfg *Config,
 	fn func(context.Context, lsp.DocumentURI, *jsonrpc2.Conn, chan *jsonrpc2.Request),
 ) {
-	tmpDir, err := ioutil.TempDir("", "langserver-go-integration")
+	tmpDir, err := os.MkdirTemp("", "langserver-go-integration")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,7 +455,7 @@ func integrationTest(
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)
 		}
-		if err := ioutil.WriteFile(path, []byte(contents), 0600); err != nil {
+		if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
