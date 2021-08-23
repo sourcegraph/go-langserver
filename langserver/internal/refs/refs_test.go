@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "gopkg.in/inconshreveable/log15.v2"
+	_ "github.com/inconshreveable/log15"
 )
 
 func testConfig(fs *token.FileSet, pkgName string, files []*ast.File) *Config {
