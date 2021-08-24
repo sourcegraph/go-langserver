@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log15 "gopkg.in/inconshreveable/log15.v2"
+	log15 "github.com/inconshreveable/log15"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/sourcegraph/ctxvfs"
