@@ -496,18 +496,18 @@ func yza() {}
 					}
 					return nil, fmt.Errorf("no file system found for dep at %s rev %q", cloneURL, rev)
 				}
-				defer func() {
+				t.Cleanup(func() {
 					gobuildserver.NewDepRepoVFS = orig
-				}()
+				})
 
 				origRemoteFS := gobuildserver.RemoteFS
 				gobuildserver.RemoteFS = func(ctx context.Context, initializeParams lspext.InitializeParams) (ctxvfs.FileSystem, io.Closer, error) {
 					return mapFS(test.fs), ioutil.NopCloser(strings.NewReader("")), nil
 				}
 
-				defer func() {
+				t.Cleanup(func() {
 					gobuildserver.RemoteFS = origRemoteFS
-				}()
+				})
 			}
 
 			ctx := context.Background()

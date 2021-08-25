@@ -239,9 +239,9 @@ func TestIntegration(t *testing.T) {
 					}
 					return orig(ctx, cloneURL, rev, zipURLTemplate)
 				}
-				defer func() {
+				t.Cleanup(func() {
 					gobuildserver.NewDepRepoVFS = orig
-				}()
+				})
 			}
 
 			ctx := context.Background()
