@@ -13,4 +13,4 @@ data based on `go-langserver.rb.template` template file.
 * Copy resulting `go-langserver.rb` to Homebrew tap directory (ensure it has 
 644 permissions) and run `brew audit --strict go-langserver`
 
-Now you can submit PR to homebrew 
+Now you can submit PR to homebrew Hello World
